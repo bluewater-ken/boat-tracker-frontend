@@ -1,0 +1,102 @@
+// Shared flag definitions + renderers, reused across trackers (BRD §8).
+// Icons are inline SVG (no dependencies) so color and size are fully controllable.
+import './flags.css';
+
+function Svg({ children, size = 14, color }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+
+// Warning triangle — Issue / Delay
+const TriangleIcon = (p) => (
+  <Svg {...p}>
+    <path d="M12 3 L22 20 H2 Z" />
+    <line x1="12" y1="10" x2="12" y2="14.5" />
+    <line x1="12" y1="17" x2="12" y2="17.1" />
+  </Svg>
+);
+// Refresh/loop — Required Rework
+const LoopIcon = (p) => (
+  <Svg {...p}>
+    <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+    <polyline points="21 3 21 9 15 9" />
+  </Svg>
+);
+// Flag — Unsatisfactory
+const FlagIcon = (p) => (
+  <Svg {...p}>
+    <line x1="5" y1="21" x2="5" y2="4" />
+    <path d="M5 4 h12 l-3 4 3 4 H5" />
+  </Svg>
+);
+// Clock — Late
+const ClockIcon = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <polyline points="12 7 12 12 16 14" />
+  </Svg>
+);
+// Hourglass — Backordered
+const HourglassIcon = (p) => (
+  <Svg {...p}>
+    <path d="M6 3 h12 l-6 9 z" />
+    <path d="M6 21 h12 l-6 -9 z" />
+  </Svg>
+);
+
+// Standard three flags (Lamination / Production Schedule).
+export const STANDARD_FLAGS = [
+  { key: 'flag_issue', label: 'Issue / Delay', color: '#BA7517', Icon: TriangleIcon },
+  { key: 'flag_rework', label: 'Required Rework', color: '#185FA5', Icon: LoopIcon },
+  { key: 'flag_unsatisfactory', label: 'Unsatisfactory', color: '#A32D2D', Icon: FlagIcon },
+];
+
+// Key Parts has its own three (BRD §6).
+export const KEYPARTS_FLAGS = [
+  { key: 'flag_late', label: 'Late', color: '#A32D2D', Icon: ClockIcon },
+  { key: 'flag_backordered', label: 'Backordered', color: '#BA7517', Icon: HourglassIcon },
+  { key: 'flag_unsatisfactory', label: 'Unsatisfactory', color: '#185FA5', Icon: FlagIcon },
+];
+
+// Bare corner icons (no text) for cells/rows.
+export function FlagIcons({ flags, defs, size = 13 }) {
+  const active = defs.filter((d) => flags && flags[d.key]);
+  if (!active.length) return null;
+  return (
+    <span className="flag-icons">
+      {active.map((d) => (
+        <span key={d.key} className="flag-icon" title={d.label}>
+          <d.Icon size={size} color={d.color} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
+// Labeled toggle controls for the action menu.
+export function FlagToggles({ flags, defs, onToggle }) {
+  return (
+    <div className="flag-toggles">
+      {defs.map((d) => {
+        const on = !!(flags && flags[d.key]);
+        return (
+          <button
+            type="button"
+            key={d.key}
+            className={`flag-toggle ${on ? 'on' : ''}`}
+            style={on ? { borderColor: d.color, color: d.color } : undefined}
+            onClick={() => onToggle(d.key)}
+          >
+            <d.Icon size={15} color={on ? d.color : '#9aa5ad'} />
+            <span>{d.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}

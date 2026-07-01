@@ -24,14 +24,14 @@
   padding: 9px;
   font-size: 13px;
   font-weight: 500;
-  background: #667eea;
+  background: #2E92D6;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   margin-bottom: 12px;
 }
-.kpt-btn-primary:hover { background: #5568d3; }
+.kpt-btn-primary:hover { background: #2680bd; }
 .kpt-boats { flex: 1; overflow-y: auto; }
 .kpt-boat-row {
   padding: 10px 12px;
@@ -40,7 +40,7 @@
   border-radius: 4px;
 }
 .kpt-boat-row:hover { background: #fafafa; }
-.kpt-boat-row.selected { background: #f0f4ff; }
+.kpt-boat-row.selected { background: #f2f8fc; }
 .kpt-boat-id { font-size: 13px; font-weight: 500; color: #333; }
 .kpt-boat-cust { font-size: 11px; color: #888; margin-top: 2px; }
 .kpt-detail {
@@ -70,7 +70,19 @@
   cursor: pointer;
 }
 .kpt-part:hover { background: #f0f0f0; }
+.kpt-part.readonly { cursor: default; }
+.kpt-part.readonly:hover { background: #f9f9f9; }
 .kpt-part-name { font-size: 13px; font-weight: 500; color: #333; }
+.kpt-part-right { display: flex; align-items: center; gap: 8px; }
+.kpt-readonly-note {
+  font-size: 12px;
+  color: #6b7c8c;
+  background: #f2f8fc;
+  border: 1px solid #d4e4f0;
+  border-radius: 6px;
+  padding: 7px 10px;
+  margin-bottom: 14px;
+}
 .kpt-badge {
   padding: 4px 10px;
   border-radius: 12px;
@@ -90,7 +102,7 @@
   padding: 8px 14px;
   font-size: 12px;
   font-weight: 500;
-  background: #667eea;
+  background: #2E92D6;
   color: white;
   border: none;
   border-radius: 4px;
@@ -102,7 +114,7 @@
   padding: 8px 12px;
   font-size: 12px;
   font-weight: 500;
-  background: #667eea;
+  background: #2E92D6;
   color: white;
   border: none;
   border-radius: 4px;
@@ -141,6 +153,7 @@
   cursor: pointer;
   border-bottom: 0.5px solid #eee;
 }
+.kpt-cell.readonly { cursor: default; }
 .kpt-cell-status { font-weight: 500; font-size: 10px; }
 .kpt-cell-date { font-size: 9px; margin-top: 1px; }
 .kpt-legend { display: flex; gap: 18px; font-size: 13px; color: #333; }

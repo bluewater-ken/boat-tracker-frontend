@@ -6,12 +6,28 @@ body {
 }
 .app { min-height: 100vh; display: flex; flex-direction: column; }
 .app-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #173A5E;
   color: white;
-  padding: 24px;
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
-.app-header h1 { font-size: 28px; font-weight: 600; margin-bottom: 4px; }
-.app-header p { font-size: 14px; opacity: 0.9; }
+.app-header h1 { font-size: 24px; font-weight: 600; margin-bottom: 2px; }
+.app-header p { font-size: 13px; opacity: 0.85; }
+.app-header-user { display: flex; align-items: center; gap: 14px; }
+.app-header-name { font-size: 14px; font-weight: 500; opacity: 0.95; }
+.btn-logout {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  background: #2E92D6;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn-logout:hover { background: #2680bd; }
 .tab-navigation {
   display: flex;
   background: white;
@@ -29,6 +45,6 @@ body {
   color: #666;
 }
 .tab-button:hover { background: #f9f9f9; color: #333; }
-.tab-button.active { color: #667eea; border-bottom-color: #667eea; background: #f8f9ff; }
+.tab-button.active { color: #2E92D6; border-bottom-color: #2E92D6; background: #f2f8fc; }
 .app-content { flex: 1; padding: 20px; overflow: auto; }
 .loading { display: flex; align-items: center; justify-content: center; min-height: 400px; font-size: 16px; color: #666; }

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from './api';
 import './ProductionSchedule.css';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const STATUSES = ['Backlog','Pre-Production','Glass Shop','Back Line','Front Line','QC','Delivered'];
 const STATUS_COLORS = {'Backlog':'#E1F5EE','Pre-Production':'#FFF3E0','Glass Shop':'#E3F2FD','Back Line':'#F3E5F5','Front Line':'#FCE4EC','QC':'#E8F5E9','Delivered':'#C8E6C9'};
@@ -19,7 +18,7 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
   const fetchBoats = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/boats`);
+      const res = await apiFetch('/api/boats');
       const data = await res.json();
       setBoats(data);
       if (data.length > 0) { setSelectedBoat(data[0]); fetchHistory(data[0].boat_id); }
@@ -28,7 +27,7 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
   };
 
   const fetchHistory = async (id) => {
-    try { const r = await fetch(`${API_URL}/api/boats/${id}/history`); if (r.ok) setStatusHistory(await r.json()); }
+    try { const r = await apiFetch(`/api/boats/${id}/history`); if (r.ok) setStatusHistory(await r.json()); }
     catch (e) {}
   };
 
@@ -42,7 +41,7 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
     setSelectedBoat(updated[targetIndex]);
     setDraggedIndex(null);
     try {
-      await fetch(`${API_URL}/api/schedule/reorder`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ boats: updated.map(b => ({ boat_id: b.boat_id, sequence_number: b.sequence_number })) }) });
+      await apiFetch('/api/schedule/reorder', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ boats: updated.map(b => ({ boat_id: b.boat_id, sequence_number: b.sequence_number })) }) });
     } catch (e) { alert('Failed to reorder'); }
   };
 
@@ -59,7 +58,7 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
     if (i === -1 || i === STATUSES.length - 1) return;
     const next = STATUSES[i + 1];
     try {
-      await fetch(`${API_URL}/api/schedule/${selectedBoat.boat_id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ global_status: next }) });
+      await apiFetch(`/api/schedule/${selectedBoat.boat_id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ global_status: next }) });
       setBoats(boats.map(b => b.boat_id === selectedBoat.boat_id ? { ...b, global_status: next } : b));
       setSelectedBoat({ ...selectedBoat, global_status: next });
       fetchHistory(selectedBoat.boat_id);

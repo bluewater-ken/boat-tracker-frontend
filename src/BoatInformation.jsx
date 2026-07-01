@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from './api';
 import './BoatInformation.css';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const EMPTY = { boat_id:'', customer_name:'', customer_phone:'', customer_email:'', customer_address:'', boat_model:'', engine_brand_1:'', engine_choice_1:'', engine_brand_2:'', engine_choice_2:'', engine_brand_3:'', engine_choice_3:'', hull_color:'' };
 
@@ -18,7 +17,7 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
   const fetchBoats = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/boats`);
+      const res = await apiFetch('/api/boats');
       const data = await res.json();
       setBoats(data);
       if (data.length > 0 && !selectedBoat) selectBoat(data[data.length - 1]);
@@ -34,10 +33,10 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
     if (!formData.boat_id || !formData.customer_name || !formData.boat_model || !formData.hull_color) { alert('Please fill in all required fields'); return; }
     try {
       if (isNewBoat) {
-        const r = await fetch(`${API_URL}/api/boats`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(formData) });
+        const r = await apiFetch('/api/boats', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(formData) });
         if (!r.ok) throw new Error();
       } else {
-        const r = await fetch(`${API_URL}/api/boats/${formData.boat_id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(formData) });
+        const r = await apiFetch(`/api/boats/${formData.boat_id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(formData) });
         if (!r.ok) throw new Error();
       }
       fetchBoats(); setIsNewBoat(false); onRefresh();

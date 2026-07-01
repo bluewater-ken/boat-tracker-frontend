@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from './api';
 import './KeyPartsTracker.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const NEXT = { 'Not Ordered': 'Ordered', 'Ordered': 'Received', 'Received': 'Not Ordered' };
 const CELL = {
   'Received': { bg: '#E8F5E9', fg: '#1B5E20' },
@@ -27,10 +27,10 @@ function KeyPartsTracker() {
     try {
       setLoading(true);
       const [b, sp, all, cn] = await Promise.all([
-        fetch(`${API_URL}/api/boats`).then(r => r.json()),
-        fetch(`${API_URL}/api/parts/standard`).then(r => r.json()),
-        fetch(`${API_URL}/api/parts`).then(r => r.json()),
-        fetch(`${API_URL}/api/parts/custom-names`).then(r => r.json()),
+        apiFetch('/api/boats').then(r => r.json()),
+        apiFetch('/api/parts/standard').then(r => r.json()),
+        apiFetch('/api/parts').then(r => r.json()),
+        apiFetch('/api/parts/custom-names').then(r => r.json()),
       ]);
       setBoats(b);
       setStandardParts(sp);
@@ -63,7 +63,7 @@ function KeyPartsTracker() {
     };
     setPartData(optimistic);
     try {
-      await fetch(`${API_URL}/api/parts/${boatId}/${encodeURIComponent(partName)}`, {
+      await apiFetch(`/api/parts/${boatId}/${encodeURIComponent(partName)}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: next, is_custom: isCustom }),
       });
@@ -74,7 +74,7 @@ function KeyPartsTracker() {
     const name = newCustom.trim();
     if (!name || !selectedBoat) return;
     setNewCustom('');
-    await fetch(`${API_URL}/api/parts/${selectedBoat.boat_id}/${encodeURIComponent(name)}`, {
+    await apiFetch(`/api/parts/${selectedBoat.boat_id}/${encodeURIComponent(name)}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'Ordered', is_custom: true }),
     });

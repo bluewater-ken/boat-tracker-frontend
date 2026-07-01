@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
+import { useAuth } from './AuthContext';
+import { FlagIcons, FlagToggles, STANDARD_FLAGS } from './flags';
 import './ProductionSchedule.css';
 
 const STATUSES = ['Backlog','Pre-Production','Glass Shop','Back Line','Front Line','QC','Delivered'];
@@ -7,6 +9,8 @@ const STATUS_COLORS = {'Backlog':'#E1F5EE','Pre-Production':'#FFF3E0','Glass Sho
 const STATUS_TEXT = {'Backlog':'#00695C','Pre-Production':'#E65100','Glass Shop':'#01579B','Back Line':'#4A148C','Front Line':'#880E4F','QC':'#1B5E20','Delivered':'#2E7D32'};
 
 function ProductionSchedule({ refreshTrigger, onRefresh }) {
+  const { user } = useAuth();
+  const isOps = user?.role === 'ops';
   const [boats, setBoats] = useState([]);
   const [selectedBoat, setSelectedBoat] = useState(null);
   const [statusHistory, setStatusHistory] = useState([]);
@@ -66,6 +70,28 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
     } catch (e) { alert('Failed to update status'); }
   };
 
+  const stepBackStatus = async () => {
+    const i = STATUSES.indexOf(selectedBoat.global_status);
+    if (i <= 0) return;
+    const prev = STATUSES[i - 1];
+    try {
+      await apiFetch(`/api/schedule/${selectedBoat.boat_id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ global_status: prev }) });
+      setBoats(boats.map(b => b.boat_id === selectedBoat.boat_id ? { ...b, global_status: prev } : b));
+      setSelectedBoat({ ...selectedBoat, global_status: prev });
+      fetchHistory(selectedBoat.boat_id);
+      onRefresh();
+    } catch (e) { alert('Failed to step back status'); }
+  };
+
+  const toggleFlag = async (key) => {
+    const next = !selectedBoat[key];
+    setSelectedBoat({ ...selectedBoat, [key]: next });
+    setBoats(boats.map(b => b.boat_id === selectedBoat.boat_id ? { ...b, [key]: next } : b));
+    try {
+      await apiFetch(`/api/schedule/${selectedBoat.boat_id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ [key]: next }) });
+    } catch (e) { alert('Failed to update flag'); }
+  };
+
   if (loading) return <div className="loading">Loading production schedule...</div>;
 
   return (
@@ -74,7 +100,7 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
         <h2>Production Schedule</h2>
         <div className="boats-list">
           {boats.map((boat, idx) => (
-            <div key={boat.boat_id} draggable
+            <div key={boat.boat_id} draggable={isOps}
               onDragStart={() => setDraggedIndex(idx)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => handleDrop(idx)}
@@ -85,6 +111,7 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
               <div className="boat-info">
                 <div className="boat-id">{boat.boat_id} - {boat.customer_name}</div>
                 <div className="boat-details">{boat.hull_color} {boat.boat_model}</div>
+                <FlagIcons flags={boat} defs={STANDARD_FLAGS} />
               </div>
               <div className="boat-status" style={{ backgroundColor: STATUS_COLORS[boat.global_status], color: STATUS_TEXT[boat.global_status] }}>{boat.global_status}</div>
             </div>
@@ -99,13 +126,22 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
             <div className="detail-group"><label>Model</label><div className="detail-value">{selectedBoat.boat_model}</div></div>
             <div className="detail-group"><label>Engine</label><div className="detail-value">{selectedBoat.engine_brand_1} {selectedBoat.engine_choice_1}</div></div>
             <div className="detail-group"><label>Est. Completion</label><div className="detail-value">{selectedBoat.estimated_completion_date || 'Not set'}</div></div>
-            <div className="button-group">
-              <button onClick={() => moveBoat('up')} className="btn-small">↑ Move Up</button>
-              <button onClick={() => moveBoat('down')} className="btn-small">↓ Move Down</button>
+            {isOps && (
+              <div className="button-group">
+                <button onClick={() => moveBoat('up')} className="btn-small">↑ Move Up</button>
+                <button onClick={() => moveBoat('down')} className="btn-small">↓ Move Down</button>
+              </div>
+            )}
+            <div className="status-actions">
+              <button onClick={stepBackStatus} disabled={STATUSES.indexOf(selectedBoat.global_status) <= 0} className="btn-step-back">‹ Step Back</button>
+              <button onClick={advanceStatus} disabled={selectedBoat.global_status === 'Delivered'} className="btn-advance">
+                {selectedBoat.global_status === 'Delivered' ? 'Complete' : `Advance to ${STATUSES[STATUSES.indexOf(selectedBoat.global_status) + 1]}`}
+              </button>
             </div>
-            <button onClick={advanceStatus} disabled={selectedBoat.global_status === 'Delivered'} className="btn-advance">
-              {selectedBoat.global_status === 'Delivered' ? 'Complete' : `Advance to ${STATUSES[STATUSES.indexOf(selectedBoat.global_status) + 1]}`}
-            </button>
+            <div className="detail-group flags-group">
+              <label>Flags</label>
+              <FlagToggles flags={selectedBoat} defs={STANDARD_FLAGS} onToggle={toggleFlag} />
+            </div>
             <div className="status-history">
               <h3>Status History</h3>
               {statusHistory.map((e, i) => (

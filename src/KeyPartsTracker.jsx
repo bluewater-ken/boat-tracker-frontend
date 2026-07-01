@@ -68,7 +68,6 @@ function KeyPartsTracker() {
   };
 
   const getRow = (boatId, partName) => partData[boatId]?.[partName] || {};
-  const getStatus = (boatId, partName) => getRow(boatId, partName).status || 'Not Ordered';
 
   // Text under/after the status: expected date when Ordered, actual date when Received.
   const dateText = (row) => {

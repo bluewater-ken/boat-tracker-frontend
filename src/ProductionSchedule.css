@@ -31,7 +31,7 @@
   cursor: pointer;
 }
 .boat-row:hover { background: #fafafa; }
-.boat-row.selected { background: #f0f4ff; }
+.boat-row.selected { background: #f2f8fc; }
 .boat-sequence {
   display: flex;
   align-items: center;
@@ -85,20 +85,35 @@
   cursor: pointer;
   color: #333;
 }
-.btn-small:hover { border-color: #667eea; color: #667eea; }
+.btn-small:hover { border-color: #2E92D6; color: #2E92D6; }
+.status-actions { display: flex; gap: 8px; align-items: stretch; margin-top: 4px; }
+.btn-step-back {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  border: 0.5px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #33475b;
+}
+.btn-step-back:hover:not(:disabled) { border-color: #2E92D6; color: #2E92D6; }
+.btn-step-back:disabled { color: #bbb; cursor: not-allowed; }
 .btn-advance {
-  width: 100%;
+  flex: 1;
   padding: 10px;
   font-size: 13px;
   font-weight: 500;
-  background: #667eea;
+  background: #2E92D6;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
 }
-.btn-advance:hover:not(:disabled) { background: #5568d3; }
+.btn-advance:hover:not(:disabled) { background: #2680bd; }
 .btn-advance:disabled { background: #e0e0e0; color: #999; cursor: not-allowed; }
+.flags-group { margin-top: 18px; }
 .status-history { margin-top: 20px; padding-top: 20px; border-top: 0.5px solid #e0e0e0; }
 .status-history h3 { font-size: 13px; font-weight: 500; color: #333; margin-bottom: 12px; }
 .history-entry { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 0.5px solid #e0e0e0; }

@@ -14,7 +14,7 @@
 .kpt-toggle:hover { background: #2680bd; }
 .kpt-toolbar-note { font-size: 12px; color: #8A969E; }
 
-.kpt-scroll { overflow: auto; max-height: 540px; margin-top: 12px; }
+.kpt-scroll { overflow: auto; max-height: calc(100vh - 300px); margin-top: 12px; }
 .kpt-table { border-collapse: separate; border-spacing: 0; font-size: 11px; width: 100%; }
 .kpt-table th {
   position: sticky;
@@ -34,7 +34,7 @@
   z-index: 3;
   color: #fff;
   text-align: left;
-  min-width: 132px;
+  min-width: 190px;
   border-right: 1px solid #C7CDD2;
   font-size: 12px;
 }
@@ -44,21 +44,23 @@
   z-index: 1;
   background: #fff;
   text-align: left;
-  padding: 8px 12px;
+  padding: 5px 12px;
   border-right: 1px solid #C7CDD2;
   border-bottom: 1px solid #E6E9EC;
+  white-space: nowrap;
 }
 .kpt-bid { font-size: 12px; font-weight: 700; color: #1c1c1c; }
-.kpt-bcust { font-size: 11px; color: #5F6B73; }
+.kpt-bmeta { font-size: 11px; color: #5F6B73; }
 .kpt-bhull { font-size: 11px; color: #2E92D6; font-style: italic; }
 
 .kpt-cell {
   position: relative;
-  padding: 7px 4px;
+  padding: 4px 4px;
   text-align: center;
   border-right: 1px solid #E6E9EC;
   border-bottom: 1px solid #E6E9EC;
   cursor: pointer;
+  line-height: 1.15;
 }
 .kpt-cell.readonly { cursor: default; }
 .kpt-flagwrap { position: absolute; top: 2px; right: 3px; }

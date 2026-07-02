@@ -227,9 +227,8 @@ function KeyPartsTracker() {
               {boats.map(boat => (
                 <tr key={boat.boat_id}>
                   <td className="kpt-boatcell">
-                    <div className="kpt-bid">{boat.boat_id}</div>
-                    <div className="kpt-bcust">{boat.customer_name} · {boat.boat_model}</div>
-                    <div className="kpt-bhull">{boat.hull_color}</div>
+                    <div className="kpt-bid">{boat.boat_id} · {boat.customer_name}</div>
+                    <div className="kpt-bmeta">{boat.boat_model} · <span className="kpt-bhull">{boat.hull_color}</span></div>
                   </td>
                   {standardParts.map(p => {
                     const row = getRow(boat.boat_id, p);

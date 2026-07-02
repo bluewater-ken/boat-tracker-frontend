@@ -5,7 +5,9 @@ body {
   background-color: #EEF1F4;
 }
 .app { min-height: 100vh; padding: 16px; }
-.app-shell { max-width: 1100px; margin: 0 auto; }
+/* Fluid: fill the browser width (with a cap on ultra-wide screens) so wide grids
+   like Key Parts can show more columns instead of leaving big side margins. */
+.app-shell { max-width: 2200px; margin: 0 auto; }
 
 .app-header {
   background: #173A5E;

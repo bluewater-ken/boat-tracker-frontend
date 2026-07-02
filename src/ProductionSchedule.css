@@ -31,7 +31,8 @@
 .sched-id { font-size: 14px; font-weight: 700; color: #1c1c1c; }
 .sched-sub { font-size: 11px; color: #5F6B73; }
 .sched-boat .flag-icons { margin-top: 4px; }
-.sched-boat .flag-tags { margin-top: 5px; }
+/* Flags sit inline in the row (not stacked under the boat) so row height is constant. */
+.sched-row > .flag-tags { flex: 0 1 auto; flex-wrap: nowrap; overflow: hidden; }
 
 .sched-pips { flex: 1; display: flex; gap: 3px; align-items: center; }
 .sched-pip { flex: 1; height: 7px; border-radius: 3px; }

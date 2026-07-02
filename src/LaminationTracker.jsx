@@ -31,6 +31,22 @@ const CELL = {
 };
 
 const fmtDate = (d) => { if (!d) return ''; const [, m, day] = d.slice(0, 10).split('-'); return `${+m}/${+day}`; };
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+// Per-task field config: color (mold tasks + Other), free text (Transducer Type + Other),
+// auto start/end dates (everything but Transducer Type).
+const cfg = (task) => ({
+  color: task !== 'Glass Kit' && task !== 'Transducer Type',
+  text: task === 'Transducer Type' || task === 'Other',
+  dates: task !== 'Transducer Type',
+});
+// Auto start/end shown as "start – end".
+const dateLabel = (row) => {
+  const s = row.start_date ? fmtDate(row.start_date) : '';
+  const e = row.end_date ? fmtDate(row.end_date) : '';
+  if (!s && !e) return '';
+  return e ? `${s || '?'}–${e}` : `${s}–`;
+};
 
 // Per-part color default: Hull follows the boat's hull color, Baitwell is Ice Blue, else White.
 const defaultColor = (task, boat) => task === 'Hull' ? (boat?.hull_color || 'White') : task === 'Baitwell' ? 'Ice Blue' : 'White';
@@ -96,7 +112,12 @@ function LaminationTracker() {
     const order = orderFor(task);
     const i = order.indexOf(row.status || firstStatus(task));
     if (i >= order.length - 1) return; // stops at the final status
-    save(boatId, task, { status: order[i + 1] });
+    const patch = { status: order[i + 1] };
+    if (cfg(task).dates) {
+      if (i === 0 && !row.start_date) patch.start_date = todayStr(); // leaving the idle first state
+      if (i + 1 === order.length - 1) patch.end_date = todayStr(); // reaching the final state
+    }
+    save(boatId, task, patch);
   };
   const stepBack = (boatId, task) => {
     const row = getRow(boatId, task);
@@ -104,10 +125,16 @@ function LaminationTracker() {
     const order = orderFor(task);
     const i = order.indexOf(row.status || firstStatus(task));
     if (i <= 0) return;
-    save(boatId, task, { status: order[i - 1] });
+    const patch = { status: order[i - 1] };
+    if (cfg(task).dates) {
+      if (i === order.length - 1) patch.end_date = null; // stepping back off the final state
+      if (i - 1 === 0) patch.start_date = null; // back to the idle first state
+    }
+    save(boatId, task, patch);
   };
   const toggleNA = (boatId, task) => save(boatId, task, { na: !getRow(boatId, task).na });
   const setColor = (boatId, task, val) => save(boatId, task, { color: val || null });
+  const setNotes = (boatId, task, val) => save(boatId, task, { notes: val || null });
   const toggleFlag = (boatId, task, key) => save(boatId, task, { [key]: !getRow(boatId, task)[key] });
 
   const openMenu = (e, boatId, task) => setMenu({ boatId, task, x: e.clientX, y: e.clientY });
@@ -144,12 +171,22 @@ function LaminationTracker() {
       {isOps && (
         <>
           {menuOrder.length > 1 && <MenuBtn label={menuNA ? 'Clear N/A' : 'Set Not Applicable'} onClick={() => toggleNA(menu.boatId, menu.task)} />}
-          <MenuLabel>{menuOrder.length === 1 ? menu.task : 'Color / note'}</MenuLabel>
-          <input className="am-spec-input" list="lam-color-opts" value={menuRow.color || ''} placeholder={menuOrder.length === 1 ? `Type the ${menu.task.toLowerCase()}...` : `Mostly a color (default: ${defaultColor(menu.task, menuBoat)})`} onChange={e => setColor(menu.boatId, menu.task, e.target.value)} />
-          <datalist id="lam-color-opts">{colorList().map(c => <option key={c} value={c} />)}</datalist>
-          <div className="am-spec-hint">{menuOrder.length === 1 ? 'Free text, saved for this task.' : 'Pick a color or type any note (saved for this task).'}</div>
+          {cfg(menu.task).color && (
+            <>
+              <MenuLabel>Color</MenuLabel>
+              <input className="am-spec-input" list="lam-color-opts" value={menuRow.color || ''} placeholder={`Default: ${defaultColor(menu.task, menuBoat)}`} onChange={e => setColor(menu.boatId, menu.task, e.target.value)} />
+              <datalist id="lam-color-opts">{colorList().map(c => <option key={c} value={c} />)}</datalist>
+            </>
+          )}
+          {cfg(menu.task).text && (
+            <>
+              <MenuLabel>{menu.task === 'Transducer Type' ? 'Transducer type' : 'Notes'}</MenuLabel>
+              <input className="am-spec-input" value={menuRow.notes || ''} placeholder={menu.task === 'Transducer Type' ? 'e.g. Airmar B175' : 'Describe this item...'} onChange={e => setNotes(menu.boatId, menu.task, e.target.value)} />
+            </>
+          )}
         </>
       )}
+      {cfg(menu.task).dates && dateLabel(menuRow) && <div className="am-spec-hint">Dates (auto): {dateLabel(menuRow)}</div>}
       <MenuLabel>Flags</MenuLabel>
       {STANDARD_FLAGS.map(f => (
         <MenuToggle key={f.key} label={f.label} color={f.color} active={!!menuRow[f.key]} onClick={() => toggleFlag(menu.boatId, menu.task, f.key)} />
@@ -160,9 +197,10 @@ function LaminationTracker() {
   const cellContent = (row, task, boat) => {
     const st = statusOf(row, task);
     const c = CELL[st] || CELL['Mold Unavailable'];
-    const showDate = !row.na && st !== firstStatus(task) && row.status_date;
-    const col = shownColor(row, task, boat);
-    return { st, c, showDate: showDate ? fmtDate(row.status_date) : '', col };
+    const dates = !row.na && cfg(task).dates ? dateLabel(row) : '';
+    const col = cfg(task).color ? shownColor(row, task, boat) : '';
+    const notes = cfg(task).text ? (row.notes || '') : '';
+    return { st, c, dates, col, notes };
   };
 
   if (view === 'table') {
@@ -189,13 +227,14 @@ function LaminationTracker() {
                   </td>
                   {LAM_TASKS.map(t => {
                     const row = getRow(boat.boat_id, t);
-                    const { st, c, showDate, col } = cellContent(row, t, boat);
+                    const { st, c, dates, col, notes } = cellContent(row, t, boat);
                     return (
                       <td key={t} className="lam-cell" style={{ background: c.bg, color: c.fg }} onClick={(e) => openMenu(e, boat.boat_id, t)}>
                         <span className="lam-flagwrap"><FlagIcons flags={row} defs={STANDARD_FLAGS} size={11} /></span>
                         <div className="lam-cellstatus">{st}</div>
-                        {showDate && <div className="lam-celldate">{showDate}</div>}
+                        {dates && <div className="lam-celldate">{dates}</div>}
                         {col && <div className="lam-cellcolor">{col}</div>}
+                        {notes && <div className="lam-cellcolor">{notes}</div>}
                       </td>
                     );
                   })}
@@ -231,16 +270,17 @@ function LaminationTracker() {
             <h3>Lamination Tasks ({LAM_TASKS.length})</h3>
             {LAM_TASKS.map(t => {
               const row = getRow(selectedBoat.boat_id, t);
-              const { st, c, showDate, col } = cellContent(row, t, selectedBoat);
+              const { st, c, dates, col, notes } = cellContent(row, t, selectedBoat);
+              const detail = [col, notes].filter(Boolean).join(' · ');
               return (
                 <div key={t} className="lam-part" onClick={(e) => openMenu(e, selectedBoat.boat_id, t)}>
                   <span className="lam-part-main">
                     <span className="lam-part-name">{t}</span>
-                    {col && <span className="lam-part-color">{col}</span>}
+                    {detail && <span className="lam-part-color">{detail}</span>}
                   </span>
                   <span className="lam-part-right">
                     <FlagIcons flags={row} defs={STANDARD_FLAGS} size={14} />
-                    <span className="lam-badge" style={{ background: c.bg, color: c.fg }}>{st}{showDate ? ` • ${showDate}` : ''}</span>
+                    <span className="lam-badge" style={{ background: c.bg, color: c.fg }}>{st}{dates ? ` • ${dates}` : ''}</span>
                   </span>
                 </div>
               );

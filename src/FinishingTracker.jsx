@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { GRADES } from './flags';
 import { colorOptions } from './colors';
+import { applyDeliveredFilter, ShowDeliveredToggle } from './boatFilter';
 import './FinishingTracker.css';
 
 // BRD §9 — post-lamination finishing. 10 tasks, 4-status line that STOPS at Complete, plus N/A.
@@ -38,6 +39,7 @@ function FinishingTracker() {
   const [view, setView] = useState('table'); // table | boat
   const [selectedBoat, setSelectedBoat] = useState(null);
   const [search, setSearch] = useState('');
+  const [showDelivered, setShowDelivered] = useState(false);
   const [loading, setLoading] = useState(true);
   const [menu, setMenu] = useState(null); // { boatId, task, x, y }
 
@@ -108,7 +110,8 @@ function FinishingTracker() {
     return Array.from(set).sort((a, b) => a === 'White' ? -1 : b === 'White' ? 1 : a.localeCompare(b));
   };
 
-  const filteredBoats = boats.filter(b =>
+  const { visible, delivered } = applyDeliveredFilter(boats, showDelivered);
+  const filteredBoats = visible.filter(b =>
     b.boat_id?.toLowerCase().includes(search.toLowerCase()) ||
     b.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
     b.boat_model?.toLowerCase().includes(search.toLowerCase()));
@@ -164,6 +167,7 @@ function FinishingTracker() {
         <div className="fin-toolbar">
           <button className="fin-toggle" onClick={() => setView('boat')}>Boat view</button>
           <span className="fin-toolbar-note">Tap a cell to advance, step back, grade, or flag ASAP.</span>
+          <span style={{ marginLeft: 'auto' }}><ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} /></span>
         </div>
         <div className="fin-scroll">
           <table className="fin-table">
@@ -174,7 +178,7 @@ function FinishingTracker() {
               </tr>
             </thead>
             <tbody>
-              {boats.map(boat => (
+              {visible.map(boat => (
                 <tr key={boat.boat_id}>
                   <td className="fin-boatcell">
                     <div className="fin-bid">{boat.boat_id} · {boat.customer_name}</div>

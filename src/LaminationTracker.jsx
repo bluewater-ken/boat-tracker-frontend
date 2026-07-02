@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { FlagIcons, STANDARD_FLAGS } from './flags';
 import { colorOptions } from './colors';
+import { applyDeliveredFilter, ShowDeliveredToggle } from './boatFilter';
 import './LaminationTracker.css';
 
 // BRD §7 — 13 tasks, 5-status mold cycle that STOPS at Pulled, plus an N/A state.
@@ -65,6 +66,7 @@ function LaminationTracker() {
   const [view, setView] = useState('table'); // table | boat
   const [selectedBoat, setSelectedBoat] = useState(null);
   const [search, setSearch] = useState('');
+  const [showDelivered, setShowDelivered] = useState(false);
   const [loading, setLoading] = useState(true);
   const [menu, setMenu] = useState(null); // { boatId, task, x, y }
 
@@ -146,7 +148,8 @@ function LaminationTracker() {
     return Array.from(set).sort((a, b) => a === 'White' ? -1 : b === 'White' ? 1 : a.localeCompare(b));
   };
 
-  const filteredBoats = boats.filter(b =>
+  const { visible, delivered } = applyDeliveredFilter(boats, showDelivered);
+  const filteredBoats = visible.filter(b =>
     b.boat_id?.toLowerCase().includes(search.toLowerCase()) ||
     b.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
     b.boat_model?.toLowerCase().includes(search.toLowerCase()));
@@ -209,6 +212,7 @@ function LaminationTracker() {
         <div className="lam-toolbar">
           <button className="lam-toggle" onClick={() => setView('boat')}>Boat view</button>
           <span className="lam-toolbar-note">{isOps ? 'Tap a cell to update.' : 'Tap a cell to advance, step back, or flag.'}</span>
+          <span style={{ marginLeft: 'auto' }}><ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} /></span>
         </div>
         <div className="lam-scroll">
           <table className="lam-table">
@@ -219,7 +223,7 @@ function LaminationTracker() {
               </tr>
             </thead>
             <tbody>
-              {boats.map(boat => (
+              {visible.map(boat => (
                 <tr key={boat.boat_id}>
                   <td className="lam-boatcell">
                     <div className="lam-bid">{boat.boat_id} · {boat.customer_name}</div>

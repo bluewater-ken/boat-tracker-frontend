@@ -76,8 +76,11 @@ function AssemblyTracker() {
   const menuBoat = menu ? boats.find(b => b.boat_id === menu.boatId) : null;
   const menuWc = menu ? workCenters.find(w => w.id === menu.wcId) : null;
   const menuRow = menu ? getRow(menu.boatId, menu.wcId) : null;
-  const menuRemaining = (menuRow?.remaining || []).slice(0, 5);
-  const menuNearDone = menuRow?.total_items > 0 && menuRow.completed_items / menuRow.total_items >= 0.75;
+  // Show what's left whenever a cell is tapped (the BRD's 75% gate made sense for a
+  // dashboard, not an on-demand popup). Cap the list; the rest lives in CompanyCam.
+  const allRemaining = menuRow?.remaining || [];
+  const menuRemaining = allRemaining.slice(0, 8);
+  const moreCount = allRemaining.length - menuRemaining.length;
 
   return (
     <div className="asm-wrap">
@@ -139,12 +142,13 @@ function AssemblyTracker() {
       {menu && menuBoat && menuWc && menuRow && (
         <ActionMenu anchor={{ x: menu.x, y: menu.y }} title={menuWc.name} subtitle={`${menuBoat.boat_id} · ${menuBoat.customer_name}`} onClose={() => setMenu(null)}>
           <div className="asm-menu-count">{menuRow.completed_items} / {menuRow.total_items} items complete</div>
-          {menuNearDone && menuRemaining.length > 0 && (
+          {menuRemaining.length > 0 && (
             <>
               <MenuLabel>Remaining</MenuLabel>
               <ul className="asm-remaining">
                 {menuRemaining.map((t, i) => <li key={i}>{t}</li>)}
               </ul>
+              {moreCount > 0 && <div className="asm-more">+ {moreCount} more in CompanyCam</div>}
             </>
           )}
           {menuRow.cc_url && (

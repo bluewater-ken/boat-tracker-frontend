@@ -39,3 +39,4 @@
 .asm-remaining { margin: 0 0 6px; padding-left: 18px; font-size: 12px; color: #33424C; line-height: 1.6; }
 .asm-cc-link { display: inline-block; font-size: 12px; font-weight: 600; color: #2E92D6; text-decoration: none; margin: 4px 0; }
 .asm-cc-link:hover { text-decoration: underline; }
+.asm-more { font-size: 11px; color: #8A969E; margin: -2px 0 6px 2px; }

@@ -181,8 +181,8 @@ function KeyPartsTracker() {
 
   const actionMenu = menu && (
     <ActionMenu anchor={{ x: menu.x, y: menu.y }} title={menu.partName} subtitle={`${menu.boatId}${menuBoat ? ' · ' + menuBoat.customer_name : ''}`} onClose={() => setMenu(null)}>
-      <MenuBtn label="Advance ›" primary disabled={menuIdx >= STATUSES.length - 1} onClick={() => advance(menu.boatId, menu.partName, menu.isCustom)} />
-      <MenuBtn label="‹ Step back" disabled={menuIdx <= 0} onClick={() => stepBack(menu.boatId, menu.partName, menu.isCustom)} />
+      <MenuBtn label={menuIdx >= STATUSES.length - 1 ? 'Received' : `Advance to ${STATUSES[menuIdx + 1]} ›`} primary disabled={menuIdx >= STATUSES.length - 1} onClick={() => advance(menu.boatId, menu.partName, menu.isCustom)} />
+      <MenuBtn label={menuIdx <= 0 ? '‹ Step back' : `‹ Back to ${STATUSES[menuIdx - 1]}`} disabled={menuIdx <= 0} onClick={() => stepBack(menu.boatId, menu.partName, menu.isCustom)} />
       <MenuLabel>Description / spec</MenuLabel>
       <input className="am-spec-input" list={`spec-opts-${menu.partName}`} value={menuRow.description || ''} placeholder="e.g. Triple Suzuki 350" onChange={e => setDescription(menu.boatId, menu.partName, menu.isCustom, e.target.value)} />
       <datalist id={`spec-opts-${menu.partName}`}>

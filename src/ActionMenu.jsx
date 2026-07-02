@@ -2,28 +2,48 @@
 // popover anchored at the click point. Closes on outside click or Esc.
 // Exposes MenuBtn / MenuLabel / MenuToggle / MenuNote building blocks so each
 // tracker composes its own controls.
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './ActionMenu.css';
 
 const NAVY = '#173A5E';
 const SPLASH = '#2E92D6';
 
 function ActionMenu({ anchor, title, subtitle, onClose, children }) {
+  const ref = useRef(null);
+  // Position is set after measuring the popup so it always fits on screen
+  // (nudges up/left when near an edge instead of clipping). Hidden until measured.
+  const [pos, setPos] = useState({ left: 0, top: 0, ready: false });
+
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const vw = typeof window !== 'undefined' ? window.innerWidth : 1000;
-  const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
-  const left = Math.max(8, Math.min(anchor?.x ?? vw / 2, vw - 240));
-  const top = Math.max(8, Math.min(anchor?.y ?? vh / 2, vh - 360));
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const place = () => {
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const left = Math.max(8, Math.min(anchor?.x ?? vw / 2, vw - w - 8));
+      const top = Math.max(8, Math.min(anchor?.y ?? vh / 2, vh - h - 8));
+      setPos((p) => (p.ready && p.left === left && p.top === top) ? p : { left, top, ready: true });
+    };
+    place();
+    // Reposition if the menu's height changes (e.g. status change reveals date fields).
+    const ro = new ResizeObserver(place);
+    ro.observe(el);
+    window.addEventListener('resize', place);
+    return () => { ro.disconnect(); window.removeEventListener('resize', place); };
+  }, [anchor?.x, anchor?.y]);
 
   return (
     <>
       <div className="am-overlay" onClick={onClose} />
-      <div className="am-pop" style={{ left, top }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div ref={ref} className="am-pop" style={{ left: pos.left, top: pos.top, visibility: pos.ready ? 'visible' : 'hidden' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="am-pop-head">
           <span className="am-pop-title" style={{ color: NAVY }}>{title}</span>
           <span className="am-pop-close" onClick={onClose} aria-label="Close">×</span>

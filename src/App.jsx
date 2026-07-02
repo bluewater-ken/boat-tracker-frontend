@@ -3,6 +3,7 @@ import ProductionSchedule from './ProductionSchedule';
 import BoatInformation from './BoatInformation';
 import KeyPartsTracker from './KeyPartsTracker';
 import LaminationTracker from './LaminationTracker';
+import FinishingTracker from './FinishingTracker';
 import UsersAdmin from './UsersAdmin';
 import Login from './Login';
 import Logo from './Logo';
@@ -14,6 +15,7 @@ const BASE_TABS = [
   { key: 'boats', label: 'Boat Information' },
   { key: 'parts', label: 'Key Parts' },
   { key: 'lamination', label: 'Lamination' },
+  { key: 'finishing', label: 'Finishing' },
 ];
 
 function App() {
@@ -53,6 +55,7 @@ function App() {
           {activeTab === 'boats' && <BoatInformation refreshTrigger={refreshTrigger} onRefresh={handleRefresh} />}
           {activeTab === 'parts' && <KeyPartsTracker />}
           {activeTab === 'lamination' && <LaminationTracker />}
+          {activeTab === 'finishing' && <FinishingTracker />}
           {activeTab === 'users' && isOps && <UsersAdmin />}
         </main>
       </div>

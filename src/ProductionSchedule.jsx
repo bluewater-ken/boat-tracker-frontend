@@ -108,9 +108,11 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
                 <div className="sched-id">{boat.boat_id}</div>
                 <div className="sched-sub">{boat.customer_name} · {boat.boat_model} · {boat.hull_color}</div>
               </div>
-              <FlagTags flags={boat} defs={SCHEDULE_FLAGS} />
-              <div className="sched-pips">
-                {STATUSES.map((s, i) => <span key={s} className="sched-pip" title={s} style={{ background: i <= stageIdx ? st.tv : '#E6E9EC' }} />)}
+              <div className="sched-pipswrap">
+                <div className="sched-pips">
+                  {STATUSES.map((s, i) => <span key={s} className="sched-pip" title={s} style={{ background: i <= stageIdx ? st.tv : '#E6E9EC' }} />)}
+                </div>
+                <FlagTags flags={boat} defs={SCHEDULE_FLAGS} />
               </div>
               <div className="sched-stat">
                 <span className="sched-pill" style={{ background: st.bg, color: st.fg }}>{boat.global_status}</span>

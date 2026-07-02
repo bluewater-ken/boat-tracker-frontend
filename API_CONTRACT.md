@@ -55,6 +55,26 @@ existing `requireRole('ops')` on the `PUT` route.
 ### History (for future reporting — not consumed by the frontend yet)
 Store timestamped events for status changes, expected/actual date edits, and every flag raise/clear.
 
+### Part spec / description (NEW — for the spec feature)
+Add a free-text spec field per part and remember values per part name so they can be re-picked.
+
+- **New column** `description` (text | null) on the part row.
+  - `GET /api/parts` returns it on every row.
+  - `PUT /api/parts/:boatId/:partName` accepts `"description": "Triple Suzuki 350"` (or `null` to clear)
+    as part of the existing partial body. Ops-only, same as other edits.
+- **Remembered options per part name.** The frontend offers a pick-list of previously-used specs
+  *scoped to the part name* (Motors' list is separate from Gelcoat's), plus free typing of a new value.
+  Provide the historical values one of two equivalent ways:
+  - `GET /api/parts/spec-options` → `{ "Motors": ["Triple Suzuki 350", ...], "Gelcoat": ["Ice Blue", ...] }`
+    (map of part_name → distinct non-null `description` values ever saved), **or**
+  - fold it into existing loads — as long as saved descriptions come back on `GET /api/parts`, the
+    frontend also derives the options from those rows. The dedicated endpoint is preferred so options
+    persist even for boats not currently loaded.
+  No separate "save option" call is needed — a new value persists simply by being saved on a part.
+- **Persist new custom-part names.** `GET /api/parts/custom-names` must include the name of any
+  `is_custom` part ever created, so a custom part added on one boat is suggested on others. (Today the
+  frontend also merges a dummy seed list; that seed is removed once real names flow.)
+
 ---
 
 ## 2. Production Schedule

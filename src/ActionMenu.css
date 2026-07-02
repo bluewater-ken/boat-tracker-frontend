@@ -69,3 +69,15 @@
   cursor: pointer;
 }
 .am-status-btn.active { border-color: #2E92D6; background: #EAF3FB; color: #173A5E; font-weight: 700; }
+
+.am-spec-input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+  border: 1px solid #D6DBE0;
+  border-radius: 7px;
+  outline: none;
+  box-sizing: border-box;
+}
+.am-spec-input:focus { border-color: #2E92D6; box-shadow: 0 0 0 3px rgba(46, 146, 214, 0.18); }
+.am-spec-hint { font-size: 10px; color: #A9B4BC; margin-top: 4px; line-height: 1.4; }

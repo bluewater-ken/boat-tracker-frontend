@@ -1,16 +1,16 @@
-// Bluewater wordmark. CSS stand-in matching the brand logo (two skewed steel
-// bars + italic "BLUEWATER"). TODO: swap for the real PNG once it's in
-// src/assets — replace the inner markup with <img src={logoWhite} .../>.
-// `light` = white text for navy backgrounds; otherwise navy text for white ones.
+import logoWhite from './assets/bluewater-white.png';
+import logoNavy from './assets/bluewater-navy.png';
+
+// The real Bluewater wordmark. `light` = the white version for dark/navy
+// backgrounds (e.g. the header bar); otherwise the navy version for light
+// surfaces (e.g. the white login card).
 function Logo({ size = 19, light = true }) {
-  const barH = size * 1.1;
-  const bar = { display: 'inline-block', width: size * 0.25, height: barH, background: '#A9C3D4', transform: 'skewX(-12deg)' };
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-      <span style={bar} />
-      <span style={bar} />
-      <span style={{ fontSize: size, fontWeight: 800, fontStyle: 'italic', color: light ? '#fff' : '#173A5E', letterSpacing: 0.5, marginLeft: 4, fontFamily: 'Arial, sans-serif' }}>BLUEWATER</span>
-    </span>
+    <img
+      src={light ? logoWhite : logoNavy}
+      alt="Bluewater"
+      style={{ height: Math.round(size * 1.35), width: 'auto', display: 'block' }}
+    />
   );
 }
 

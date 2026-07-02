@@ -21,10 +21,8 @@
 }
 
 .login-logo {
-  font-size: 26px;
-  font-weight: 700;
-  color: #173A5E;
-  text-align: center;
+  display: flex;
+  justify-content: center;
 }
 
 .login-subtitle {

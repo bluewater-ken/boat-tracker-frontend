@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
+import Logo from './Logo';
 import './Login.css';
 
 function Login() {
@@ -26,8 +27,7 @@ function Login() {
   return (
     <div className="login-screen">
       <form className="login-card" onSubmit={handleSubmit}>
-        {/* TODO: replace with the white Bluewater logo PNG in src/assets when Ken provides it. */}
-        <div className="login-logo">Bluewater Sportfish</div>
+        <div className="login-logo"><Logo size={30} light={false} /></div>
         <div className="login-subtitle">Production Tracker</div>
 
         <label className="login-field">

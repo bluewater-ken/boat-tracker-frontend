@@ -49,6 +49,39 @@ const HourglassIcon = (p) => (
   </Svg>
 );
 
+// Face icons for the Finishing part grade (how the part arrived from lamination).
+const HappyIcon = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <line x1="9" y1="10" x2="9" y2="10.1" />
+    <line x1="15" y1="10" x2="15" y2="10.1" />
+    <path d="M8 14.5 a4 4 0 0 0 8 0" />
+  </Svg>
+);
+const NeutralIcon = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <line x1="9" y1="10" x2="9" y2="10.1" />
+    <line x1="15" y1="10" x2="15" y2="10.1" />
+    <line x1="8.5" y1="15" x2="15.5" y2="15" />
+  </Svg>
+);
+const SadIcon = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <line x1="9" y1="10" x2="9" y2="10.1" />
+    <line x1="15" y1="10" x2="15" y2="10.1" />
+    <path d="M8 16 a4 4 0 0 1 8 0" />
+  </Svg>
+);
+
+// Finishing part grade — pick ONE (BRD §9). Not booleans like the other flag sets.
+export const GRADES = [
+  { key: 'good', label: 'Good', color: '#3B6D11', Icon: HappyIcon },
+  { key: 'bad', label: 'Bad', color: '#BA7517', Icon: NeutralIcon },
+  { key: 'ugly', label: 'Ugly', color: '#A32D2D', Icon: SadIcon },
+];
+
 // Standard three flags (Lamination / Production Schedule).
 export const STANDARD_FLAGS = [
   { key: 'flag_issue', label: 'Issue / Delay', color: '#BA7517', Icon: TriangleIcon },

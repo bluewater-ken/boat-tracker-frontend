@@ -1,126 +1,69 @@
-.production-schedule {
-  display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 20px;
-  height: calc(100vh - 180px);
-}
-.schedule-list {
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
+.sched { padding: 16px; }
+.sched-intro { font-size: 12px; color: #5F6B73; margin-bottom: 12px; line-height: 1.5; }
+.sched-list { display: flex; flex-direction: column; gap: 8px; }
+
+.sched-row {
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.schedule-list h2 {
-  padding: 16px;
-  font-size: 16px;
-  font-weight: 500;
-  border-bottom: 1px solid #e0e0e0;
-  background: #f9f9f9;
-  color: #333;
-}
-.boats-list { flex: 1; overflow-y: auto; }
-.boat-row {
-  display: grid;
-  grid-template-columns: 40px 1fr 120px;
-  gap: 12px;
   align-items: center;
-  padding: 12px 16px;
-  border-bottom: 0.5px solid #e0e0e0;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid #E2E6EA;
+  border-radius: 10px;
+  padding: 10px 12px;
   cursor: pointer;
 }
-.boat-row:hover { background: #fafafa; }
-.boat-row.selected { background: #f2f8fc; }
-.boat-sequence {
+.sched-row:hover { border-color: #C7D2DB; }
+
+.sched-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #173A5E;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 500;
-}
-.boat-id { font-size: 13px; font-weight: 500; color: #333; margin-bottom: 4px; }
-.boat-details { font-size: 12px; color: #666; }
-.boat-status {
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  text-align: center;
-  white-space: nowrap;
-}
-.boat-details-panel {
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-.boat-details-panel h2 { font-size: 16px; font-weight: 500; color: #333; margin-bottom: 20px; }
-.detail-group { margin-bottom: 16px; }
-.detail-group label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 6px;
-}
-.detail-value { font-size: 13px; color: #333; }
-.button-group { display: flex; gap: 8px; margin: 16px 0; }
-.btn-small {
-  flex: 1;
-  padding: 8px;
-  font-size: 12px;
-  font-weight: 500;
-  background: transparent;
-  border: 0.5px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  color: #333;
-}
-.btn-small:hover { border-color: #2E92D6; color: #2E92D6; }
-.status-actions { display: flex; gap: 8px; align-items: stretch; margin-top: 4px; }
-.btn-step-back {
   flex: 0 0 auto;
-  padding: 10px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  background: transparent;
-  border: 0.5px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  color: #33475b;
 }
-.btn-step-back:hover:not(:disabled) { border-color: #2E92D6; color: #2E92D6; }
-.btn-step-back:disabled { color: #bbb; cursor: not-allowed; }
-.btn-advance {
-  flex: 1;
-  padding: 10px;
-  font-size: 13px;
-  font-weight: 500;
-  background: #2E92D6;
-  color: white;
+.sched-boat { flex: 0 0 165px; }
+.sched-id { font-size: 14px; font-weight: 700; color: #1c1c1c; }
+.sched-sub { font-size: 11px; color: #5F6B73; }
+.sched-boat .flag-icons { margin-top: 4px; }
+
+.sched-pips { flex: 1; display: flex; gap: 3px; align-items: center; }
+.sched-pip { flex: 1; height: 7px; border-radius: 3px; }
+
+.sched-stat { flex: 0 0 150px; text-align: center; }
+.sched-pill { display: inline-block; font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 14px; }
+
+.sched-acts { display: flex; gap: 6px; flex: 0 0 auto; }
+.sched-back {
+  padding: 7px 10px;
+  font-size: 12px;
+  border-radius: 7px;
+  border: 1px solid #D6DBE0;
+  background: #fff;
+  cursor: pointer;
+  color: #33424C;
+}
+.sched-back:disabled { opacity: 0.4; cursor: default; }
+.sched-adv {
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 7px;
   border: none;
-  border-radius: 4px;
+  background: #2E92D6;
+  color: #fff;
   cursor: pointer;
 }
-.btn-advance:hover:not(:disabled) { background: #2680bd; }
-.btn-advance:disabled { background: #e0e0e0; color: #999; cursor: not-allowed; }
-.flags-group { margin-top: 18px; }
-.status-history { margin-top: 20px; padding-top: 20px; border-top: 0.5px solid #e0e0e0; }
-.status-history h3 { font-size: 13px; font-weight: 500; color: #333; margin-bottom: 12px; }
-.history-entry { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 0.5px solid #e0e0e0; }
-.history-status { font-size: 13px; font-weight: 500; color: #333; margin-bottom: 4px; }
-.history-date { font-size: 12px; color: #999; }
-.loading { display: flex; align-items: center; justify-content: center; min-height: 400px; font-size: 16px; color: #666; }
-@media (max-width: 1024px) {
-  .production-schedule { grid-template-columns: 1fr; height: auto; }
-  .boat-details-panel { order: -1; }
+.sched-adv:disabled { opacity: 0.4; cursor: default; }
+
+.loading { display: flex; align-items: center; justify-content: center; min-height: 400px; font-size: 16px; color: #5F6B73; }
+
+@media (max-width: 760px) {
+  .sched-pips { display: none; }
+  .sched-boat { flex: 1; }
 }

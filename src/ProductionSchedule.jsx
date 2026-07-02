@@ -1,17 +1,29 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
+import { useAuth } from './AuthContext';
+import { FlagIcons, STANDARD_FLAGS } from './flags';
+import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import './ProductionSchedule.css';
 
-const STATUSES = ['Backlog','Pre-Production','Glass Shop','Back Line','Front Line','QC','Delivered'];
-const STATUS_COLORS = {'Backlog':'#E1F5EE','Pre-Production':'#FFF3E0','Glass Shop':'#E3F2FD','Back Line':'#F3E5F5','Front Line':'#FCE4EC','QC':'#E8F5E9','Delivered':'#C8E6C9'};
-const STATUS_TEXT = {'Backlog':'#00695C','Pre-Production':'#E65100','Glass Shop':'#01579B','Back Line':'#4A148C','Front Line':'#880E4F','QC':'#1B5E20','Delivered':'#2E7D32'};
+const STATUSES = ['Backlog', 'Pre-Production', 'Glass Shop', 'Back Line', 'Front Line', 'QC', 'Delivered'];
+// Status palette matches BluewaterDemo.jsx: bg/fg for the pill, tv for filled pips.
+const SCHED = {
+  'Backlog': { bg: '#EEF0F2', fg: '#5F6B73', tv: '#7E8B93' },
+  'Pre-Production': { bg: '#E5EDF3', fg: '#33617F', tv: '#5C7A92' },
+  'Glass Shop': { bg: '#FCEBEB', fg: '#A32D2D', tv: '#D8443F' },
+  'Back Line': { bg: '#FAEEDA', fg: '#854F0B', tv: '#E89A2B' },
+  'Front Line': { bg: '#FBF3D6', fg: '#7A6310', tv: '#D6B33A' },
+  'QC': { bg: '#E6F0F5', fg: '#1E5E7E', tv: '#3A8BB0' },
+  'Delivered': { bg: '#EAF3DE', fg: '#3B6D11', tv: '#5C9A2E' },
+};
 
 function ProductionSchedule({ refreshTrigger, onRefresh }) {
+  const { user } = useAuth();
+  const isOps = user?.role === 'ops';
   const [boats, setBoats] = useState([]);
-  const [selectedBoat, setSelectedBoat] = useState(null);
-  const [statusHistory, setStatusHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draggedIndex, setDraggedIndex] = useState(null);
+  const [menu, setMenu] = useState(null); // { boatId, x, y }
 
   useEffect(() => { fetchBoats(); }, [refreshTrigger]);
 
@@ -19,105 +31,109 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
     try {
       setLoading(true);
       const res = await apiFetch('/api/boats');
-      const data = await res.json();
-      setBoats(data);
-      if (data.length > 0) { setSelectedBoat(data[0]); fetchHistory(data[0].boat_id); }
+      setBoats(await res.json());
     } catch (e) { alert('Failed to load boats. Check backend connection.'); }
     finally { setLoading(false); }
   };
 
-  const fetchHistory = async (id) => {
-    try { const r = await apiFetch(`/api/boats/${id}/history`); if (r.ok) setStatusHistory(await r.json()); }
-    catch (e) {}
+  const persist = async (boatId, body) => {
+    try {
+      await apiFetch(`/api/schedule/${boatId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    } catch (e) { alert('Failed to update'); fetchBoats(); }
+  };
+
+  const advance = (boat) => {
+    const i = STATUSES.indexOf(boat.global_status);
+    if (i < 0 || i >= STATUSES.length - 1) return;
+    const next = STATUSES[i + 1];
+    setBoats(bs => bs.map(b => b.boat_id === boat.boat_id ? { ...b, global_status: next } : b));
+    persist(boat.boat_id, { global_status: next });
+    onRefresh();
+  };
+
+  const stepBack = (boat) => {
+    const i = STATUSES.indexOf(boat.global_status);
+    if (i <= 0) return;
+    const prev = STATUSES[i - 1];
+    setBoats(bs => bs.map(b => b.boat_id === boat.boat_id ? { ...b, global_status: prev } : b));
+    persist(boat.boat_id, { global_status: prev });
+    onRefresh();
+  };
+
+  const toggleFlag = (boat, key) => {
+    const next = !boat[key];
+    setBoats(bs => bs.map(b => b.boat_id === boat.boat_id ? { ...b, [key]: next } : b));
+    persist(boat.boat_id, { [key]: next });
   };
 
   const handleDrop = async (targetIndex) => {
     if (draggedIndex === null || draggedIndex === targetIndex) { setDraggedIndex(null); return; }
-    const newBoats = [...boats];
-    const [dragged] = newBoats.splice(draggedIndex, 1);
-    newBoats.splice(targetIndex, 0, dragged);
-    const updated = newBoats.map((b, i) => ({ ...b, sequence_number: i + 1 }));
+    const nb = [...boats];
+    const [dragged] = nb.splice(draggedIndex, 1);
+    nb.splice(targetIndex, 0, dragged);
+    const updated = nb.map((b, i) => ({ ...b, sequence_number: i + 1 }));
     setBoats(updated);
-    setSelectedBoat(updated[targetIndex]);
     setDraggedIndex(null);
     try {
-      await apiFetch('/api/schedule/reorder', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ boats: updated.map(b => ({ boat_id: b.boat_id, sequence_number: b.sequence_number })) }) });
-    } catch (e) { alert('Failed to reorder'); }
-  };
-
-  const moveBoat = (dir) => {
-    const i = boats.findIndex(b => b.boat_id === selectedBoat.boat_id);
-    if ((dir === 'up' && i > 0) || (dir === 'down' && i < boats.length - 1)) {
-      setDraggedIndex(i);
-      handleDrop(dir === 'up' ? i - 1 : i + 1);
-    }
-  };
-
-  const advanceStatus = async () => {
-    const i = STATUSES.indexOf(selectedBoat.global_status);
-    if (i === -1 || i === STATUSES.length - 1) return;
-    const next = STATUSES[i + 1];
-    try {
-      await apiFetch(`/api/schedule/${selectedBoat.boat_id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ global_status: next }) });
-      setBoats(boats.map(b => b.boat_id === selectedBoat.boat_id ? { ...b, global_status: next } : b));
-      setSelectedBoat({ ...selectedBoat, global_status: next });
-      fetchHistory(selectedBoat.boat_id);
-      onRefresh();
-    } catch (e) { alert('Failed to update status'); }
+      await apiFetch('/api/schedule/reorder', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ boats: updated.map(b => ({ boat_id: b.boat_id, sequence_number: b.sequence_number })) }) });
+    } catch (e) { alert('Failed to reorder'); fetchBoats(); }
   };
 
   if (loading) return <div className="loading">Loading production schedule...</div>;
 
+  const menuBoat = menu ? boats.find(b => b.boat_id === menu.boatId) : null;
+  const atStart = menuBoat && STATUSES.indexOf(menuBoat.global_status) <= 0;
+  const atEnd = menuBoat && STATUSES.indexOf(menuBoat.global_status) >= STATUSES.length - 1;
+
   return (
-    <div className="production-schedule">
-      <div className="schedule-list">
-        <h2>Production Schedule</h2>
-        <div className="boats-list">
-          {boats.map((boat, idx) => (
-            <div key={boat.boat_id} draggable
+    <div className="sched">
+      <div className="sched-intro">
+        Build order, top to bottom. Each boat shows its current production stage — Advance moves it forward.
+        {isOps ? ' Drag rows to reorder the build sequence.' : ''} Tap a boat for more actions.
+      </div>
+      <div className="sched-list">
+        {boats.map((boat, idx) => {
+          const st = SCHED[boat.global_status] || SCHED['Backlog'];
+          const stageIdx = STATUSES.indexOf(boat.global_status);
+          return (
+            <div key={boat.boat_id} className="sched-row"
+              draggable={isOps}
               onDragStart={() => setDraggedIndex(idx)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => handleDrop(idx)}
-              onClick={() => { setSelectedBoat(boat); fetchHistory(boat.boat_id); }}
-              className={`boat-row ${selectedBoat?.boat_id === boat.boat_id ? 'selected' : ''}`}
-              style={{ opacity: draggedIndex === idx ? 0.6 : 1 }}>
-              <div className="boat-sequence" style={{ backgroundColor: STATUS_COLORS[boat.global_status], color: STATUS_TEXT[boat.global_status] }}>{boat.sequence_number || idx + 1}</div>
-              <div className="boat-info">
-                <div className="boat-id">{boat.boat_id} - {boat.customer_name}</div>
-                <div className="boat-details">{boat.hull_color} {boat.boat_model}</div>
+              style={{ opacity: draggedIndex === idx ? 0.6 : 1 }}
+              onClick={(e) => setMenu({ boatId: boat.boat_id, x: e.clientX, y: e.clientY })}>
+              <div className="sched-num">{boat.sequence_number || idx + 1}</div>
+              <div className="sched-boat">
+                <div className="sched-id">{boat.boat_id}</div>
+                <div className="sched-sub">{boat.customer_name} · {boat.boat_model} · {boat.hull_color}</div>
+                <FlagIcons flags={boat} defs={STANDARD_FLAGS} size={13} />
               </div>
-              <div className="boat-status" style={{ backgroundColor: STATUS_COLORS[boat.global_status], color: STATUS_TEXT[boat.global_status] }}>{boat.global_status}</div>
+              <div className="sched-pips">
+                {STATUSES.map((s, i) => <span key={s} className="sched-pip" title={s} style={{ background: i <= stageIdx ? st.tv : '#E6E9EC' }} />)}
+              </div>
+              <div className="sched-stat">
+                <span className="sched-pill" style={{ background: st.bg, color: st.fg }}>{boat.global_status}</span>
+              </div>
+              <div className="sched-acts" onClick={(e) => e.stopPropagation()}>
+                <button className="sched-back" disabled={stageIdx <= 0} onClick={() => stepBack(boat)}>‹</button>
+                <button className="sched-adv" disabled={stageIdx >= STATUSES.length - 1} onClick={() => advance(boat)}>{stageIdx >= STATUSES.length - 1 ? 'Done' : 'Advance ›'}</button>
+              </div>
             </div>
+          );
+        })}
+      </div>
+
+      {menu && menuBoat && (
+        <ActionMenu anchor={{ x: menu.x, y: menu.y }} title={menuBoat.boat_id} subtitle={`${menuBoat.customer_name} · ${menuBoat.global_status}`} onClose={() => setMenu(null)}>
+          <MenuBtn label="Advance ›" primary disabled={atEnd} onClick={() => { advance(menuBoat); setMenu(null); }} />
+          <MenuBtn label="‹ Step back" disabled={atStart} onClick={() => { stepBack(menuBoat); setMenu(null); }} />
+          <MenuLabel>Flags</MenuLabel>
+          {STANDARD_FLAGS.map(f => (
+            <MenuToggle key={f.key} label={f.label} color={f.color} active={!!menuBoat[f.key]} onClick={() => toggleFlag(menuBoat, f.key)} />
           ))}
-        </div>
-      </div>
-      <div className="boat-details-panel">
-        {selectedBoat ? (
-          <>
-            <h2>{selectedBoat.boat_id} - {selectedBoat.customer_name}</h2>
-            <div className="detail-group"><label>Hull Color</label><div className="detail-value">{selectedBoat.hull_color}</div></div>
-            <div className="detail-group"><label>Model</label><div className="detail-value">{selectedBoat.boat_model}</div></div>
-            <div className="detail-group"><label>Engine</label><div className="detail-value">{selectedBoat.engine_brand_1} {selectedBoat.engine_choice_1}</div></div>
-            <div className="detail-group"><label>Est. Completion</label><div className="detail-value">{selectedBoat.estimated_completion_date || 'Not set'}</div></div>
-            <div className="button-group">
-              <button onClick={() => moveBoat('up')} className="btn-small">↑ Move Up</button>
-              <button onClick={() => moveBoat('down')} className="btn-small">↓ Move Down</button>
-            </div>
-            <button onClick={advanceStatus} disabled={selectedBoat.global_status === 'Delivered'} className="btn-advance">
-              {selectedBoat.global_status === 'Delivered' ? 'Complete' : `Advance to ${STATUSES[STATUSES.indexOf(selectedBoat.global_status) + 1]}`}
-            </button>
-            <div className="status-history">
-              <h3>Status History</h3>
-              {statusHistory.map((e, i) => (
-                <div key={i} className="history-entry">
-                  <div className="history-status">{e.status}</div>
-                  <div className="history-date">{new Date(e.actual_timestamp).toLocaleDateString()}</div>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : <p>Select a boat to view details</p>}
-      </div>
+        </ActionMenu>
+      )}
     </div>
   );
 }

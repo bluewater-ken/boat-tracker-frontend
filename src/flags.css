@@ -1,0 +1,22 @@
+.flag-icons { display: inline-flex; gap: 3px; align-items: center; }
+.flag-icon { display: inline-flex; line-height: 0; }
+
+.flag-dots { display: inline-flex; gap: 2px; align-items: center; }
+.flag-dot { display: inline-block; border-radius: 2px; flex: 0 0 auto; }
+
+.flag-toggles { display: flex; flex-direction: column; gap: 8px; }
+.flag-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 1px solid #cdd8e0;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+  color: #5b6b78;
+  text-align: left;
+}
+.flag-toggle:hover { background: #f7fbfe; }
+.flag-toggle.on { background: #f7fbfe; font-weight: 600; }

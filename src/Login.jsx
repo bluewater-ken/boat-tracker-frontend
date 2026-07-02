@@ -28,7 +28,8 @@ function Login() {
     <div className="login-screen">
       <form className="login-card" onSubmit={handleSubmit}>
         <div className="login-logo"><Logo size={30} light={false} /></div>
-        <div className="login-subtitle">Production Tracker</div>
+        <div className="login-boss">B.O.S.S</div>
+        <div className="login-subtitle">Bluewater Operations and Shop System</div>
 
         <label className="login-field">
           <span>Username</span>

@@ -25,11 +25,20 @@
   justify-content: center;
 }
 
+.login-boss {
+  font-size: 22px;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: 0.5px;
+  color: #173A5E;
+  text-align: center;
+  margin-top: 10px;
+}
 .login-subtitle {
-  font-size: 14px;
+  font-size: 12px;
   color: #6b7c8c;
   text-align: center;
-  margin-top: 4px;
+  margin-top: 2px;
   margin-bottom: 28px;
 }
 

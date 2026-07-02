@@ -38,7 +38,10 @@ function App() {
         <header className="app-header">
           <div className="app-header-left">
             <Logo size={19} />
-            <span className="app-header-context">Production Tracker</span>
+            <span className="app-header-boss">
+              <span className="boss-name">B.O.S.S</span>
+              <span className="boss-sub">Bluewater Operations and Shop System</span>
+            </span>
           </div>
           <div className="app-header-user">
             <span className="app-header-name">{user?.display_name || user?.username}{roleLabel ? ` · ${roleLabel}` : ''}</span>

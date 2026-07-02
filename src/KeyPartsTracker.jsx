@@ -1,31 +1,37 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
-import ActionMenu from './ActionMenu';
-import { FlagIcons, FlagToggles, KEYPARTS_FLAGS } from './flags';
+import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
+import { FlagIcons, KEYPARTS_FLAGS } from './flags';
 import './KeyPartsTracker.css';
 
 const STATUSES = ['Not Ordered', 'Ordered', 'Received'];
+// Cell palette matches BluewaterDemo.jsx.
 const CELL = {
-  'Received': { bg: '#E8F5E9', fg: '#1B5E20' },
-  'Ordered': { bg: '#FFF3E0', fg: '#E65100' },
-  'Not Ordered': { bg: '#F5F5F5', fg: '#666' },
+  'Not Ordered': { bg: '#F1EFE8', fg: '#5F5E5A' },
+  'Ordered': { bg: '#FAEEDA', fg: '#854F0B' },
+  'Received': { bg: '#EAF3DE', fg: '#3B6D11' },
 };
 
-// Delivery dates are date-only strings ("YYYY-MM-DD"); format without timezone drift.
 const fmtDate = (d) => { if (!d) return ''; const [, m, day] = d.slice(0, 10).split('-'); return `${+m}/${+day}`; };
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-// Auto-Late: past the expected delivery date and still not received (blank dates can't auto-flag).
 const isAutoLate = (row) =>
   !!row.expected_delivery && row.status !== 'Received' && row.expected_delivery.slice(0, 10) < todayStr();
 
-// Effective flags shown in the UI = stored flags, with Late OR'd with the auto rule.
 const effFlags = (row) => ({
   flag_late: !!row.flag_late || isAutoLate(row),
   flag_backordered: !!row.flag_backordered,
   flag_unsatisfactory: !!row.flag_unsatisfactory,
 });
+
+// Delivery-date label: expected when Ordered, actual when Received.
+const dateLabel = (row) => {
+  const st = row.status || 'Not Ordered';
+  if (st === 'Received') return fmtDate(row.actual_delivery);
+  if (st === 'Ordered') return `exp ${fmtDate(row.expected_delivery) || '—'}`;
+  return '';
+};
 
 function KeyPartsTracker() {
   const { user } = useAuth();
@@ -35,12 +41,12 @@ function KeyPartsTracker() {
   const [standardParts, setStandardParts] = useState([]);
   const [partData, setPartData] = useState({});
   const [customNames, setCustomNames] = useState([]);
-  const [view, setView] = useState('boat');
+  const [view, setView] = useState('table'); // table (default) | boat
   const [selectedBoat, setSelectedBoat] = useState(null);
   const [search, setSearch] = useState('');
   const [newCustom, setNewCustom] = useState('');
   const [loading, setLoading] = useState(true);
-  const [menu, setMenu] = useState(null); // { boatId, partName, isCustom, draft }
+  const [menu, setMenu] = useState(null); // { boatId, partName, isCustom, x, y }
 
   useEffect(() => { init(); }, []);
 
@@ -69,77 +75,57 @@ function KeyPartsTracker() {
 
   const getRow = (boatId, partName) => partData[boatId]?.[partName] || {};
 
-  // Text under/after the status: expected date when Ordered, actual date when Received.
-  const dateText = (row) => {
-    const st = row.status || 'Not Ordered';
-    if (st === 'Received') return fmtDate(row.actual_delivery);
-    if (st === 'Ordered') return `exp ${fmtDate(row.expected_delivery) || '—'}`;
-    return '';
-  };
-
-  // ---- Action menu (Ops only) ----
-  const openMenu = (boatId, partName, isCustom = false) => {
-    if (!isOps) return;
-    const row = getRow(boatId, partName);
-    setMenu({
-      boatId, partName, isCustom,
-      draft: {
-        status: row.status || 'Not Ordered',
-        expected_delivery: row.expected_delivery ? row.expected_delivery.slice(0, 10) : '',
-        actual_delivery: row.actual_delivery ? row.actual_delivery.slice(0, 10) : '',
-        flag_late: !!row.flag_late,
-        flag_backordered: !!row.flag_backordered,
-        flag_unsatisfactory: !!row.flag_unsatisfactory,
-      },
+  // Persist a partial change and update local state optimistically.
+  const save = async (boatId, partName, isCustom, patch) => {
+    setPartData(prev => {
+      const next = { ...prev };
+      next[boatId] = { ...(next[boatId] || {}), [partName]: { ...(next[boatId]?.[partName]), part_name: partName, is_custom: isCustom, ...patch } };
+      return next;
     });
-  };
-
-  const setDraft = (patch) => setMenu(m => m ? { ...m, draft: { ...m.draft, ...patch } } : m);
-  const setStatusDraft = (next) => setMenu(m => {
-    if (!m) return m;
-    const draft = { ...m.draft, status: next };
-    if (next === 'Received' && !draft.actual_delivery) draft.actual_delivery = todayStr();
-    return { ...m, draft };
-  });
-  const toggleFlag = (key) => setMenu(m => m ? { ...m, draft: { ...m.draft, [key]: !m.draft[key] } } : m);
-
-  const saveMenu = async () => {
-    const { boatId, partName, isCustom, draft } = menu;
-    const body = {
-      status: draft.status,
-      is_custom: isCustom,
-      expected_delivery: draft.expected_delivery || null,
-      actual_delivery: draft.actual_delivery || null,
-      flag_late: draft.flag_late,
-      flag_backordered: draft.flag_backordered,
-      flag_unsatisfactory: draft.flag_unsatisfactory,
-    };
-    const optimistic = { ...partData };
-    if (!optimistic[boatId]) optimistic[boatId] = {};
-    optimistic[boatId][partName] = { ...optimistic[boatId][partName], part_name: partName, ...body };
-    setPartData(optimistic);
-    setMenu(null);
     try {
       await apiFetch(`/api/parts/${boatId}/${encodeURIComponent(partName)}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ is_custom: isCustom, ...patch }),
       });
     } catch (e) { alert('Failed to save'); init(); }
+  };
+
+  const advance = (boatId, partName, isCustom) => {
+    const row = getRow(boatId, partName);
+    const i = STATUSES.indexOf(row.status || 'Not Ordered');
+    if (i >= STATUSES.length - 1) return;
+    const next = STATUSES[i + 1];
+    const patch = { status: next };
+    if (next === 'Received' && !row.actual_delivery) patch.actual_delivery = todayStr();
+    save(boatId, partName, isCustom, patch);
+  };
+  const stepBack = (boatId, partName, isCustom) => {
+    const row = getRow(boatId, partName);
+    const i = STATUSES.indexOf(row.status || 'Not Ordered');
+    if (i <= 0) return;
+    save(boatId, partName, isCustom, { status: STATUSES[i - 1] });
+  };
+  const toggleFlag = (boatId, partName, isCustom, key) => {
+    save(boatId, partName, isCustom, { [key]: !getRow(boatId, partName)[key] });
+  };
+  const setDate = (boatId, partName, isCustom, field, val) => {
+    save(boatId, partName, isCustom, { [field]: val || null });
+  };
+
+  const openMenu = (e, boatId, partName, isCustom = false) => {
+    if (!isOps) return;
+    setMenu({ boatId, partName, isCustom, x: e.clientX, y: e.clientY });
   };
 
   const addCustom = async () => {
     const name = newCustom.trim();
     if (!name || !selectedBoat) return;
     setNewCustom('');
-    await apiFetch(`/api/parts/${selectedBoat.boat_id}/${encodeURIComponent(name)}`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'Ordered', is_custom: true }),
-    });
-    init();
+    await save(selectedBoat.boat_id, name, true, { status: 'Ordered' });
+    apiFetch('/api/parts/custom-names').then(r => r.json()).then(setCustomNames).catch(() => {});
   };
 
   const customForBoat = (boatId) => Object.values(partData[boatId] || {}).filter(p => p.is_custom);
-
   const filteredBoats = boats.filter(b =>
     b.boat_id?.toLowerCase().includes(search.toLowerCase()) ||
     b.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -148,71 +134,65 @@ function KeyPartsTracker() {
   if (loading) return <div className="loading">Loading parts...</div>;
 
   const menuBoat = menu ? boats.find(b => b.boat_id === menu.boatId) : null;
+  const menuRow = menu ? getRow(menu.boatId, menu.partName) : {};
+  const menuStatus = menuRow.status || 'Not Ordered';
+  const menuIdx = STATUSES.indexOf(menuStatus);
 
   const actionMenu = menu && (
-    <ActionMenu
-      title={menu.partName}
-      subtitle={`${menu.boatId}${menuBoat ? ` — ${menuBoat.customer_name}` : ''}`}
-      onClose={() => setMenu(null)}
-    >
-      <div className="am-section">
-        <div className="am-label">Status</div>
-        <div className="am-status-row">
-          {STATUSES.map(s => (
-            <button key={s} className={`am-status-btn ${menu.draft.status === s ? 'active' : ''}`} onClick={() => setStatusDraft(s)}>{s}</button>
-          ))}
-        </div>
-      </div>
-      {(menu.draft.status === 'Ordered' || menu.draft.status === 'Received') && (
-        <div className="am-section">
-          <div className="am-label">Expected delivery {menu.draft.status === 'Ordered' ? '(optional)' : ''}</div>
-          <input type="date" className="am-date-input" value={menu.draft.expected_delivery} onChange={e => setDraft({ expected_delivery: e.target.value })} />
-        </div>
+    <ActionMenu anchor={{ x: menu.x, y: menu.y }} title={menu.partName} subtitle={`${menu.boatId}${menuBoat ? ' · ' + menuBoat.customer_name : ''}`} onClose={() => setMenu(null)}>
+      <MenuBtn label="Advance ›" primary disabled={menuIdx >= STATUSES.length - 1} onClick={() => advance(menu.boatId, menu.partName, menu.isCustom)} />
+      <MenuBtn label="‹ Step back" disabled={menuIdx <= 0} onClick={() => stepBack(menu.boatId, menu.partName, menu.isCustom)} />
+      {(menuStatus === 'Ordered' || menuStatus === 'Received') && (
+        <>
+          <MenuLabel>Expected delivery</MenuLabel>
+          <input type="date" className="am-date-input" value={menuRow.expected_delivery ? menuRow.expected_delivery.slice(0, 10) : ''} onChange={e => setDate(menu.boatId, menu.partName, menu.isCustom, 'expected_delivery', e.target.value)} />
+        </>
       )}
-      {menu.draft.status === 'Received' && (
-        <div className="am-section">
-          <div className="am-label">Actual delivery</div>
-          <input type="date" className="am-date-input" value={menu.draft.actual_delivery} onChange={e => setDraft({ actual_delivery: e.target.value })} />
-        </div>
+      {menuStatus === 'Received' && (
+        <>
+          <MenuLabel>Actual delivery</MenuLabel>
+          <input type="date" className="am-date-input" value={menuRow.actual_delivery ? menuRow.actual_delivery.slice(0, 10) : ''} onChange={e => setDate(menu.boatId, menu.partName, menu.isCustom, 'actual_delivery', e.target.value)} />
+        </>
       )}
-      <div className="am-section">
-        <div className="am-label">Flags</div>
-        <FlagToggles flags={menu.draft} defs={KEYPARTS_FLAGS} onToggle={toggleFlag} />
-      </div>
-      <button className="kpt-btn-primary" onClick={saveMenu}>Save</button>
+      <MenuLabel>Flags</MenuLabel>
+      {KEYPARTS_FLAGS.map(f => (
+        <MenuToggle key={f.key} label={f.label} color={f.color} active={!!menuRow[f.key]} onClick={() => toggleFlag(menu.boatId, menu.partName, menu.isCustom, f.key)} />
+      ))}
     </ActionMenu>
   );
 
   if (view === 'table') {
     return (
-      <div className="kpt-table-wrap">
+      <div className="kpt-tablewrap">
         <div className="kpt-toolbar">
-          <button className="kpt-btn" onClick={() => setView('boat')}>← Back to Boat View</button>
+          <button className="kpt-toggle" onClick={() => setView('boat')}>Boat view</button>
+          <span className="kpt-toolbar-note">{isOps ? 'Tap a cell to update.' : 'View only — contact the office to change parts.'}</span>
         </div>
-        <div className="kpt-table-scroll">
+        <div className="kpt-scroll">
           <table className="kpt-table">
             <thead>
               <tr>
-                <th className="kpt-sticky-col">Boat • Customer</th>
+                <th className="kpt-boathead">Boat</th>
                 {standardParts.map(p => <th key={p}>{p}</th>)}
               </tr>
             </thead>
             <tbody>
               {boats.map(boat => (
                 <tr key={boat.boat_id}>
-                  <td className="kpt-sticky-col">
-                    <div className="kpt-boat-id">{boat.boat_id}</div>
-                    <div className="kpt-boat-cust">{boat.customer_name}</div>
+                  <td className="kpt-boatcell">
+                    <div className="kpt-bid">{boat.boat_id}</div>
+                    <div className="kpt-bcust">{boat.customer_name} · {boat.boat_model}</div>
+                    <div className="kpt-bhull">{boat.hull_color}</div>
                   </td>
                   {standardParts.map(p => {
                     const row = getRow(boat.boat_id, p);
                     const st = row.status || 'Not Ordered';
                     const c = CELL[st];
                     return (
-                      <td key={p} className={`kpt-cell ${isOps ? '' : 'readonly'}`} style={{ background: c.bg, color: c.fg }} onClick={() => openMenu(boat.boat_id, p, false)}>
-                        <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={11} />
-                        <div className="kpt-cell-status">{st === 'Not Ordered' ? '—' : st}</div>
-                        {dateText(row) && <div className="kpt-cell-date">{dateText(row)}</div>}
+                      <td key={p} className={`kpt-cell ${isOps ? '' : 'readonly'}`} style={{ background: c.bg, color: c.fg }} onClick={(e) => openMenu(e, boat.boat_id, p, false)}>
+                        <span className="kpt-flagwrap"><FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={12} /></span>
+                        <div className="kpt-cellstatus">{st}</div>
+                        {dateLabel(row) && <div className="kpt-celldate">{dateLabel(row)}</div>}
                       </td>
                     );
                   })}
@@ -221,11 +201,7 @@ function KeyPartsTracker() {
             </tbody>
           </table>
         </div>
-        <div className="kpt-legend">
-          <span><i style={{ background: '#E8F5E9' }}></i>Received</span>
-          <span><i style={{ background: '#FFF3E0' }}></i>Ordered</span>
-          <span><i style={{ background: '#F5F5F5' }}></i>Not Ordered</span>
-        </div>
+        <Legend />
         {actionMenu}
       </div>
     );
@@ -234,13 +210,13 @@ function KeyPartsTracker() {
   return (
     <div className="kpt">
       <div className="kpt-list-panel">
+        <button className="kpt-toggle" onClick={() => setView('table')}>← Part grid</button>
         <input className="kpt-search" placeholder="Search by ID, customer, or model..." value={search} onChange={e => setSearch(e.target.value)} />
-        <button className="kpt-btn-primary" onClick={() => setView('table')}>View by Part Type</button>
         <div className="kpt-boats">
           {filteredBoats.map(boat => (
             <div key={boat.boat_id} className={`kpt-boat-row ${selectedBoat?.boat_id === boat.boat_id ? 'selected' : ''}`} onClick={() => setSelectedBoat(boat)}>
-              <div className="kpt-boat-id">{boat.boat_id} - {boat.customer_name}</div>
-              <div className="kpt-boat-cust">{boat.hull_color} {boat.boat_model}</div>
+              <div className="kpt-bid">{boat.boat_id} - {boat.customer_name}</div>
+              <div className="kpt-bhull">{boat.hull_color} {boat.boat_model}</div>
             </div>
           ))}
         </div>
@@ -256,11 +232,11 @@ function KeyPartsTracker() {
               const st = row.status || 'Not Ordered';
               const c = CELL[st];
               return (
-                <div key={p} className={`kpt-part ${isOps ? '' : 'readonly'}`} onClick={() => openMenu(selectedBoat.boat_id, p, false)}>
+                <div key={p} className={`kpt-part ${isOps ? '' : 'readonly'}`} onClick={(e) => openMenu(e, selectedBoat.boat_id, p, false)}>
                   <span className="kpt-part-name">{p}</span>
                   <span className="kpt-part-right">
-                    <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} />
-                    <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateText(row) ? ` • ${dateText(row)}` : ''}</span>
+                    <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={14} />
+                    <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
                   </span>
                 </div>
               );
@@ -279,11 +255,11 @@ function KeyPartsTracker() {
               const st = row.status || 'Not Ordered';
               const c = CELL[st];
               return (
-                <div key={row.part_name} className={`kpt-part ${isOps ? '' : 'readonly'}`} onClick={() => openMenu(selectedBoat.boat_id, row.part_name, true)}>
+                <div key={row.part_name} className={`kpt-part ${isOps ? '' : 'readonly'}`} onClick={(e) => openMenu(e, selectedBoat.boat_id, row.part_name, true)}>
                   <span className="kpt-part-name">{row.part_name}</span>
                   <span className="kpt-part-right">
-                    <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} />
-                    <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateText(row) ? ` • ${dateText(row)}` : ''}</span>
+                    <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={14} />
+                    <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
                   </span>
                 </div>
               );
@@ -292,6 +268,26 @@ function KeyPartsTracker() {
         ) : <p>Select a boat</p>}
       </div>
       {actionMenu}
+    </div>
+  );
+}
+
+function Legend() {
+  return (
+    <div className="kpt-legend">
+      <div className="kpt-legend-title">Status</div>
+      <div className="kpt-legend-row">
+        {STATUSES.map(s => (
+          <span key={s} className="kpt-legend-item"><i className="kpt-legend-sw" style={{ background: CELL[s].bg }} />{s}</span>
+        ))}
+      </div>
+      <div className="kpt-legend-title" style={{ marginTop: 11 }}>Flags</div>
+      <div className="kpt-legend-row">
+        {KEYPARTS_FLAGS.map(f => (
+          <span key={f.key} className="kpt-legend-item"><FlagIcons flags={{ [f.key]: true }} defs={[f]} size={14} />{f.label}</span>
+        ))}
+      </div>
+      <div className="kpt-legend-note">Dates are delivery dates: “exp” = expected (set when Ordered), plain = actual received. Late auto-flags once past the expected date. Ops-only editing.</div>
     </div>
   );
 }

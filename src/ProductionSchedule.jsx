@@ -107,7 +107,7 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
               <div className="sched-boat">
                 <div className="sched-id">{boat.boat_id}</div>
                 <div className="sched-sub">{boat.customer_name} · {boat.boat_model} · {boat.hull_color}</div>
-                <FlagIcons flags={boat} defs={STANDARD_FLAGS} size={12} />
+                <FlagIcons flags={boat} defs={STANDARD_FLAGS} size={13} />
               </div>
               <div className="sched-pips">
                 {STATUSES.map((s, i) => <span key={s} className="sched-pip" title={s} style={{ background: i <= stageIdx ? st.tv : '#E6E9EC' }} />)}

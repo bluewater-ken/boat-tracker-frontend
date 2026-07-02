@@ -63,6 +63,19 @@ export const KEYPARTS_FLAGS = [
   { key: 'flag_unsatisfactory', label: 'Unsatisfactory', color: '#185FA5', Icon: FlagIcon },
 ];
 
+// Small colored dots (no text) for cells/rows — matches BluewaterDemo.jsx.
+export function FlagDots({ flags, defs, size = 7 }) {
+  const active = defs.filter((d) => flags && flags[d.key]);
+  if (!active.length) return null;
+  return (
+    <span className="flag-dots">
+      {active.map((d) => (
+        <span key={d.key} className="flag-dot" title={d.label} style={{ width: size, height: size, background: d.color }} />
+      ))}
+    </span>
+  );
+}
+
 // Bare corner icons (no text) for cells/rows.
 export function FlagIcons({ flags, defs, size = 13 }) {
   const active = defs.filter((d) => flags && flags[d.key]);

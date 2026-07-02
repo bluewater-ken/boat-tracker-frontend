@@ -1,6 +1,9 @@
 .flag-icons { display: inline-flex; gap: 3px; align-items: center; }
 .flag-icon { display: inline-flex; line-height: 0; }
 
+.flag-dots { display: inline-flex; gap: 2px; align-items: center; }
+.flag-dot { display: inline-block; border-radius: 2px; flex: 0 0 auto; }
+
 .flag-toggles { display: flex; flex-direction: column; gap: 8px; }
 .flag-toggle {
   display: flex;

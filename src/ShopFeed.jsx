@@ -86,11 +86,12 @@ function ShopFeed() {
               <span className="feed-icon">{TYPE_ICON[it.type] || '•'}</span>
               <span className="feed-main">
                 <span className="feed-title">{it.title}</span>
-                {/* No "who" — the shop shares one CompanyCam login, so the actor is always
-                    the same account. If per-user seats ever arrive, add actor_name back here. */}
+                {/* "Who" only shows when the event carries a real user: app events (Lamination/
+                    Finishing) do; CompanyCam events don't (the shop shares one CC login). */}
                 <span className="feed-sub">
                   {it.boat_id}{it.customer_name ? ` · ${it.customer_name}` : ''}
                   {it.work_center_name ? ` · ${it.work_center_name}` : ''}
+                  {it.actor_name ? ` — ${it.actor_name}` : ''}
                 </span>
               </span>
             </div>

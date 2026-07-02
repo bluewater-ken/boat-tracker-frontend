@@ -52,15 +52,27 @@ CREATE TABLE IF NOT EXISTS cc_progress (       -- one row per boat x work center
 );
 CREATE TABLE IF NOT EXISTS cc_feed (
   id          SERIAL PRIMARY KEY,
-  event_id    TEXT UNIQUE,                     -- dedupe key from webhook payload
+  event_id    TEXT UNIQUE,                     -- dedupe key from webhook payload (null for app events)
   boat_id     TEXT,
   work_center_name TEXT,
-  type        TEXT,                            -- CHECKLIST_ITEM_COMPLETED | CHECKLIST_COMPLETED | CHECKLIST_CREATED | PHOTO_ADDED | COMMENT_ADDED
+  type        TEXT,                            -- CHECKLIST_ITEM_COMPLETED | CHECKLIST_COMPLETED | CHECKLIST_CREATED | PHOTO_ADDED | COMMENT_ADDED | APP_TASK_UPDATED
   title       TEXT,
+  actor_name  TEXT,                            -- ONLY for app events (tracker logins are per-user); leave NULL for CompanyCam events (shop shares one CC login)
   created_at  TIMESTAMPTZ DEFAULT now()
 );
 ```
-No actor/user column on cc_feed — the shop shares one CompanyCam login, so it's meaningless.
+
+### App events too (Lamination + Finishing → Shop Feed)
+The feed also mirrors the tracker's own tabs. In the EXISTING `PUT /api/lamination/:boatId/:taskName`
+and `PUT /api/finishing/:boatId/:taskName` handlers, after a successful write, **if the body included
+a `status` change**, also insert:
+```sql
+INSERT INTO cc_feed (boat_id, work_center_name, type, title, actor_name)
+VALUES ($boatId, 'Lamination' /* or 'Finishing' */, 'APP_TASK_UPDATED',
+        $taskName || ' → ' || $newStatus, $req.user.display_name or username);
+```
+Keep it non-fatal: wrap in try/catch so a feed insert error can never break a status save.
+Do NOT log color/notes/flag-only changes — status changes only, or the feed gets noisy.
 
 ## 3. Sync logic (one function, reused by webhook + poller + manual refresh)
 `syncBoat(boatId)`:
@@ -86,7 +98,7 @@ All under the existing auth EXCEPT the webhook (CompanyCam can't log in):
   ```
 - `GET /api/assembly/feed?limit=150` (any logged-in user) → newest-first rows of `cc_feed`
   joined with boat customer_name:
-  `[{ id, boat_id, customer_name, work_center_name, type, title, created_at }]`
+  `[{ id, boat_id, customer_name, work_center_name, type, title, actor_name, created_at }]`
 - `GET /api/assembly/projects` (Ops) → CompanyCam projects not yet linked
   `[{ project_id, name }]` — for a future manual-link picker.
 - `PUT /api/assembly/link` (Ops) → body `{ boat_id, project_id }` — manual link; then syncBoat.

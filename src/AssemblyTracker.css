@@ -11,6 +11,7 @@
   border-right: 1px solid #2E5275; white-space: nowrap;
 }
 .asm-boathead { left: 0; z-index: 3; color: #fff; text-align: left; min-width: 190px; border-right: 1px solid #C7CDD2; font-size: 12px; }
+.asm-apphead { color: #fff; background: #204a75; } /* app-sourced columns (Lamination/Finishing) get a subtly lighter navy */
 .asm-boatcell {
   position: sticky; left: 0; z-index: 1; background: #fff;
   text-align: left; padding: 6px 12px;

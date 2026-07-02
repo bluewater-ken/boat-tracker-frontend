@@ -15,6 +15,32 @@ const PLACEHOLDER_WCS = [
   { id: 'wc5', name: 'QC' },
 ];
 
+// ---- App-sourced columns: Lamination + Finishing progress from our own trackers ----
+// (Mirrors the task/status rules in LaminationTracker.jsx / FinishingTracker.jsx.)
+const LAM_TASKS = ['Glass Kit', 'Hull', 'Transducer Type', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid', 'Other'];
+const LAM_FINAL = { 'Glass Kit': 'Complete', 'Transducer Type': 'Complete' }; // others end at Pulled
+const LAM_DEFAULT = { 'Transducer Type': 'Complete' }; // its only status
+const FIN_TASKS = ['Hull', 'Liner', 'Ring', 'Hard Top', 'Console', 'Console Face', 'Hatches', 'Leaning Post', 'Buckets', 'Other'];
+
+// Roll a tracker's rows for one boat into {completed, total, remaining[]} — N/A tasks excluded.
+const rollup = (rowsForBoat, tasks, finalOf, defaultOf) => {
+  let completed = 0, total = 0; const remaining = [];
+  for (const t of tasks) {
+    const row = rowsForBoat?.[t] || {};
+    if (row.na) continue;
+    total++;
+    const status = row.status || defaultOf(t);
+    if (status === finalOf(t)) completed++;
+    else remaining.push(t);
+  }
+  return { completed_items: completed, total_items: total, remaining };
+};
+
+const APP_COLS = [
+  { id: '_lam', name: 'Lamination', app: true },
+  { id: '_fin', name: 'Finishing', app: true },
+];
+
 // Status colors follow the house palette (gray / amber / green).
 const CELL = {
   NOT_STARTED: { bg: '#EEF0F2', fg: '#5F6B73' },
@@ -34,6 +60,7 @@ function AssemblyTracker() {
   const [boats, setBoats] = useState([]);
   const [workCenters, setWorkCenters] = useState(PLACEHOLDER_WCS);
   const [rows, setRows] = useState({}); // boatId -> wcId -> row
+  const [appRows, setAppRows] = useState({}); // boatId -> '_lam'|'_fin' -> rollup
   const [connected, setConnected] = useState(false);
   const [showDelivered, setShowDelivered] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -48,11 +75,28 @@ function AssemblyTracker() {
   const init = async (quiet) => {
     try {
       if (!quiet) setLoading(true);
-      const [b, asm] = await Promise.all([
+      const [b, asm, lam, fin] = await Promise.all([
         apiFetch('/api/boats').then(r => r.json()),
         apiFetch('/api/assembly').then(r => r.ok ? r.json() : null).catch(() => null),
+        apiFetch('/api/lamination').then(r => r.ok ? r.json() : []).catch(() => []),
+        apiFetch('/api/finishing').then(r => r.ok ? r.json() : []).catch(() => []),
       ]);
       setBoats(b);
+      // Roll our own trackers into the same {done/total/remaining} shape as CompanyCam columns.
+      const byBoat = (list) => {
+        const m = {};
+        for (const r of list) { if (!m[r.boat_id]) m[r.boat_id] = {}; m[r.boat_id][r.task_name] = r; }
+        return m;
+      };
+      const lamMap = byBoat(lam), finMap = byBoat(fin);
+      const app = {};
+      for (const boat of b) {
+        app[boat.boat_id] = {
+          _lam: rollup(lamMap[boat.boat_id], LAM_TASKS, t => LAM_FINAL[t] || 'Pulled', t => LAM_DEFAULT[t] || ''),
+          _fin: rollup(finMap[boat.boat_id], FIN_TASKS, () => 'Complete', () => ''),
+        };
+      }
+      setAppRows(app);
       if (asm && Array.isArray(asm.work_centers) && asm.work_centers.length) {
         setWorkCenters(asm.work_centers);
         const map = {};
@@ -67,14 +111,16 @@ function AssemblyTracker() {
     finally { if (!quiet) setLoading(false); }
   };
 
-  const getRow = (boatId, wcId) => rows[boatId]?.[wcId] || null;
+  const getRow = (boatId, wcId) =>
+    (wcId === '_lam' || wcId === '_fin') ? (appRows[boatId]?.[wcId] || null) : (rows[boatId]?.[wcId] || null);
 
   if (loading) return <div className="loading">Loading assembly board...</div>;
 
   const { visible, delivered } = applyDeliveredFilter(boats, showDelivered);
+  const columns = [...APP_COLS, ...workCenters];
 
   const menuBoat = menu ? boats.find(b => b.boat_id === menu.boatId) : null;
-  const menuWc = menu ? workCenters.find(w => w.id === menu.wcId) : null;
+  const menuWc = menu ? columns.find(w => w.id === menu.wcId) : null;
   const menuRow = menu ? getRow(menu.boatId, menu.wcId) : null;
   // Show what's left whenever a cell is tapped (the BRD's 75% gate made sense for a
   // dashboard, not an on-demand popup). Cap the list; the rest lives in CompanyCam.
@@ -87,8 +133,8 @@ function AssemblyTracker() {
       <div className="asm-toolbar">
         <span className="asm-toolbar-note">
           {connected
-            ? 'Live from CompanyCam — read-only here. Crews update by checking items in CompanyCam.'
-            : 'Not connected to CompanyCam yet — columns are placeholders until the backend link is set up.'}
+            ? 'One board for the whole boat — Lamination & Finishing from this app, the rest live from CompanyCam. Read-only here.'
+            : 'Lamination & Finishing are live from this app. CompanyCam columns are placeholders until the backend link is set up.'}
         </span>
         <span style={{ marginLeft: 'auto' }}><ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} /></span>
       </div>
@@ -97,7 +143,7 @@ function AssemblyTracker() {
           <thead>
             <tr>
               <th className="asm-boathead">Boat</th>
-              {workCenters.map(w => <th key={w.id}>{w.name}</th>)}
+              {columns.map(w => <th key={w.id} className={w.app ? 'asm-apphead' : ''}>{w.name}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -107,7 +153,7 @@ function AssemblyTracker() {
                   <div className="asm-bid">{boat.boat_id} · {boat.customer_name}</div>
                   <div className="asm-bmeta">{boat.boat_model} · <span className="asm-bhull">{boat.hull_color}</span></div>
                 </td>
-                {workCenters.map(w => {
+                {columns.map(w => {
                   const row = getRow(boat.boat_id, w.id);
                   const st = statusOf(row);
                   const c = CELL[st];
@@ -136,7 +182,7 @@ function AssemblyTracker() {
         <span className="asm-legend-item"><i style={{ background: CELL.IN_PROGRESS.bg }} />In progress</span>
         <span className="asm-legend-item"><i style={{ background: CELL.COMPLETE.bg }} />Complete</span>
         <span className="asm-legend-item"><i style={{ background: '#fff', border: '1px solid #E2E6EA' }} />— No checklist</span>
-        <span className="asm-legend-note">Tap a cell for details. Counts are checklist items done / total, straight from CompanyCam.</span>
+        <span className="asm-legend-note">Tap a cell for what's left. Counts are tasks done / total — Lamination &amp; Finishing from this app, other columns from CompanyCam.</span>
       </div>
 
       {menu && menuBoat && menuWc && menuRow && (
@@ -154,7 +200,11 @@ function AssemblyTracker() {
           {menuRow.cc_url && (
             <a className="asm-cc-link" href={menuRow.cc_url} target="_blank" rel="noreferrer">Open in CompanyCam →</a>
           )}
-          <div className="am-spec-hint">Read-only — items are checked off in CompanyCam.</div>
+          <div className="am-spec-hint">
+            {menuWc.app
+              ? `Read-only here — update tasks on the ${menuWc.name} tab.`
+              : 'Read-only — items are checked off in CompanyCam.'}
+          </div>
         </ActionMenu>
       )}
     </div>

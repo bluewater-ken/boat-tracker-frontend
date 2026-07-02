@@ -41,10 +41,14 @@
 .sched-stat { flex: 0 0 150px; text-align: center; }
 .sched-pill { display: inline-block; font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 14px; }
 
+/* Fixed-width buttons (sized for the longest stage name) so every row's columns line up. */
 .sched-acts { display: flex; gap: 6px; flex: 0 0 auto; }
 .sched-back {
-  padding: 7px 10px;
+  flex: 0 0 142px;
+  padding: 7px 8px;
   font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
   border-radius: 7px;
   border: 1px solid #D6DBE0;
   background: #fff;
@@ -53,9 +57,12 @@
 }
 .sched-back:disabled { opacity: 0.4; cursor: default; }
 .sched-adv {
-  padding: 7px 14px;
+  flex: 0 0 150px;
+  padding: 7px 8px;
   font-size: 12px;
   font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
   border-radius: 7px;
   border: none;
   background: #2E92D6;

@@ -4,6 +4,8 @@ import BoatInformation from './BoatInformation';
 import KeyPartsTracker from './KeyPartsTracker';
 import LaminationTracker from './LaminationTracker';
 import FinishingTracker from './FinishingTracker';
+import AssemblyTracker from './AssemblyTracker';
+import ShopFeed from './ShopFeed';
 import UsersAdmin from './UsersAdmin';
 import Login from './Login';
 import Logo from './Logo';
@@ -16,6 +18,8 @@ const BASE_TABS = [
   { key: 'parts', label: 'Key Parts' },
   { key: 'lamination', label: 'Lamination' },
   { key: 'finishing', label: 'Finishing' },
+  { key: 'assembly', label: 'Assembly' },
+  { key: 'feed', label: 'Shop Feed' },
 ];
 
 function App() {
@@ -56,6 +60,8 @@ function App() {
           {activeTab === 'parts' && <KeyPartsTracker />}
           {activeTab === 'lamination' && <LaminationTracker />}
           {activeTab === 'finishing' && <FinishingTracker />}
+          {activeTab === 'assembly' && <AssemblyTracker />}
+          {activeTab === 'feed' && <ShopFeed />}
           {activeTab === 'users' && isOps && <UsersAdmin />}
         </main>
       </div>

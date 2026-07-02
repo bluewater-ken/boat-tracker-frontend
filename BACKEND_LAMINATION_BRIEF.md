@@ -33,10 +33,14 @@ Accept a **partial** body with any of: `status, na, color, flag_issue, flag_rewo
 flag_unsatisfactory`. Upsert the row (create if missing), updating only keys present.
 
 **Date memory** — when `status` changes:
-- If the new status is `Mold Unavailable` → `status_date = NULL`.
+- If the new status is a "start" status with no date — **`Mold Unavailable`** or **`Not Started`** (the
+  first state of Glass Kit) → `status_date = NULL`.
 - Else if `status_dates` already has a date for that status → `status_date` = that remembered date
   (this is the step-back restoring the original date).
 - Else → `status_date` = today, and record it: `status_dates[status] = today`.
+
+(Note: most tasks use the mold cycle; **Glass Kit** uses Not Started → In Progress → Complete. The
+table/endpoints don't care — status is just a string — this only affects which values get no date.)
 
 **Permissions:** status / flags may be set by **Ops and Shop**. `na` and `color` are **Ops-only** —
 if the body includes `na` or `color` and the user isn't Ops, reject with 403 (or ignore those keys).
@@ -62,7 +66,7 @@ app.put('/api/lamination/:boatId/:taskName', requireAuth, async (req, res) => {
       put('status', b.status);
       const today = new Date().toISOString().slice(0,10);
       let date = null;
-      if (b.status !== 'Mold Unavailable') { date = memory[b.status] || today; memory[b.status] = memory[b.status] || today; }
+      if (!['Mold Unavailable', 'Not Started'].includes(b.status)) { date = memory[b.status] || today; memory[b.status] = memory[b.status] || today; }
       put('status_date', date);
       put('status_dates', JSON.stringify(memory));
     }

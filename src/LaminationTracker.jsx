@@ -7,16 +7,22 @@ import { colorOptions } from './colors';
 import './LaminationTracker.css';
 
 // BRD §7 — 13 tasks, 5-status mold cycle that STOPS at Pulled, plus an N/A state.
-const LAM_TASKS = ['Glass', 'Hull', 'Transducer', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid', 'Other'];
+const LAM_TASKS = ['Glass Kit', 'Hull', 'Transducer', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid', 'Other'];
 const LAM_ORDER = ['Mold Unavailable', 'Mold Open', 'In Progress', 'Complete/On Mold', 'Pulled'];
+// Most tasks use the mold cycle; a few (e.g. Glass Kit, which isn't molded) have their own set.
+const TASK_ORDER = { 'Glass Kit': ['Not Started', 'In Progress', 'Complete'] };
+const orderFor = (task) => TASK_ORDER[task] || LAM_ORDER;
+const firstStatus = (task) => orderFor(task)[0];
 const NA = 'Not Applicable';
-// Palette from BluewaterDemo.jsx.
+// Palette from BluewaterDemo.jsx (plus Not Started / Complete for the non-mold tasks).
 const CELL = {
   'Mold Unavailable': { bg: '#EEF0F2', fg: '#5F6B73' },
   'Mold Open': { bg: '#CFD8DE', fg: '#33424C' },
   'In Progress': { bg: '#FCEBEB', fg: '#A32D2D' },
   'Complete/On Mold': { bg: '#FAEEDA', fg: '#854F0B' },
   'Pulled': { bg: '#EAF3DE', fg: '#3B6D11' },
+  'Not Started': { bg: '#F1EFE8', fg: '#5F5E5A' },
+  'Complete': { bg: '#EAF3DE', fg: '#3B6D11' },
   'Not Applicable': { bg: '#E4E4E7', fg: '#9A9A9F' },
 };
 
@@ -64,7 +70,7 @@ function LaminationTracker() {
   };
 
   const getRow = (boatId, task) => lamData[boatId]?.[task] || {};
-  const statusOf = (row) => row.na ? NA : (row.status || 'Mold Unavailable');
+  const statusOf = (row, task) => row.na ? NA : (row.status || firstStatus(task));
 
   const save = async (boatId, task, patch) => {
     setLamData(prev => {
@@ -83,16 +89,18 @@ function LaminationTracker() {
   const advance = (boatId, task) => {
     const row = getRow(boatId, task);
     if (row.na) return;
-    const i = LAM_ORDER.indexOf(row.status || 'Mold Unavailable');
-    if (i >= LAM_ORDER.length - 1) return; // stops at Pulled
-    save(boatId, task, { status: LAM_ORDER[i + 1] });
+    const order = orderFor(task);
+    const i = order.indexOf(row.status || firstStatus(task));
+    if (i >= order.length - 1) return; // stops at the final status
+    save(boatId, task, { status: order[i + 1] });
   };
   const stepBack = (boatId, task) => {
     const row = getRow(boatId, task);
     if (row.na) return;
-    const i = LAM_ORDER.indexOf(row.status || 'Mold Unavailable');
+    const order = orderFor(task);
+    const i = order.indexOf(row.status || firstStatus(task));
     if (i <= 0) return;
-    save(boatId, task, { status: LAM_ORDER[i - 1] });
+    save(boatId, task, { status: order[i - 1] });
   };
   const toggleNA = (boatId, task) => save(boatId, task, { na: !getRow(boatId, task).na });
   const setColor = (boatId, task, val) => save(boatId, task, { color: val || null });
@@ -116,13 +124,15 @@ function LaminationTracker() {
 
   const menuBoat = menu ? boats.find(b => b.boat_id === menu.boatId) : null;
   const menuRow = menu ? getRow(menu.boatId, menu.task) : {};
-  const menuIdx = LAM_ORDER.indexOf(menuRow.status || 'Mold Unavailable');
+  const menuOrder = menu ? orderFor(menu.task) : LAM_ORDER;
+  const menuIdx = menu ? menuOrder.indexOf(menuRow.status || firstStatus(menu.task)) : -1;
   const menuNA = !!menuRow.na;
+  const menuAtEnd = menuIdx >= menuOrder.length - 1;
 
   const actionMenu = menu && menuBoat && (
     <ActionMenu anchor={{ x: menu.x, y: menu.y }} title={menu.task} subtitle={`${menuBoat.boat_id} · ${menuBoat.customer_name}`} onClose={() => setMenu(null)}>
-      <MenuBtn label={menuNA ? 'Advance ›' : menuIdx >= LAM_ORDER.length - 1 ? 'Pulled (done)' : `Advance to ${LAM_ORDER[menuIdx + 1]} ›`} primary disabled={menuNA || menuIdx >= LAM_ORDER.length - 1} onClick={() => advance(menu.boatId, menu.task)} />
-      <MenuBtn label={menuNA || menuIdx <= 0 ? '‹ Step back' : `‹ Back to ${LAM_ORDER[menuIdx - 1]}`} disabled={menuNA || menuIdx <= 0} onClick={() => stepBack(menu.boatId, menu.task)} />
+      <MenuBtn label={menuNA ? 'Advance ›' : menuAtEnd ? `${menuOrder[menuOrder.length - 1]} (done)` : `Advance to ${menuOrder[menuIdx + 1]} ›`} primary disabled={menuNA || menuAtEnd} onClick={() => advance(menu.boatId, menu.task)} />
+      <MenuBtn label={menuNA || menuIdx <= 0 ? '‹ Step back' : `‹ Back to ${menuOrder[menuIdx - 1]}`} disabled={menuNA || menuIdx <= 0} onClick={() => stepBack(menu.boatId, menu.task)} />
       {isOps && (
         <>
           <MenuBtn label={menuNA ? 'Clear N/A' : 'Set Not Applicable'} onClick={() => toggleNA(menu.boatId, menu.task)} />
@@ -140,9 +150,9 @@ function LaminationTracker() {
   );
 
   const cellContent = (row, task, boat) => {
-    const st = statusOf(row);
-    const c = CELL[st];
-    const showDate = !row.na && st !== 'Mold Unavailable' && row.status_date;
+    const st = statusOf(row, task);
+    const c = CELL[st] || CELL['Mold Unavailable'];
+    const showDate = !row.na && st !== firstStatus(task) && row.status_date;
     const col = shownColor(row, task, boat);
     return { st, c, showDate: showDate ? fmtDate(row.status_date) : '', col };
   };
@@ -240,10 +250,11 @@ function Legend() {
     <div className="lam-legend">
       <div className="lam-legend-title">Status</div>
       <div className="lam-legend-row">
-        {[...LAM_ORDER, NA].map(s => (
+        {[...LAM_ORDER, 'Not Started', 'Complete', NA].map(s => (
           <span key={s} className="lam-legend-item"><i className="lam-legend-sw" style={{ background: CELL[s].bg }} />{s}</span>
         ))}
       </div>
+      <div className="lam-legend-note" style={{ marginTop: 4 }}>Glass Kit uses Not Started → In Progress → Complete; all other tasks use the mold cycle.</div>
       <div className="lam-legend-title" style={{ marginTop: 11 }}>Flags</div>
       <div className="lam-legend-row">
         {STANDARD_FLAGS.map(f => (

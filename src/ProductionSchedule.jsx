@@ -118,8 +118,8 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
                 <span className="sched-pill" style={{ background: st.bg, color: st.fg }}>{boat.global_status}</span>
               </div>
               <div className="sched-acts" onClick={(e) => e.stopPropagation()}>
-                <button className="sched-back" disabled={stageIdx <= 0} onClick={() => stepBack(boat)}>‹</button>
-                <button className="sched-adv" disabled={stageIdx >= STATUSES.length - 1} onClick={() => advance(boat)}>{stageIdx >= STATUSES.length - 1 ? 'Done' : 'Advance ›'}</button>
+                <button className="sched-back" disabled={stageIdx <= 0} onClick={() => stepBack(boat)}>{stageIdx <= 0 ? '‹' : `‹ ${STATUSES[stageIdx - 1]}`}</button>
+                <button className="sched-adv" disabled={stageIdx >= STATUSES.length - 1} onClick={() => advance(boat)}>{stageIdx >= STATUSES.length - 1 ? 'Delivered' : `${STATUSES[stageIdx + 1]} ›`}</button>
               </div>
             </div>
           );
@@ -128,8 +128,8 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
 
       {menu && menuBoat && (
         <ActionMenu anchor={{ x: menu.x, y: menu.y }} title={menuBoat.boat_id} subtitle={`${menuBoat.customer_name} · ${menuBoat.global_status}`} onClose={() => setMenu(null)}>
-          <MenuBtn label="Advance ›" primary disabled={atEnd} onClick={() => { advance(menuBoat); setMenu(null); }} />
-          <MenuBtn label="‹ Step back" disabled={atStart} onClick={() => { stepBack(menuBoat); setMenu(null); }} />
+          <MenuBtn label={atEnd ? 'Delivered' : `Advance to ${STATUSES[STATUSES.indexOf(menuBoat.global_status) + 1]} ›`} primary disabled={atEnd} onClick={() => { advance(menuBoat); setMenu(null); }} />
+          <MenuBtn label={atStart ? '‹ Step back' : `‹ Back to ${STATUSES[STATUSES.indexOf(menuBoat.global_status) - 1]}`} disabled={atStart} onClick={() => { stepBack(menuBoat); setMenu(null); }} />
           <MenuLabel>Flags</MenuLabel>
           {SCHEDULE_FLAGS.map(f => (
             <MenuToggle key={f.key} label={f.label} color={f.color} active={!!menuBoat[f.key]} onClick={() => toggleFlag(menuBoat, f.key)} />

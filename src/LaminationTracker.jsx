@@ -7,10 +7,14 @@ import { colorOptions } from './colors';
 import './LaminationTracker.css';
 
 // BRD §7 — 13 tasks, 5-status mold cycle that STOPS at Pulled, plus an N/A state.
-const LAM_TASKS = ['Glass Kit', 'Hull', 'Transducer', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid', 'Other'];
+const LAM_TASKS = ['Glass Kit', 'Hull', 'Transducer Type', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid', 'Other'];
 const LAM_ORDER = ['Mold Unavailable', 'Mold Open', 'In Progress', 'Complete/On Mold', 'Pulled'];
-// Most tasks use the mold cycle; a few (e.g. Glass Kit, which isn't molded) have their own set.
-const TASK_ORDER = { 'Glass Kit': ['Not Started', 'In Progress', 'Complete'] };
+// Most tasks use the mold cycle; a few have their own set. A single-status task
+// (e.g. Transducer Type) has no cycle — it stays "Complete" and just holds text.
+const TASK_ORDER = {
+  'Glass Kit': ['Not Started', 'In Progress', 'Complete'],
+  'Transducer Type': ['Complete'],
+};
 const orderFor = (task) => TASK_ORDER[task] || LAM_ORDER;
 const firstStatus = (task) => orderFor(task)[0];
 const NA = 'Not Applicable';
@@ -131,15 +135,19 @@ function LaminationTracker() {
 
   const actionMenu = menu && menuBoat && (
     <ActionMenu anchor={{ x: menu.x, y: menu.y }} title={menu.task} subtitle={`${menuBoat.boat_id} · ${menuBoat.customer_name}`} onClose={() => setMenu(null)}>
-      <MenuBtn label={menuNA ? 'Advance ›' : menuAtEnd ? `${menuOrder[menuOrder.length - 1]} (done)` : `Advance to ${menuOrder[menuIdx + 1]} ›`} primary disabled={menuNA || menuAtEnd} onClick={() => advance(menu.boatId, menu.task)} />
-      <MenuBtn label={menuNA || menuIdx <= 0 ? '‹ Step back' : `‹ Back to ${menuOrder[menuIdx - 1]}`} disabled={menuNA || menuIdx <= 0} onClick={() => stepBack(menu.boatId, menu.task)} />
+      {menuOrder.length > 1 && (
+        <>
+          <MenuBtn label={menuNA ? 'Advance ›' : menuAtEnd ? `${menuOrder[menuOrder.length - 1]} (done)` : `Advance to ${menuOrder[menuIdx + 1]} ›`} primary disabled={menuNA || menuAtEnd} onClick={() => advance(menu.boatId, menu.task)} />
+          <MenuBtn label={menuNA || menuIdx <= 0 ? '‹ Step back' : `‹ Back to ${menuOrder[menuIdx - 1]}`} disabled={menuNA || menuIdx <= 0} onClick={() => stepBack(menu.boatId, menu.task)} />
+        </>
+      )}
       {isOps && (
         <>
-          <MenuBtn label={menuNA ? 'Clear N/A' : 'Set Not Applicable'} onClick={() => toggleNA(menu.boatId, menu.task)} />
-          <MenuLabel>Color / note</MenuLabel>
-          <input className="am-spec-input" list="lam-color-opts" value={menuRow.color || ''} placeholder={`Mostly a color (default: ${defaultColor(menu.task, menuBoat)})`} onChange={e => setColor(menu.boatId, menu.task, e.target.value)} />
+          {menuOrder.length > 1 && <MenuBtn label={menuNA ? 'Clear N/A' : 'Set Not Applicable'} onClick={() => toggleNA(menu.boatId, menu.task)} />}
+          <MenuLabel>{menuOrder.length === 1 ? menu.task : 'Color / note'}</MenuLabel>
+          <input className="am-spec-input" list="lam-color-opts" value={menuRow.color || ''} placeholder={menuOrder.length === 1 ? `Type the ${menu.task.toLowerCase()}...` : `Mostly a color (default: ${defaultColor(menu.task, menuBoat)})`} onChange={e => setColor(menu.boatId, menu.task, e.target.value)} />
           <datalist id="lam-color-opts">{colorList().map(c => <option key={c} value={c} />)}</datalist>
-          <div className="am-spec-hint">Pick a color or type any note (saved for this task).</div>
+          <div className="am-spec-hint">{menuOrder.length === 1 ? 'Free text, saved for this task.' : 'Pick a color or type any note (saved for this task).'}</div>
         </>
       )}
       <MenuLabel>Flags</MenuLabel>

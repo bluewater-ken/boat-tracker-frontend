@@ -59,6 +59,8 @@ function KeyPartsTracker() {
   const [newCustom, setNewCustom] = useState('');
   const [loading, setLoading] = useState(true);
   const [menu, setMenu] = useState(null); // { boatId, partName, isCustom, x, y }
+  const [customList, setCustomList] = useState(null); // { boatId, x, y } — grid drill-down
+  const [customSel, setCustomSel] = useState(null); // { side: 'all'|'boat', name } — two-box selection
   // Remembered spec/description options per part name (grows as values are entered).
   const [specOptions, setSpecOptions] = useState(DUMMY_SPEC_OPTIONS);
 
@@ -158,15 +160,33 @@ function KeyPartsTracker() {
     } catch (e) { alert('Failed to update color'); init(); }
   };
 
-  const addCustom = async () => {
+  const customForBoat = (boatId) => Object.values(partData[boatId] || {}).filter(p => p.is_custom);
+  const sortedCustom = (boatId) => [...customForBoat(boatId)].sort((a, b) => a.part_name.localeCompare(b.part_name));
+  const customRollup = (boatId) => {
+    const cs = customForBoat(boatId);
+    return { received: cs.filter(p => (p.status || 'Not Ordered') === 'Received').length, total: cs.length };
+  };
+  const availableForBoat = (boatId) => {
+    const onBoat = new Set(customForBoat(boatId).map(p => p.part_name));
+    return customNames.filter(n => !onBoat.has(n)).sort((a, b) => a.localeCompare(b));
+  };
+  const moveToBoat = (name) => { if (selectedBoat) { save(selectedBoat.boat_id, name, true, { status: 'Not Ordered' }); setCustomSel(null); } };
+  const removeFromBoat = async (boatId, partName) => {
+    setCustomSel(null);
+    setPartData(prev => { const next = { ...prev }; if (next[boatId]) { const c = { ...next[boatId] }; delete c[partName]; next[boatId] = c; } return next; });
+    try {
+      const r = await apiFetch(`/api/parts/${boatId}/${encodeURIComponent(partName)}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error();
+    } catch (e) { alert('Removing a part needs the backend delete endpoint (coming in the server update).'); init(); }
+  };
+  const addNewCustomName = () => {
     const name = newCustom.trim();
     if (!name || !selectedBoat) return;
     setNewCustom('');
-    await save(selectedBoat.boat_id, name, true, { status: 'Ordered' });
-    apiFetch('/api/parts/custom-names').then(r => r.json()).then(setCustomNames).catch(() => {});
+    setCustomNames(prev => Array.from(new Set([...prev, name])));
+    save(selectedBoat.boat_id, name, true, { status: 'Not Ordered' });
   };
 
-  const customForBoat = (boatId) => Object.values(partData[boatId] || {}).filter(p => p.is_custom);
   const filteredBoats = boats.filter(b =>
     b.boat_id?.toLowerCase().includes(search.toLowerCase()) ||
     b.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -183,12 +203,21 @@ function KeyPartsTracker() {
     <ActionMenu anchor={{ x: menu.x, y: menu.y }} title={menu.partName} subtitle={`${menu.boatId}${menuBoat ? ' · ' + menuBoat.customer_name : ''}`} onClose={() => setMenu(null)}>
       <MenuBtn label={menuIdx >= STATUSES.length - 1 ? 'Received' : `Advance to ${STATUSES[menuIdx + 1]} ›`} primary disabled={menuIdx >= STATUSES.length - 1} onClick={() => advance(menu.boatId, menu.partName, menu.isCustom)} />
       <MenuBtn label={menuIdx <= 0 ? '‹ Step back' : `‹ Back to ${STATUSES[menuIdx - 1]}`} disabled={menuIdx <= 0} onClick={() => stepBack(menu.boatId, menu.partName, menu.isCustom)} />
-      <MenuLabel>Description / spec</MenuLabel>
-      <input className="am-spec-input" list={`spec-opts-${menu.partName}`} value={menuRow.description || ''} placeholder="e.g. Triple Suzuki 350" onChange={e => setDescription(menu.boatId, menu.partName, menu.isCustom, e.target.value)} />
-      <datalist id={`spec-opts-${menu.partName}`}>
-        {(specOptions[menu.partName] || []).map(o => <option key={o} value={o} />)}
-      </datalist>
-      <div className="am-spec-hint">Pick a saved spec or type a new one (saved for next time).</div>
+      {menu.isCustom ? (
+        <>
+          <MenuLabel>Notes</MenuLabel>
+          <textarea className="am-notes" value={menuRow.description || ''} placeholder="Notes for this part (supplier, lead time, details)..." onChange={e => save(menu.boatId, menu.partName, true, { description: e.target.value || null })} />
+        </>
+      ) : (
+        <>
+          <MenuLabel>Description / spec</MenuLabel>
+          <input className="am-spec-input" list={`spec-opts-${menu.partName}`} value={menuRow.description || ''} placeholder="e.g. Triple Suzuki 350" onChange={e => setDescription(menu.boatId, menu.partName, false, e.target.value)} />
+          <datalist id={`spec-opts-${menu.partName}`}>
+            {(specOptions[menu.partName] || []).map(o => <option key={o} value={o} />)}
+          </datalist>
+          <div className="am-spec-hint">Pick a saved spec or type a new one (saved for next time).</div>
+        </>
+      )}
       {(menuStatus === 'Ordered' || menuStatus === 'Received') && (
         <>
           <MenuLabel>Expected delivery</MenuLabel>
@@ -208,6 +237,26 @@ function KeyPartsTracker() {
     </ActionMenu>
   );
 
+  // Drill-down popup: the custom parts on one boat (opened from the grid's Custom column).
+  const clBoat = customList ? boats.find(b => b.boat_id === customList.boatId) : null;
+  const clRoll = customList ? customRollup(customList.boatId) : null;
+  const customListMenu = customList && clBoat && (
+    <ActionMenu anchor={{ x: customList.x, y: customList.y }} title="Custom parts" subtitle={`${clBoat.boat_id} · ${clRoll.received}/${clRoll.total} received`} onClose={() => setCustomList(null)}>
+      {sortedCustom(customList.boatId).length === 0 && <div className="am-menu-note">No custom parts on this boat yet — add them from Boat view.</div>}
+      {sortedCustom(customList.boatId).map(row => {
+        const st = row.status || 'Not Ordered';
+        const c = CELL[st];
+        return (
+          <button key={row.part_name} className="kpt-cprow" onClick={(e) => { setCustomList(null); openMenu(e, customList.boatId, row.part_name, true); }}>
+            <span className="kpt-cpname"><FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={12} />{row.part_name}{row.description ? ' 📝' : ''}</span>
+            <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
+          </button>
+        );
+      })}
+      <div className="am-menu-note">Tap a part to set status, dates, flags, or notes.</div>
+    </ActionMenu>
+  );
+
   if (view === 'table') {
     return (
       <div className="kpt-tablewrap">
@@ -221,6 +270,7 @@ function KeyPartsTracker() {
               <tr>
                 <th className="kpt-boathead">Boat</th>
                 {standardParts.map(p => <th key={p}>{p}</th>)}
+                <th className="kpt-customhead">Custom</th>
               </tr>
             </thead>
             <tbody>
@@ -243,6 +293,15 @@ function KeyPartsTracker() {
                       </td>
                     );
                   })}
+                  {(() => {
+                    const { received, total } = customRollup(boat.boat_id);
+                    const cls = total === 0 ? 'chip-none' : received === total ? 'chip-done' : 'chip-part';
+                    return (
+                      <td className={`kpt-customcell ${isOps ? '' : 'readonly'}`} onClick={(e) => isOps && setCustomList({ boatId: boat.boat_id, x: e.clientX, y: e.clientY })}>
+                        <span className={`kpt-chip ${cls}`}>{total === 0 ? '—' : `${received}/${total}${received === total ? ' ✓' : ''}`}</span>
+                      </td>
+                    );
+                  })()}
                 </tr>
               ))}
             </tbody>
@@ -250,6 +309,7 @@ function KeyPartsTracker() {
         </div>
         <Legend />
         {actionMenu}
+        {customListMenu}
       </div>
     );
   }
@@ -300,31 +360,63 @@ function KeyPartsTracker() {
               );
             })}
             <h3 style={{ marginTop: 20 }}>Custom Parts (Extras)</h3>
-            {isOps && (
-              <div className="kpt-add">
-                <input list="custom-suggestions" placeholder="Add custom part..." value={newCustom} onChange={e => setNewCustom(e.target.value)} onKeyDown={e => e.key === 'Enter' && addCustom()} />
-                <datalist id="custom-suggestions">
-                  {customNames.map(n => <option key={n} value={n} />)}
-                </datalist>
-                <button onClick={addCustom}>+ Add</button>
-              </div>
-            )}
-            {customForBoat(selectedBoat.boat_id).map(row => {
-              const st = row.status || 'Not Ordered';
-              const c = CELL[st];
-              return (
-                <div key={row.part_name} className={`kpt-part ${isOps ? '' : 'readonly'}`} onClick={(e) => openMenu(e, selectedBoat.boat_id, row.part_name, true)}>
-                  <span className="kpt-part-main">
-                    <span className="kpt-part-name">{row.part_name}</span>
-                    {row.description && <span className="kpt-part-spec">{row.description}</span>}
-                  </span>
-                  <span className="kpt-part-right">
-                    <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={14} />
-                    <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
-                  </span>
+            {isOps ? (
+              <div className="kpt-transfer">
+                <div className="kpt-tbox">
+                  <div className="kpt-tbox-title">All custom parts</div>
+                  <div className="kpt-tbox-list">
+                    {availableForBoat(selectedBoat.boat_id).map(n => (
+                      <div key={n} className={`kpt-titem ${customSel?.side === 'all' && customSel.name === n ? 'sel' : ''}`}
+                        onClick={() => setCustomSel({ side: 'all', name: n })} onDoubleClick={() => moveToBoat(n)}>{n}</div>
+                    ))}
+                    {availableForBoat(selectedBoat.boat_id).length === 0 && <div className="kpt-tempty">All added to this boat.</div>}
+                  </div>
+                  <div className="kpt-tadd">
+                    <input list="custom-suggestions" placeholder="Add a new custom part..." value={newCustom} onChange={e => setNewCustom(e.target.value)} onKeyDown={e => e.key === 'Enter' && addNewCustomName()} />
+                    <datalist id="custom-suggestions">{customNames.map(n => <option key={n} value={n} />)}</datalist>
+                    <button onClick={addNewCustomName}>+ Add</button>
+                  </div>
                 </div>
-              );
-            })}
+                <div className="kpt-arrows">
+                  <button className="kpt-arrow primary" title="Add to boat" disabled={customSel?.side !== 'all'} onClick={() => customSel?.side === 'all' && moveToBoat(customSel.name)}>→</button>
+                  <button className="kpt-arrow" title="Remove from boat" disabled={customSel?.side !== 'boat'} onClick={() => customSel?.side === 'boat' && removeFromBoat(selectedBoat.boat_id, customSel.name)}>←</button>
+                </div>
+                <div className="kpt-tbox">
+                  <div className="kpt-tbox-title">On this boat</div>
+                  <div className="kpt-tbox-list">
+                    {sortedCustom(selectedBoat.boat_id).map(row => {
+                      const st = row.status || 'Not Ordered';
+                      const c = CELL[st];
+                      return (
+                        <div key={row.part_name} className={`kpt-titem ${customSel?.side === 'boat' && customSel.name === row.part_name ? 'sel' : ''}`} onClick={() => setCustomSel({ side: 'boat', name: row.part_name })}>
+                          <span className="kpt-titem-name">{row.part_name}{row.description ? ' 📝' : ''}</span>
+                          <span className="kpt-titem-right">
+                            <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={12} />
+                            <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}</span>
+                            <button className="kpt-titem-edit" onClick={(e) => { e.stopPropagation(); openMenu(e, selectedBoat.boat_id, row.part_name, true); }}>Edit</button>
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {sortedCustom(selectedBoat.boat_id).length === 0 && <div className="kpt-tempty">None yet — pick from the left.</div>}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              sortedCustom(selectedBoat.boat_id).map(row => {
+                const st = row.status || 'Not Ordered';
+                const c = CELL[st];
+                return (
+                  <div key={row.part_name} className="kpt-part readonly">
+                    <span className="kpt-part-main"><span className="kpt-part-name">{row.part_name}</span>{row.description && <span className="kpt-part-spec">{row.description}</span>}</span>
+                    <span className="kpt-part-right">
+                      <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={14} />
+                      <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
+                    </span>
+                  </div>
+                );
+              })
+            )}
           </>
         ) : <p>Select a boat</p>}
       </div>

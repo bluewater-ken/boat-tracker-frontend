@@ -3,6 +3,7 @@ import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
 import { FlagTags, SCHEDULE_FLAGS } from './flags';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
+import { applyDeliveredFilter, isDelivered, ShowDeliveredToggle } from './boatFilter';
 import './ProductionSchedule.css';
 
 const STATUSES = ['Backlog', 'Pre-Production', 'Glass Shop', 'Back Line', 'Front Line', 'QC', 'Delivered'];
@@ -23,6 +24,7 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
   const [boats, setBoats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draggedIndex, setDraggedIndex] = useState(null);
+  const [showDelivered, setShowDelivered] = useState(false);
   const [menu, setMenu] = useState(null); // { boatId, x, y }
 
   useEffect(() => { fetchBoats(); }, [refreshTrigger]);
@@ -68,10 +70,13 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
 
   const handleDrop = async (targetIndex) => {
     if (draggedIndex === null || draggedIndex === targetIndex) { setDraggedIndex(null); return; }
-    const nb = [...boats];
+    // Reorder within the visible list, then keep any hidden delivered boats at the
+    // end so they're never dropped from the saved build order.
+    const nb = [...visible];
     const [dragged] = nb.splice(draggedIndex, 1);
     nb.splice(targetIndex, 0, dragged);
-    const updated = nb.map((b, i) => ({ ...b, sequence_number: i + 1 }));
+    const hidden = showDelivered ? [] : boats.filter(isDelivered);
+    const updated = [...nb, ...hidden].map((b, i) => ({ ...b, sequence_number: i + 1 }));
     setBoats(updated);
     setDraggedIndex(null);
     try {
@@ -81,6 +86,7 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
 
   if (loading) return <div className="loading">Loading production schedule...</div>;
 
+  const { visible, delivered } = applyDeliveredFilter(boats, showDelivered);
   const menuBoat = menu ? boats.find(b => b.boat_id === menu.boatId) : null;
   const atStart = menuBoat && STATUSES.indexOf(menuBoat.global_status) <= 0;
   const atEnd = menuBoat && STATUSES.indexOf(menuBoat.global_status) >= STATUSES.length - 1;
@@ -91,8 +97,11 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
         Build order, top to bottom. Each boat shows its current production stage — Advance moves it forward.
         {isOps ? ' Drag rows to reorder the build sequence.' : ''} Tap a boat for more actions.
       </div>
+      <div className="sched-toolbar">
+        <ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} />
+      </div>
       <div className="sched-list">
-        {boats.map((boat, idx) => {
+        {visible.map((boat, idx) => {
           const st = SCHED[boat.global_status] || SCHED['Backlog'];
           const stageIdx = STATUSES.indexOf(boat.global_status);
           return (

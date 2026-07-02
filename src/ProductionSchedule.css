@@ -1,5 +1,6 @@
 .sched { padding: 16px; }
 .sched-intro { font-size: 12px; color: #5F6B73; margin-bottom: 12px; line-height: 1.5; }
+.sched-toolbar { display: flex; justify-content: flex-end; margin-bottom: 8px; min-height: 18px; }
 .sched-list { display: flex; flex-direction: column; gap: 8px; }
 
 .sched-row {

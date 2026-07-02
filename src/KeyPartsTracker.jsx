@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { FlagIcons, KEYPARTS_FLAGS } from './flags';
 import { colorOptions } from './colors';
+import { applyDeliveredFilter, ShowDeliveredToggle } from './boatFilter';
 import './KeyPartsTracker.css';
 
 const STATUSES = ['Not Ordered', 'Ordered', 'Received'];
@@ -56,6 +57,7 @@ function KeyPartsTracker() {
   const [view, setView] = useState('table'); // table (default) | boat
   const [selectedBoat, setSelectedBoat] = useState(null);
   const [search, setSearch] = useState('');
+  const [showDelivered, setShowDelivered] = useState(false);
   const [newCustom, setNewCustom] = useState('');
   const [loading, setLoading] = useState(true);
   const [menu, setMenu] = useState(null); // { boatId, partName, isCustom, x, y }
@@ -187,7 +189,8 @@ function KeyPartsTracker() {
     save(selectedBoat.boat_id, name, true, { status: 'Not Ordered' });
   };
 
-  const filteredBoats = boats.filter(b =>
+  const { visible, delivered } = applyDeliveredFilter(boats, showDelivered);
+  const filteredBoats = visible.filter(b =>
     b.boat_id?.toLowerCase().includes(search.toLowerCase()) ||
     b.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
     b.boat_model?.toLowerCase().includes(search.toLowerCase()));
@@ -263,6 +266,7 @@ function KeyPartsTracker() {
         <div className="kpt-toolbar">
           <button className="kpt-toggle" onClick={() => setView('boat')}>Boat view</button>
           <span className="kpt-toolbar-note">{isOps ? 'Tap a cell to update.' : 'View only — contact the office to change parts.'}</span>
+          <span style={{ marginLeft: 'auto' }}><ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} /></span>
         </div>
         <div className="kpt-scroll">
           <table className="kpt-table">
@@ -274,7 +278,7 @@ function KeyPartsTracker() {
               </tr>
             </thead>
             <tbody>
-              {boats.map(boat => (
+              {visible.map(boat => (
                 <tr key={boat.boat_id}>
                   <td className="kpt-boatcell">
                     <div className="kpt-bid">{boat.boat_id} · {boat.customer_name}</div>

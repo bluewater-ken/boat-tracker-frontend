@@ -11,6 +11,11 @@ const TYPE_ICON = {
   CHECKLIST_CREATED: '＋',
   PHOTO_ADDED: '📷',
   COMMENT_ADDED: '💬',
+  APP_TASK_UPDATED: '✓',   // Lamination/Finishing status change
+  PART_RECEIVED: '📦',      // Key Parts: marked Received
+  PART_DELAYED: '🕓',       // Key Parts: expected delivery pushed
+  PART_FLAGGED: '⚠️',       // Key Parts: Late/Backordered/Unsatisfactory turned on
+  STAGE_CHANGED: '»',       // Production Schedule stage move
 };
 
 const fmtTime = (iso) => {

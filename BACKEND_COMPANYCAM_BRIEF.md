@@ -62,17 +62,37 @@ CREATE TABLE IF NOT EXISTS cc_feed (
 );
 ```
 
-### App events too (Lamination + Finishing → Shop Feed)
-The feed also mirrors the tracker's own tabs. In the EXISTING `PUT /api/lamination/:boatId/:taskName`
-and `PUT /api/finishing/:boatId/:taskName` handlers, after a successful write, **if the body included
-a `status` change**, also insert:
-```sql
-INSERT INTO cc_feed (boat_id, work_center_name, type, title, actor_name)
-VALUES ($boatId, 'Lamination' /* or 'Finishing' */, 'APP_TASK_UPDATED',
-        $taskName || ' → ' || $newStatus, $req.user.display_name or username);
-```
-Keep it non-fatal: wrap in try/catch so a feed insert error can never break a status save.
-Do NOT log color/notes/flag-only changes — status changes only, or the feed gets noisy.
+### App events too (our own tabs → Shop Feed)
+The feed also mirrors the tracker's own tabs. Add feed inserts to these EXISTING handlers.
+For all of them: wrap in try/catch so a feed insert error can never break the actual save,
+set `actor_name` from the logged-in user (display_name or username — app logins ARE per-user,
+unlike CompanyCam), and detect transitions by SELECTing the prior row BEFORE the update.
+Feed types the frontend knows: `APP_TASK_UPDATED`, `PART_RECEIVED`, `PART_DELAYED`,
+`PART_FLAGGED`, `STAGE_CHANGED`.
+
+1. `PUT /api/lamination/:boatId/:taskName` and `PUT /api/finishing/:boatId/:taskName` —
+   only when the body changes `status`:
+   ```sql
+   INSERT INTO cc_feed (boat_id, work_center_name, type, title, actor_name)
+   VALUES ($boatId, 'Lamination' /* or 'Finishing' */, 'APP_TASK_UPDATED',
+           $taskName || ' → ' || $newStatus, $actor);
+   ```
+   Do NOT log color/notes/flag-only changes (noise).
+
+2. `PUT /api/parts/:boatId/:partName` (Key Parts) — exactly three transitions (per Ken):
+   - **Received:** status changes TO `'Received'` → type `PART_RECEIVED`,
+     work_center_name `'Key Parts'`, title `"<part> received"`.
+   - **Delivery pushed:** `expected_delivery` changes from one non-null date to a DIFFERENT
+     non-null date → type `PART_DELAYED`, title `"<part> delivery moved <old M/D> → <new M/D>"`.
+     (First-time date entry — old value null — stays silent; "ordered" events were deliberately
+     excluded by Ken.)
+   - **Flag turned on:** any of `flag_late` / `flag_backordered` / `flag_unsatisfactory` goes
+     false→true → type `PART_FLAGGED`, title `"<part> flagged <Late|Backordered|Unsatisfactory>"`.
+     Turning a flag OFF stays silent.
+
+3. `PUT /api/schedule/:boatId` — only when `global_status` changes:
+   type `STAGE_CHANGED`, work_center_name `'Schedule'`, title `"Moved to <new status>"`.
+   (Reorders and boat-level flag toggles stay silent.)
 
 ## 3. Sync logic (one function, reused by webhook + poller + manual refresh)
 `syncBoat(boatId)`:

@@ -2,12 +2,13 @@ import { useState } from 'react';
 import ProductionSchedule from './ProductionSchedule';
 import BoatInformation from './BoatInformation';
 import KeyPartsTracker from './KeyPartsTracker';
+import UsersAdmin from './UsersAdmin';
 import Login from './Login';
 import Logo from './Logo';
 import { useAuth } from './AuthContext';
 import './App.css';
 
-const TABS = [
+const BASE_TABS = [
   { key: 'schedule', label: 'Production Schedule' },
   { key: 'boats', label: 'Boat Information' },
   { key: 'parts', label: 'Key Parts' },
@@ -24,6 +25,8 @@ function App() {
   if (status === 'anon') return <Login />;
 
   const roleLabel = user?.role === 'ops' ? 'Ops' : user?.role === 'shop' ? 'Shop' : '';
+  const isOps = user?.role === 'ops';
+  const tabs = isOps ? [...BASE_TABS, { key: 'users', label: 'Users' }] : BASE_TABS;
 
   return (
     <div className="app">
@@ -39,7 +42,7 @@ function App() {
           </div>
         </header>
         <nav className="tab-navigation">
-          {TABS.map(t => (
+          {tabs.map(t => (
             <button key={t.key} className={`tab-button ${activeTab === t.key ? 'active' : ''}`} onClick={() => setActiveTab(t.key)}>{t.label}</button>
           ))}
         </nav>
@@ -47,6 +50,7 @@ function App() {
           {activeTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} />}
           {activeTab === 'boats' && <BoatInformation refreshTrigger={refreshTrigger} onRefresh={handleRefresh} />}
           {activeTab === 'parts' && <KeyPartsTracker />}
+          {activeTab === 'users' && isOps && <UsersAdmin />}
         </main>
       </div>
     </div>

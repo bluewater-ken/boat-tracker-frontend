@@ -4,6 +4,9 @@
 .flag-dots { display: inline-flex; gap: 2px; align-items: center; }
 .flag-dot { display: inline-block; border-radius: 2px; flex: 0 0 auto; }
 
+.flag-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.flag-tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; line-height: 1.5; white-space: nowrap; }
+
 .flag-toggles { display: flex; flex-direction: column; gap: 8px; }
 .flag-toggle {
   display: flex;

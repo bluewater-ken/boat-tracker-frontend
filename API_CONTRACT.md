@@ -80,12 +80,14 @@ Add a free-text spec field per part and remember values per part name so they ca
 ## 2. Production Schedule
 
 ### Data model additions (per boat row)
-Add three boat-level flags (the standard set, BRD §8):
+Add five boat-level flags (the standard three, BRD §8, plus two parts flags):
 | Field | Type | Meaning |
 |-------|------|---------|
 | `flag_issue` | bool | Issue / Delay. |
 | `flag_rework` | bool | Required Rework. |
 | `flag_unsatisfactory` | bool | Unsatisfactory. |
+| `flag_missing_parts` | bool | Parts are missing for this boat (manual). |
+| `flag_late_parts` | bool | Parts are late for this boat (manual). |
 
 ### `GET /api/boats`
 Return the three flag fields on every boat row.
@@ -97,7 +99,9 @@ Accept a **partial** body — any subset of:
   "global_status": "Glass Shop",
   "flag_issue": true,
   "flag_rework": false,
-  "flag_unsatisfactory": false
+  "flag_unsatisfactory": false,
+  "flag_missing_parts": true,
+  "flag_late_parts": false
 }
 ```
 

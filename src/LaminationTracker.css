@@ -1,0 +1,65 @@
+/* ---------- Table view (default) ---------- */
+.lam-tablewrap { display: flex; flex-direction: column; }
+.lam-toolbar { display: flex; align-items: center; gap: 12px; padding: 12px 16px 0; }
+.lam-toggle { padding: 8px 12px; font-size: 12px; font-weight: 500; background: #2E92D6; color: #fff; border: none; border-radius: 7px; cursor: pointer; }
+.lam-toggle:hover { background: #2680bd; }
+.lam-toolbar-note { font-size: 12px; color: #8A969E; }
+
+.lam-scroll { overflow: auto; max-height: calc(100vh - 300px); margin-top: 12px; }
+.lam-table { border-collapse: separate; border-spacing: 0; font-size: 11px; width: 100%; }
+.lam-table th {
+  position: sticky; top: 0; z-index: 2;
+  background: #173A5E; color: #cfe0ee;
+  padding: 11px 5px; font-weight: 600; font-size: 10px; min-width: 92px;
+  border-right: 1px solid #2E5275; white-space: nowrap;
+}
+.lam-boathead { left: 0; z-index: 3; color: #fff; text-align: left; min-width: 190px; border-right: 1px solid #C7CDD2; font-size: 12px; }
+.lam-boatcell {
+  position: sticky; left: 0; z-index: 1; background: #fff;
+  text-align: left; padding: 5px 12px;
+  border-right: 1px solid #C7CDD2; border-bottom: 1px solid #E6E9EC; white-space: nowrap;
+}
+.lam-bid { font-size: 12px; font-weight: 700; color: #1c1c1c; }
+.lam-bmeta { font-size: 11px; color: #5F6B73; }
+.lam-bhull { font-size: 11px; color: #2E92D6; font-style: italic; }
+
+.lam-cell {
+  position: relative; padding: 5px 4px; text-align: center;
+  border-right: 1px solid #E6E9EC; border-bottom: 1px solid #E6E9EC;
+  cursor: pointer; line-height: 1.15;
+}
+.lam-flagwrap { position: absolute; top: 2px; right: 3px; }
+.lam-cellstatus { font-size: 10px; font-weight: 600; line-height: 1.2; }
+.lam-celldate { font-size: 9px; margin-top: 1px; }
+.lam-cellcolor { font-size: 9px; font-style: italic; margin-top: 1px; opacity: 0.9; }
+
+.lam-legend { padding: 12px 16px; border-top: 1px solid #E6E9EC; }
+.lam-legend-title { font-size: 10px; font-weight: 700; color: #5F6B73; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; }
+.lam-legend-row { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.lam-legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #33424C; }
+.lam-legend-sw { width: 15px; height: 15px; border-radius: 3px; border: 1px solid #D6DBE0; }
+.lam-legend-note { font-size: 11px; color: #8A969E; margin-top: 10px; line-height: 1.5; }
+
+/* ---------- Boat view ---------- */
+.lam { display: grid; grid-template-columns: 300px 1fr; gap: 16px; padding: 16px; }
+.lam-list-panel { background: #fff; border-radius: 10px; border: 1px solid #E2E6EA; display: flex; flex-direction: column; padding: 12px; max-height: 620px; }
+.lam-search { padding: 8px 12px; font-size: 13px; border: 1px solid #D6DBE0; border-radius: 7px; margin: 10px 0; }
+.lam-boats { flex: 1; overflow-y: auto; }
+.lam-boat-row { padding: 10px 12px; border-bottom: 1px solid #eef1f4; cursor: pointer; border-radius: 6px; }
+.lam-boat-row:hover { background: #f7fafc; }
+.lam-boat-row.selected { background: #f2f8fc; }
+
+.lam-detail { background: #fff; border-radius: 10px; border: 1px solid #E2E6EA; padding: 20px; overflow-y: auto; max-height: 620px; }
+.lam-detail h2 { font-size: 16px; font-weight: 700; color: #173A5E; margin-bottom: 16px; }
+.lam-detail h3 { font-size: 12px; font-weight: 700; color: #5F6B73; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+.lam-part { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f7f8fa; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
+.lam-part:hover { background: #eef1f4; }
+.lam-part-main { display: flex; flex-direction: column; gap: 2px; }
+.lam-part-name { font-size: 13px; font-weight: 500; color: #33424C; }
+.lam-part-color { font-size: 11px; color: #5F6B73; font-style: italic; }
+.lam-part-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.lam-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+
+@media (max-width: 1024px) {
+  .lam { grid-template-columns: 1fr; }
+}

@@ -7,7 +7,7 @@ import { colorOptions } from './colors';
 import './LaminationTracker.css';
 
 // BRD §7 — 13 tasks, 5-status mold cycle that STOPS at Pulled, plus an N/A state.
-const LAM_TASKS = ['Glass', 'Hull', 'Transducer', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid'];
+const LAM_TASKS = ['Glass', 'Hull', 'Transducer', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid', 'Other'];
 const LAM_ORDER = ['Mold Unavailable', 'Mold Open', 'In Progress', 'Complete/On Mold', 'Pulled'];
 const NA = 'Not Applicable';
 // Palette from BluewaterDemo.jsx.
@@ -126,9 +126,10 @@ function LaminationTracker() {
       {isOps && (
         <>
           <MenuBtn label={menuNA ? 'Clear N/A' : 'Set Not Applicable'} onClick={() => toggleNA(menu.boatId, menu.task)} />
-          <MenuLabel>Color</MenuLabel>
-          <input className="am-spec-input" list="lam-color-opts" value={menuRow.color || ''} placeholder={`Default: ${defaultColor(menu.task, menuBoat)}`} onChange={e => setColor(menu.boatId, menu.task, e.target.value)} />
+          <MenuLabel>Color / note</MenuLabel>
+          <input className="am-spec-input" list="lam-color-opts" value={menuRow.color || ''} placeholder={`Mostly a color (default: ${defaultColor(menu.task, menuBoat)})`} onChange={e => setColor(menu.boatId, menu.task, e.target.value)} />
           <datalist id="lam-color-opts">{colorList().map(c => <option key={c} value={c} />)}</datalist>
+          <div className="am-spec-hint">Pick a color or type any note (saved for this task).</div>
         </>
       )}
       <MenuLabel>Flags</MenuLabel>

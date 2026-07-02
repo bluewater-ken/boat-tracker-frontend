@@ -112,6 +112,23 @@ stays **Ops-only** — enforce `requireRole('ops')` there.
 
 ---
 
+## 3. Shared hull color (Boat Information ↔ Key Parts)
+
+Hull color is the shop-floor boat identifier and is now editable from **both** Boat Information and the
+Key Parts boat view, sharing one growing color list.
+
+- No new column — this is the existing `hull_color` on the boat.
+- Key Parts writes it via the **existing** `PUT /api/boats/:boatId` (sends the full boat with the new
+  `hull_color`). No new endpoint required. Keep `requireRole('ops')` on boat writes.
+- The color dropdown options are derived from a seed list + every boat's current `hull_color`
+  (`GET /api/boats`), so a new color persists just by being saved on a boat. (Optional nicety: a
+  `GET /api/colors` returning all distinct colors ever used, if you want colors to survive even after
+  no boat uses them — not required.)
+- Motors moved off Boat Information into the Key Parts "Motors" spec field. The boat's `engine_*`
+  columns are simply no longer shown/edited by the frontend (existing data untouched; no migration).
+
+---
+
 ## Summary for the server developer
 1. Add 5 columns to the parts table; return them in `GET /api/parts`; accept them in the parts `PUT`;
    default `actual_delivery` to today on Received; compute/store auto-Late; keep history.

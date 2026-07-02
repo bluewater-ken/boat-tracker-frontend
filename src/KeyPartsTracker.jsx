@@ -3,6 +3,7 @@ import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { FlagIcons, KEYPARTS_FLAGS } from './flags';
+import { colorOptions } from './colors';
 import './KeyPartsTracker.css';
 
 const STATUSES = ['Not Ordered', 'Ordered', 'Received'];
@@ -145,6 +146,18 @@ function KeyPartsTracker() {
     setMenu({ boatId, partName, isCustom, x: e.clientX, y: e.clientY });
   };
 
+  // Hull color is the boat's identifier — editable here and on Boat Information
+  // (shared color list). Update locally on change, persist to the boat on blur.
+  const updateColorLocal = (boatId, color) => {
+    setBoats(bs => bs.map(b => b.boat_id === boatId ? { ...b, hull_color: color } : b));
+    setSelectedBoat(sb => sb && sb.boat_id === boatId ? { ...sb, hull_color: color } : sb);
+  };
+  const persistColor = async (boat) => {
+    try {
+      await apiFetch(`/api/boats/${boat.boat_id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(boat) });
+    } catch (e) { alert('Failed to update color'); init(); }
+  };
+
   const addCustom = async () => {
     const name = newCustom.trim();
     if (!name || !selectedBoat) return;
@@ -260,6 +273,14 @@ function KeyPartsTracker() {
         {selectedBoat ? (
           <>
             <h2>{selectedBoat.boat_id} - {selectedBoat.customer_name}</h2>
+            <div className="kpt-colorrow">
+              <label>Hull color</label>
+              {isOps ? (
+                <input className="kpt-colorinput" list="kpt-color-opts" value={selectedBoat.hull_color || ''} placeholder="Pick or type a color..."
+                  onChange={e => updateColorLocal(selectedBoat.boat_id, e.target.value)} onBlur={() => persistColor(selectedBoat)} />
+              ) : <span className="kpt-colorval">{selectedBoat.hull_color || '—'}</span>}
+              <datalist id="kpt-color-opts">{colorOptions(boats).map(c => <option key={c} value={c} />)}</datalist>
+            </div>
             {!isOps && <div className="kpt-readonly-note">View only — contact the office to change parts.</div>}
             <h3>Standard Parts ({standardParts.length})</h3>
             {standardParts.map(p => {

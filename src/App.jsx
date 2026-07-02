@@ -2,6 +2,7 @@ import { useState } from 'react';
 import ProductionSchedule from './ProductionSchedule';
 import BoatInformation from './BoatInformation';
 import KeyPartsTracker from './KeyPartsTracker';
+import LaminationTracker from './LaminationTracker';
 import UsersAdmin from './UsersAdmin';
 import Login from './Login';
 import Logo from './Logo';
@@ -12,6 +13,7 @@ const BASE_TABS = [
   { key: 'schedule', label: 'Production Schedule' },
   { key: 'boats', label: 'Boat Information' },
   { key: 'parts', label: 'Key Parts' },
+  { key: 'lamination', label: 'Lamination' },
 ];
 
 function App() {
@@ -50,6 +52,7 @@ function App() {
           {activeTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} />}
           {activeTab === 'boats' && <BoatInformation refreshTrigger={refreshTrigger} onRefresh={handleRefresh} />}
           {activeTab === 'parts' && <KeyPartsTracker />}
+          {activeTab === 'lamination' && <LaminationTracker />}
           {activeTab === 'users' && isOps && <UsersAdmin />}
         </main>
       </div>

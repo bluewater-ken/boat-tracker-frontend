@@ -31,8 +31,11 @@
 .sched-id { font-size: 14px; font-weight: 700; color: #1c1c1c; }
 .sched-sub { font-size: 11px; color: #5F6B73; }
 .sched-boat .flag-icons { margin-top: 4px; }
+/* Flags sit centered under the progress bars; the boat block sets the row height. */
+.sched-pipswrap .flag-tags { align-self: center; flex-wrap: wrap; justify-content: center; }
 
-.sched-pips { flex: 1; display: flex; gap: 3px; align-items: center; }
+.sched-pipswrap { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.sched-pips { display: flex; gap: 3px; align-items: center; }
 .sched-pip { flex: 1; height: 7px; border-radius: 3px; }
 
 .sched-stat { flex: 0 0 150px; text-align: center; }

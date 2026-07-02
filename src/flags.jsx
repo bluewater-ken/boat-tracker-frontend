@@ -63,6 +63,14 @@ export const KEYPARTS_FLAGS = [
   { key: 'flag_unsatisfactory', label: 'Unsatisfactory', color: '#185FA5', Icon: FlagIcon },
 ];
 
+// Production Schedule (boat-level): the standard three plus two manual parts flags.
+// Rendered as text labels on the board (see FlagTags), not icons.
+export const SCHEDULE_FLAGS = [
+  ...STANDARD_FLAGS,
+  { key: 'flag_missing_parts', label: 'Missing parts', color: '#BA7517', Icon: TriangleIcon },
+  { key: 'flag_late_parts', label: 'Late parts', color: '#A32D2D', Icon: ClockIcon },
+];
+
 // Small colored dots (no text) for cells/rows — matches BluewaterDemo.jsx.
 export function FlagDots({ flags, defs, size = 7 }) {
   const active = defs.filter((d) => flags && flags[d.key]);
@@ -71,6 +79,19 @@ export function FlagDots({ flags, defs, size = 7 }) {
     <span className="flag-dots">
       {active.map((d) => (
         <span key={d.key} className="flag-dot" title={d.label} style={{ width: size, height: size, background: d.color }} />
+      ))}
+    </span>
+  );
+}
+
+// Text labels for active flags (small colored pills). Preferred where there's room.
+export function FlagTags({ flags, defs }) {
+  const active = defs.filter((d) => flags && flags[d.key]);
+  if (!active.length) return null;
+  return (
+    <span className="flag-tags">
+      {active.map((d) => (
+        <span key={d.key} className="flag-tag" style={{ color: d.color, background: d.color + '18' }}>{d.label}</span>
       ))}
     </span>
   );

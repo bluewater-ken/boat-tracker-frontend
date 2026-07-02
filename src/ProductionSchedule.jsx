@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
-import { FlagIcons, STANDARD_FLAGS } from './flags';
+import { FlagTags, SCHEDULE_FLAGS } from './flags';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import './ProductionSchedule.css';
 
@@ -107,10 +107,12 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
               <div className="sched-boat">
                 <div className="sched-id">{boat.boat_id}</div>
                 <div className="sched-sub">{boat.customer_name} · {boat.boat_model} · {boat.hull_color}</div>
-                <FlagIcons flags={boat} defs={STANDARD_FLAGS} size={13} />
               </div>
-              <div className="sched-pips">
-                {STATUSES.map((s, i) => <span key={s} className="sched-pip" title={s} style={{ background: i <= stageIdx ? st.tv : '#E6E9EC' }} />)}
+              <div className="sched-pipswrap">
+                <div className="sched-pips">
+                  {STATUSES.map((s, i) => <span key={s} className="sched-pip" title={s} style={{ background: i <= stageIdx ? st.tv : '#E6E9EC' }} />)}
+                </div>
+                <FlagTags flags={boat} defs={SCHEDULE_FLAGS} />
               </div>
               <div className="sched-stat">
                 <span className="sched-pill" style={{ background: st.bg, color: st.fg }}>{boat.global_status}</span>
@@ -129,7 +131,7 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
           <MenuBtn label="Advance ›" primary disabled={atEnd} onClick={() => { advance(menuBoat); setMenu(null); }} />
           <MenuBtn label="‹ Step back" disabled={atStart} onClick={() => { stepBack(menuBoat); setMenu(null); }} />
           <MenuLabel>Flags</MenuLabel>
-          {STANDARD_FLAGS.map(f => (
+          {SCHEDULE_FLAGS.map(f => (
             <MenuToggle key={f.key} label={f.label} color={f.color} active={!!menuBoat[f.key]} onClick={() => toggleFlag(menuBoat, f.key)} />
           ))}
         </ActionMenu>

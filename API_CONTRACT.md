@@ -55,17 +55,39 @@ existing `requireRole('ops')` on the `PUT` route.
 ### History (for future reporting — not consumed by the frontend yet)
 Store timestamped events for status changes, expected/actual date edits, and every flag raise/clear.
 
+### Part spec / description (NEW — for the spec feature)
+Add a free-text spec field per part and remember values per part name so they can be re-picked.
+
+- **New column** `description` (text | null) on the part row.
+  - `GET /api/parts` returns it on every row.
+  - `PUT /api/parts/:boatId/:partName` accepts `"description": "Triple Suzuki 350"` (or `null` to clear)
+    as part of the existing partial body. Ops-only, same as other edits.
+- **Remembered options per part name.** The frontend offers a pick-list of previously-used specs
+  *scoped to the part name* (Motors' list is separate from Gelcoat's), plus free typing of a new value.
+  Provide the historical values one of two equivalent ways:
+  - `GET /api/parts/spec-options` → `{ "Motors": ["Triple Suzuki 350", ...], "Gelcoat": ["Ice Blue", ...] }`
+    (map of part_name → distinct non-null `description` values ever saved), **or**
+  - fold it into existing loads — as long as saved descriptions come back on `GET /api/parts`, the
+    frontend also derives the options from those rows. The dedicated endpoint is preferred so options
+    persist even for boats not currently loaded.
+  No separate "save option" call is needed — a new value persists simply by being saved on a part.
+- **Persist new custom-part names.** `GET /api/parts/custom-names` must include the name of any
+  `is_custom` part ever created, so a custom part added on one boat is suggested on others. (Today the
+  frontend also merges a dummy seed list; that seed is removed once real names flow.)
+
 ---
 
 ## 2. Production Schedule
 
 ### Data model additions (per boat row)
-Add three boat-level flags (the standard set, BRD §8):
+Add five boat-level flags (the standard three, BRD §8, plus two parts flags):
 | Field | Type | Meaning |
 |-------|------|---------|
 | `flag_issue` | bool | Issue / Delay. |
 | `flag_rework` | bool | Required Rework. |
 | `flag_unsatisfactory` | bool | Unsatisfactory. |
+| `flag_missing_parts` | bool | Parts are missing for this boat (manual). |
+| `flag_late_parts` | bool | Parts are late for this boat (manual). |
 
 ### `GET /api/boats`
 Return the three flag fields on every boat row.
@@ -77,7 +99,9 @@ Accept a **partial** body — any subset of:
   "global_status": "Glass Shop",
   "flag_issue": true,
   "flag_rework": false,
-  "flag_unsatisfactory": false
+  "flag_unsatisfactory": false,
+  "flag_missing_parts": true,
+  "flag_late_parts": false
 }
 ```
 
@@ -89,6 +113,23 @@ Step Back is a normal `PUT /api/schedule/:boatId { "global_status": "<previous s
 ### Permissions (BRD §9c)
 Both **Shop and Ops** may Advance, Step Back, and set flags. **Reorder** (`PUT /api/schedule/reorder`)
 stays **Ops-only** — enforce `requireRole('ops')` there.
+
+---
+
+## 3. Shared hull color (Boat Information ↔ Key Parts)
+
+Hull color is the shop-floor boat identifier and is now editable from **both** Boat Information and the
+Key Parts boat view, sharing one growing color list.
+
+- No new column — this is the existing `hull_color` on the boat.
+- Key Parts writes it via the **existing** `PUT /api/boats/:boatId` (sends the full boat with the new
+  `hull_color`). No new endpoint required. Keep `requireRole('ops')` on boat writes.
+- The color dropdown options are derived from a seed list + every boat's current `hull_color`
+  (`GET /api/boats`), so a new color persists just by being saved on a boat. (Optional nicety: a
+  `GET /api/colors` returning all distinct colors ever used, if you want colors to survive even after
+  no boat uses them — not required.)
+- Motors moved off Boat Information into the Key Parts "Motors" spec field. The boat's `engine_*`
+  columns are simply no longer shown/edited by the frontend (existing data untouched; no migration).
 
 ---
 

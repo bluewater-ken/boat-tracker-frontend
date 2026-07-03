@@ -1,0 +1,26 @@
+.rules { padding: 16px; max-width: 860px; }
+.rules-intro { font-size: 12px; color: #5F6B73; line-height: 1.5; margin-bottom: 14px; }
+.rules-intro strong { color: #A32D2D; }
+
+.rule-row {
+  display: flex; align-items: center; gap: 12px;
+  background: #fff; border: 1px solid #E2E6EA; border-radius: 10px;
+  padding: 11px 14px; margin-bottom: 8px;
+}
+.rule-row.off { opacity: 0.55; }
+.rule-switch input { width: 16px; height: 16px; cursor: pointer; accent-color: #2E92D6; }
+.rule-icon { flex: 0 0 22px; text-align: center; font-size: 16px; }
+.rule-text { font-size: 13px; color: #1c1c1c; line-height: 1.7; flex: 1; }
+.rule-num {
+  width: 58px; padding: 4px 6px; text-align: center;
+  font-size: 13px; font-weight: 700; color: #173A5E;
+  border: 1px solid #C7D2DB; border-radius: 6px;
+}
+.rule-num:disabled { background: #f2f4f6; color: #9AA5AD; }
+.rule-tab {
+  display: inline-block; margin-left: 10px; padding: 2px 9px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  color: #5F6B73; background: #EEF1F4; border-radius: 10px; vertical-align: middle;
+}
+.rule-saved { font-size: 12px; font-weight: 700; color: #3B6D11; }
+.rules-note { font-size: 11px; color: #8A969E; margin-top: 12px; }

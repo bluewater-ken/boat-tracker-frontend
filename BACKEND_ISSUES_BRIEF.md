@@ -30,7 +30,27 @@ CREATE TABLE IF NOT EXISTS issues (
 );
 ```
 
-## 2. Thresholds (one constants block at the top — Ken will tune these later)
+## 1b. Rule settings table (powers the Admin → Issue Rules screen)
+Ken tunes rules from the app — each rule has an on/off switch and one number. Store:
+```sql
+CREATE TABLE IF NOT EXISTS issue_rule_settings (
+  rule_key TEXT PRIMARY KEY,   -- part_overdue, parts_unordered, backorder_stale, stage_stuck,
+                               -- flag_stale, lam_stalled, ugly_part, asap_idle, wc_quiet,
+                               -- build_improvement, resolve_snooze
+  enabled  BOOLEAN DEFAULT true,
+  value    INT                 -- the rule's number (days/hours); NULL for toggle-only rules
+);
+```
+Routes:
+- `GET /api/issue-rules` (any logged-in) → all rows merged over the defaults below:
+  `[{ rule_key, enabled, value }]` (return every known rule_key even if no row exists yet).
+- `PUT /api/issue-rules/:key` (**Ops only**) → body `{ enabled, value }`, upsert.
+
+The rule runner MUST read these settings on every pass: skip disabled rules, and use
+`value` (falling back to the defaults below) as the threshold. `resolve_snooze.value`
+(hours) replaces the RESOLVE_SNOOZE_HOURS constant.
+
+## 2. Threshold DEFAULTS (used when issue_rule_settings has no row)
 ```js
 const ISSUE_RULES = {
   OVERDUE_MIN_DAYS: 1,      // rule 1: days past expected_delivery

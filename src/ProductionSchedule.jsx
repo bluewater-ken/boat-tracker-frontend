@@ -113,7 +113,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
         {isOps ? ' Grab the ⠿ handle to drag-reorder, or tap a boat and use Move up / Move down.' : ''} Tap a boat for more actions.
       </div>
       <div className="sched-toolbar">
-        {onManageBoats && <button className="sched-manage" onClick={onManageBoats}>⚙ Manage Boats</button>}
+        {isOps && onManageBoats && <button className="sched-manage" onClick={onManageBoats}>⚙ Manage Boats</button>}
         <ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} />
       </div>
       <div className="sched-list">

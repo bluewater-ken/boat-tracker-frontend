@@ -76,7 +76,7 @@ function App() {
         </main>
       </div>
 
-      {manageBoats && (
+      {isOps && manageBoats && (
         <div className="drawer-backdrop" onClick={() => setManageBoats(false)}>
           <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
             <div className="drawer-head">

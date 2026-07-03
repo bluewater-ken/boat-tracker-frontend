@@ -18,7 +18,7 @@ const SCHED = {
   'Delivered': { bg: '#EAF3DE', fg: '#3B6D11', tv: '#5C9A2E' },
 };
 
-function ProductionSchedule({ refreshTrigger, onRefresh }) {
+function ProductionSchedule({ refreshTrigger }) {
   const { user } = useAuth();
   const isOps = user?.role === 'ops';
   const [boats, setBoats] = useState([]);
@@ -44,13 +44,15 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
     } catch (e) { alert('Failed to update'); fetchBoats(); }
   };
 
+  // No refetch after advance/step-back: the optimistic update is already on screen and
+  // persist() re-syncs on failure. Refetching here raced the PUT and could pull back the
+  // OLD status before the save landed — which made buttons appear to need two presses.
   const advance = (boat) => {
     const i = STATUSES.indexOf(boat.global_status);
     if (i < 0 || i >= STATUSES.length - 1) return;
     const next = STATUSES[i + 1];
     setBoats(bs => bs.map(b => b.boat_id === boat.boat_id ? { ...b, global_status: next } : b));
     persist(boat.boat_id, { global_status: next });
-    onRefresh();
   };
 
   const stepBack = (boat) => {
@@ -59,7 +61,6 @@ function ProductionSchedule({ refreshTrigger, onRefresh }) {
     const prev = STATUSES[i - 1];
     setBoats(bs => bs.map(b => b.boat_id === boat.boat_id ? { ...b, global_status: prev } : b));
     persist(boat.boat_id, { global_status: prev });
-    onRefresh();
   };
 
   const toggleFlag = (boat, key) => {

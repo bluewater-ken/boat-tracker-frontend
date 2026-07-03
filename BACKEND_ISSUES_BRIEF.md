@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS issues (
 ```js
 const ISSUE_RULES = {
   OVERDUE_MIN_DAYS: 1,      // rule 1: days past expected_delivery
-  UNORDERED_FROM_STAGE: 'Glass Shop', // rule 2: boat at/past this stage with Not Ordered parts
+  UNORDERED_STAGE: 'Glass Shop', // rule 2: fires ONLY while the boat is exactly in this stage
   BACKORDER_STALE_DAYS: 7,  // rule 3
   STAGE_STUCK_DAYS: 14,     // rule 4 (ignore Backlog + Delivered)
   FLAG_STALE_DAYS: 7,       // rule 5
@@ -42,7 +42,7 @@ const ISSUE_RULES = {
   UGLY_IDLE_DAYS: 3,        // rule 7
   ASAP_IDLE_DAYS: 3,        // rule 8
   WC_QUIET_DAYS: 4,         // rule 9
-  RESOLVE_SNOOZE_DAYS: 7,   // manual resolve hides an auto issue this long
+  RESOLVE_SNOOZE_HOURS: 24, // manual resolve hides an auto issue this long (comes back if still true)
 };
 ```
 
@@ -60,10 +60,11 @@ The 9 rules (adapt table/column names to the real schema — verify with \d firs
    `now() - expected_delivery >= OVERDUE_MIN_DAYS`.
    target `part_overdue:<boat>:<part>`; title `"<part> overdue"`;
    detail `"expected <M/D>, N days past"`; tab Key Parts.
-2. `parts_unordered` — boat whose production_schedule.global_status is at/past
-   UNORDERED_FROM_STAGE (and not Delivered) having ≥1 STANDARD part with status
-   'Not Ordered' (or no row). ONE issue per boat: title `"N key parts not ordered"`,
-   detail lists up to 5 part names. target `parts_unordered:<boat>`.
+2. `parts_unordered` — boat whose production_schedule.global_status is EXACTLY
+   UNORDERED_STAGE ('Glass Shop') having ≥1 STANDARD part with status 'Not Ordered'
+   (or no row). ONE issue per boat: title `"N key parts not ordered"`, detail lists up
+   to 5 part names. target `parts_unordered:<boat>`. (Advancing out of Glass Shop
+   auto-closes it — per Ken, this alert is a Glass-Shop-stage check only.)
 3. `backorder_stale` — flag_backordered=true AND expected_delivery IS NULL AND the flag has
    been on ≥ BACKORDER_STALE_DAYS. If there's no per-flag timestamp, use the row's
    updated_at as an approximation (note this in a comment).
@@ -103,7 +104,7 @@ Exclude boats with global_status='Delivered' from ALL rules.
   Also (if cc_feed exists) insert a feed row: type `QUESTION_POSTED`,
   title `"Question: <first 80 chars>"`, actor_name — non-fatal try/catch.
 - `PUT /api/issues/:id/resolve` (**Ops only**) → status='resolved', resolved_by=username,
-  resolved_at=now(); if kind='auto', also snooze_until = now() + RESOLVE_SNOOZE_DAYS days.
+  resolved_at=now(); if kind='auto', also snooze_until = now() + RESOLVE_SNOOZE_HOURS hours.
 
 ## 5. Finish
 `node --check server.js`, `pm2 restart boat-tracker`. Verify:

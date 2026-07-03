@@ -156,7 +156,7 @@ function ShopFeed() {
         </div>
         <div className="feed-note" style={{ display: 'block', marginBottom: 12 }}>
           Auto-flagged from tracker data + posted questions. Fix the data on its tab and an auto-issue clears itself;
-          Resolve just hides it{isOps ? '' : ' (Ops)'} — it returns in 7 days if still true.
+          Resolve just hides it{isOps ? '' : ' (Ops)'} — it returns in 24 hours if still true.
         </div>
 
         {(issues || []).length > 0 && (

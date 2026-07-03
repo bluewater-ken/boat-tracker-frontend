@@ -92,6 +92,17 @@ The 9 rules (adapt table/column names to the real schema — verify with \d firs
    WC_QUIET_DAYS ago (boat not Delivered). title `"<work center> quiet for N days"`;
    detail `"X / Y done, no activity"`; tab Assembly. target `wc_quiet:<boat>:<wc>`.
    Skip this rule gracefully if the CompanyCam tables don't exist yet.
+   **EXCLUDE the "Build Improvements" work center** — it's a punch list, always partially
+   done; rule 10 handles it instead.
+
+10. `build_improvement` — the CompanyCam **"Build Improvements"** checklist is a punch
+    list, so every INCOMPLETE item on it becomes its own issue. Use the cc_progress row
+    whose work center name matches /build\s*improvement/i: for each title in its
+    `remaining` array (boat not Delivered) → issue with
+    target `build_improvement:<boat>:<slug(title)>`, title = the item text,
+    source_tab `'Build Improvements'`. Auto-closes when the item is checked off in
+    CompanyCam (its title leaves `remaining`). Skip gracefully if CompanyCam tables absent.
+    (The frontend hides this work center from the Assembly grid — Issues is its home.)
 
 Exclude boats with global_status='Delivered' from ALL rules.
 

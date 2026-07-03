@@ -2,6 +2,19 @@
 .feed-head { margin-bottom: 14px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .feed-note { font-size: 12px; color: #8A969E; }
 
+/* Responsive split: narrow = one column at a time (toggle picks), wide = side by side. */
+.feed-split { display: grid; grid-template-columns: 1fr; }
+.feed-col { min-width: 0; }
+.feed-col-title { display: none; font-size: 15px; font-weight: 800; color: #173A5E; }
+@media (max-width: 1279px) {
+  .feed-col:not(.active) { display: none; }
+}
+@media (min-width: 1280px) {
+  .feed-split { grid-template-columns: 11fr 9fr; gap: 28px; max-width: 1600px; }
+  .feed-views { display: none; }        /* both columns visible — no toggle needed */
+  .feed-col-title { display: inline; }
+}
+
 /* Activity | Issues view toggle */
 .feed-views { display: inline-flex; border: 1px solid #C7D2DB; border-radius: 8px; overflow: hidden; }
 .feed-view-btn { padding: 8px 16px; font-size: 13px; font-weight: 600; color: #5F6B73; background: #fff; border: none; cursor: pointer; }

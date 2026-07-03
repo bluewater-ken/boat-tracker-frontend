@@ -98,7 +98,9 @@ function AssemblyTracker() {
       }
       setAppRows(app);
       if (asm && Array.isArray(asm.work_centers) && asm.work_centers.length) {
-        setWorkCenters(asm.work_centers);
+        // "Build Improvements" is a punch list, not a build stage — its open items
+        // surface on the Shop Feed's Issues list instead of a grid column here.
+        setWorkCenters(asm.work_centers.filter(w => !/build\s*improvement/i.test(w.name || '')));
         const map = {};
         for (const r of asm.rows || []) {
           if (!map[r.boat_id]) map[r.boat_id] = {};

@@ -1,6 +1,35 @@
 .feed { padding: 16px; max-width: 760px; }
-.feed-head { margin-bottom: 14px; }
+.feed-head { margin-bottom: 14px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .feed-note { font-size: 12px; color: #8A969E; }
+
+/* Activity | Issues view toggle */
+.feed-views { display: inline-flex; border: 1px solid #C7D2DB; border-radius: 8px; overflow: hidden; }
+.feed-view-btn { padding: 8px 16px; font-size: 13px; font-weight: 600; color: #5F6B73; background: #fff; border: none; cursor: pointer; }
+.feed-view-btn.active { background: #2E92D6; color: #fff; }
+
+/* Post issue/question */
+.feed-post-btn { margin-left: auto; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #173A5E; background: #fff; border: 1px solid #C7D2DB; border-radius: 7px; cursor: pointer; }
+.feed-post-btn:hover { border-color: #2E92D6; color: #2E92D6; }
+.feed-postform { background: #fff; border: 1px solid #E2E6EA; border-radius: 10px; padding: 12px; margin-bottom: 14px; }
+.feed-post-text { width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: 13px; font-family: inherit; border: 1px solid #D6DBE0; border-radius: 7px; resize: vertical; }
+.feed-post-row { display: flex; gap: 10px; margin-top: 10px; }
+.feed-post-boat { flex: 1; padding: 8px 10px; font-size: 13px; border: 1px solid #D6DBE0; border-radius: 7px; background: #fff; }
+.feed-post-submit { padding: 8px 22px; font-size: 13px; font-weight: 700; color: #fff; background: #2E92D6; border: none; border-radius: 7px; cursor: pointer; }
+.feed-post-submit:disabled { background: #A9C3D4; cursor: default; }
+
+/* Issue rows */
+.issue-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: #fff; border: 1px solid #E2E6EA; border-left: 3px solid #BA7517;
+  border-radius: 8px; padding: 10px 12px; margin-bottom: 7px;
+}
+.issue-icon { flex: 0 0 22px; text-align: center; font-size: 15px; padding-top: 1px; }
+.issue-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.issue-title { font-size: 13px; font-weight: 700; color: #1c1c1c; }
+.issue-sub { font-size: 11px; color: #5F6B73; }
+.issue-detail { font-size: 12px; color: #33424C; margin-top: 2px; }
+.issue-resolve { flex: 0 0 auto; padding: 6px 13px; font-size: 12px; font-weight: 600; color: #3B6D11; background: #EAF3DE; border: 1px solid #cfe3b8; border-radius: 7px; cursor: pointer; }
+.issue-resolve:hover { background: #dfeccc; }
 .feed-quiet { font-size: 13px; color: #5F6B73; background: #fff; border: 1px solid #E2E6EA; border-radius: 10px; padding: 18px; }
 
 .feed-day { margin-bottom: 18px; }

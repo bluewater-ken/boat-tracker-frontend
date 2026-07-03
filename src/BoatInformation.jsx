@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
 import { colorOptions } from './colors';
+import SmartInput from './SmartInput';
 import './BoatInformation.css';
 
 const EMPTY = { boat_id:'', customer_name:'', customer_phone:'', customer_email:'', customer_address:'', boat_model:'', engine_brand_1:'', engine_choice_1:'', engine_brand_2:'', engine_choice_2:'', engine_brand_3:'', engine_choice_3:'', hull_color:'' };
@@ -83,10 +84,7 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
             </select>
           </div>
           <div className="form-group"><label>Hull Color *</label>
-            <input name="hull_color" list="boat-color-opts" value={formData.hull_color} onChange={handleChange} placeholder="Pick a color or type a new one..." />
-            <datalist id="boat-color-opts">
-              {colorOptions(boats).map(c => <option key={c} value={c} />)}
-            </datalist>
+            <SmartInput storeKey="colors" options={colorOptions(boats)} value={formData.hull_color} onChange={v => setFormData(p => ({ ...p, hull_color: v }))} placeholder="Pick a color or type a new one..." />
             <div className="form-hint">This is how boats are identified on the shop floor. The same color list is shared with Key Parts.</div>
           </div>
           <button onClick={handleSave} className="btn-save">Save Boat</button>

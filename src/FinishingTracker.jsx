@@ -5,6 +5,7 @@ import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { GRADES } from './flags';
 import { colorOptions } from './colors';
 import { applyDeliveredFilter, ShowDeliveredToggle } from './boatFilter';
+import SmartInput from './SmartInput';
 import './FinishingTracker.css';
 
 // BRD §9 — post-lamination finishing. 10 tasks, 4-status line that STOPS at Complete, plus N/A.
@@ -132,8 +133,7 @@ function FinishingTracker() {
         <>
           <MenuBtn label={menuNA ? 'Clear N/A' : 'Set Not Applicable'} onClick={() => toggleNA(menu.boatId, menu.task)} />
           <MenuLabel>Color</MenuLabel>
-          <input className="am-spec-input" list="fin-color-opts" value={menuRow.color || ''} placeholder={`Default: ${defaultColor(menu.task, menuBoat)}`} onChange={e => setColor(menu.boatId, menu.task, e.target.value)} />
-          <datalist id="fin-color-opts">{colorList().map(c => <option key={c} value={c} />)}</datalist>
+          <SmartInput className="am-spec-input" storeKey="colors" options={colorList()} value={menuRow.color || ''} placeholder={`Default: ${defaultColor(menu.task, menuBoat)}`} onChange={v => setColor(menu.boatId, menu.task, v)} />
         </>
       )}
       <MenuLabel>Priority</MenuLabel>

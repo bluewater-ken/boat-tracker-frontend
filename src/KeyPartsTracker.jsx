@@ -5,6 +5,7 @@ import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { FlagIcons, KEYPARTS_FLAGS } from './flags';
 import { colorOptions } from './colors';
 import { applyDeliveredFilter, ShowDeliveredToggle } from './boatFilter';
+import SmartInput from './SmartInput';
 import './KeyPartsTracker.css';
 
 const STATUSES = ['Not Ordered', 'Ordered', 'Received'];
@@ -215,11 +216,8 @@ function KeyPartsTracker() {
       ) : (
         <>
           <MenuLabel>Description / spec</MenuLabel>
-          <input className="am-spec-input" list={`spec-opts-${menu.partName}`} value={menuRow.description || ''} placeholder="e.g. Triple Suzuki 350" onChange={e => setDescription(menu.boatId, menu.partName, false, e.target.value)} />
-          <datalist id={`spec-opts-${menu.partName}`}>
-            {(specOptions[menu.partName] || []).map(o => <option key={o} value={o} />)}
-          </datalist>
-          <div className="am-spec-hint">Pick a saved spec or type a new one (saved for next time).</div>
+          <SmartInput className="am-spec-input" storeKey={`spec:${menu.partName}`} options={specOptions[menu.partName] || []} value={menuRow.description || ''} placeholder="e.g. Triple Suzuki 350" onChange={v => setDescription(menu.boatId, menu.partName, false, v)} />
+          <div className="am-spec-hint">Pick a saved spec or type a new one (saved for next time). ✕ removes a suggestion.</div>
         </>
       )}
       {(menuStatus === 'Ordered' || menuStatus === 'Received') && (
@@ -340,10 +338,9 @@ function KeyPartsTracker() {
             <div className="kpt-colorrow">
               <label>Hull color</label>
               {isOps ? (
-                <input className="kpt-colorinput" list="kpt-color-opts" value={selectedBoat.hull_color || ''} placeholder="Pick or type a color..."
-                  onChange={e => updateColorLocal(selectedBoat.boat_id, e.target.value)} onBlur={() => persistColor(selectedBoat)} />
+                <SmartInput className="kpt-colorinput" storeKey="colors" options={colorOptions(boats)} value={selectedBoat.hull_color || ''} placeholder="Pick or type a color..."
+                  onChange={v => updateColorLocal(selectedBoat.boat_id, v)} onBlur={() => persistColor(selectedBoat)} onEnter={() => persistColor(selectedBoat)} />
               ) : <span className="kpt-colorval">{selectedBoat.hull_color || '—'}</span>}
-              <datalist id="kpt-color-opts">{colorOptions(boats).map(c => <option key={c} value={c} />)}</datalist>
             </div>
             {!isOps && <div className="kpt-readonly-note">View only — contact the office to change parts.</div>}
             <h3>Standard Parts ({standardParts.length})</h3>
@@ -377,8 +374,7 @@ function KeyPartsTracker() {
                     {availableForBoat(selectedBoat.boat_id).length === 0 && <div className="kpt-tempty">All added to this boat.</div>}
                   </div>
                   <div className="kpt-tadd">
-                    <input list="custom-suggestions" placeholder="Add a new custom part..." value={newCustom} onChange={e => setNewCustom(e.target.value)} onKeyDown={e => e.key === 'Enter' && addNewCustomName()} />
-                    <datalist id="custom-suggestions">{customNames.map(n => <option key={n} value={n} />)}</datalist>
+                    <SmartInput storeKey="custom-names" options={customNames} placeholder="Add a new custom part..." value={newCustom} onChange={setNewCustom} onEnter={addNewCustomName} />
                     <button onClick={addNewCustomName}>+ Add</button>
                   </div>
                 </div>

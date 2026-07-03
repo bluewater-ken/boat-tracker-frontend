@@ -5,6 +5,7 @@ import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { FlagIcons, STANDARD_FLAGS } from './flags';
 import { colorOptions } from './colors';
 import { applyDeliveredFilter, ShowDeliveredToggle } from './boatFilter';
+import SmartInput from './SmartInput';
 import './LaminationTracker.css';
 
 // BRD §7 — 13 tasks, 5-status mold cycle that STOPS at Pulled, plus an N/A state.
@@ -197,19 +198,17 @@ function LaminationTracker() {
           {cfg(menu.task).color && (
             <>
               <MenuLabel>Color</MenuLabel>
-              <input className="am-spec-input" list="lam-color-opts" value={menuRow.color || ''} placeholder={`Default: ${defaultColor(menu.task, menuBoat)}`} onChange={e => setColor(menu.boatId, menu.task, e.target.value)} />
-              <datalist id="lam-color-opts">{colorList().map(c => <option key={c} value={c} />)}</datalist>
+              <SmartInput className="am-spec-input" storeKey="colors" options={colorList()} value={menuRow.color || ''} placeholder={`Default: ${defaultColor(menu.task, menuBoat)}`} onChange={v => setColor(menu.boatId, menu.task, v)} />
             </>
           )}
           {cfg(menu.task).text && (
             <>
               <MenuLabel>{menu.task === 'Transducer Type' ? 'Transducer to install' : 'Notes'}</MenuLabel>
-              <input className="am-spec-input"
-                list={menu.task === 'Transducer Type' ? 'lam-transducer-opts' : undefined}
-                value={menuRow.notes || ''}
-                placeholder={menu.task === 'Transducer Type' ? 'e.g. Airmar B175' : 'Describe this item...'}
-                onChange={e => setNotes(menu.boatId, menu.task, e.target.value)} />
-              {menu.task === 'Transducer Type' && <datalist id="lam-transducer-opts">{transducerList().map(x => <option key={x} value={x} />)}</datalist>}
+              {menu.task === 'Transducer Type' ? (
+                <SmartInput className="am-spec-input" storeKey="transducer" options={transducerList()} value={menuRow.notes || ''} placeholder="e.g. Airmar B175" onChange={v => setNotes(menu.boatId, menu.task, v)} />
+              ) : (
+                <input className="am-spec-input" value={menuRow.notes || ''} placeholder="Describe this item..." onChange={e => setNotes(menu.boatId, menu.task, e.target.value)} />
+              )}
             </>
           )}
         </>

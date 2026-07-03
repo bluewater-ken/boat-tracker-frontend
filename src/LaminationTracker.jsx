@@ -161,6 +161,12 @@ function LaminationTracker() {
     for (const bid in lamData) for (const t in lamData[bid]) if (lamData[bid][t].color) set.add(lamData[bid][t].color);
     return Array.from(set).sort((a, b) => a === 'White' ? -1 : b === 'White' ? 1 : a.localeCompare(b));
   };
+  // Growing memory of transducer types entered on any boat (for autocomplete).
+  const transducerList = () => {
+    const set = new Set();
+    for (const bid in lamData) { const n = lamData[bid]?.['Transducer Type']?.notes; if (n) set.add(n); }
+    return Array.from(set).sort();
+  };
 
   const { visible, delivered } = applyDeliveredFilter(boats, showDelivered);
   const filteredBoats = visible.filter(b =>
@@ -197,8 +203,13 @@ function LaminationTracker() {
           )}
           {cfg(menu.task).text && (
             <>
-              <MenuLabel>{menu.task === 'Transducer Type' ? 'Transducer type' : 'Notes'}</MenuLabel>
-              <input className="am-spec-input" value={menuRow.notes || ''} placeholder={menu.task === 'Transducer Type' ? 'e.g. Airmar B175' : 'Describe this item...'} onChange={e => setNotes(menu.boatId, menu.task, e.target.value)} />
+              <MenuLabel>{menu.task === 'Transducer Type' ? 'Transducer to install' : 'Notes'}</MenuLabel>
+              <input className="am-spec-input"
+                list={menu.task === 'Transducer Type' ? 'lam-transducer-opts' : undefined}
+                value={menuRow.notes || ''}
+                placeholder={menu.task === 'Transducer Type' ? 'e.g. Airmar B175' : 'Describe this item...'}
+                onChange={e => setNotes(menu.boatId, menu.task, e.target.value)} />
+              {menu.task === 'Transducer Type' && <datalist id="lam-transducer-opts">{transducerList().map(x => <option key={x} value={x} />)}</datalist>}
             </>
           )}
         </>
@@ -212,12 +223,14 @@ function LaminationTracker() {
   );
 
   const cellContent = (row, task, boat) => {
-    const st = statusOf(row, task);
-    const c = CELL[st] || CELL['Mold Unavailable'];
-    const dates = !row.na && cfg(task).dates ? dateLabel(row) : '';
+    // Transducer Type is info-only: no status, gray (like N/A), just the type text.
+    const info = task === 'Transducer Type';
+    const st = info ? '' : statusOf(row, task);
+    const c = info ? CELL[NA] : (CELL[st] || CELL['Mold Unavailable']);
+    const dates = !info && !row.na && cfg(task).dates ? dateLabel(row) : '';
     const col = cfg(task).color ? shownColor(row, task, boat) : '';
     const notes = cfg(task).text ? (row.notes || '') : '';
-    return { st, c, dates, col, notes };
+    return { st, c, dates, col, notes, info };
   };
 
   if (view === 'table') {
@@ -253,14 +266,20 @@ function LaminationTracker() {
                     </td>
                     {LAM_TASKS.map(t => {
                       const row = getRow(r.boat.boat_id, t);
-                      const { st, c, dates, col, notes } = cellContent(row, t, r.boat);
+                      const { st, c, dates, col, notes, info } = cellContent(row, t, r.boat);
                       return (
                         <td key={t} className="lam-cell" style={{ background: c.bg, color: c.fg }} onClick={(e) => openMenu(e, r.boat.boat_id, t)}>
                           <span className="lam-flagwrap"><FlagIcons flags={row} defs={STANDARD_FLAGS} size={11} /></span>
-                          <div className="lam-cellstatus">{st}</div>
-                          {dates && <div className="lam-celldate">{dates}</div>}
-                          {col && <div className="lam-cellcolor">{col}</div>}
-                          {notes && <div className="lam-cellcolor">{notes}</div>}
+                          {info ? (
+                            <div className="lam-cellinfo">{notes || <span className="lam-cellnone">— set —</span>}</div>
+                          ) : (
+                            <>
+                              {st && <div className="lam-cellstatus">{st}</div>}
+                              {dates && <div className="lam-celldate">{dates}</div>}
+                              {col && <div className="lam-cellcolor">{col}</div>}
+                              {notes && <div className="lam-cellcolor">{notes}</div>}
+                            </>
+                          )}
                         </td>
                       );
                     })}
@@ -297,8 +316,8 @@ function LaminationTracker() {
             <h3>Lamination Tasks ({LAM_TASKS.length})</h3>
             {LAM_TASKS.map(t => {
               const row = getRow(selectedBoat.boat_id, t);
-              const { st, c, dates, col, notes } = cellContent(row, t, selectedBoat);
-              const detail = [col, notes].filter(Boolean).join(' · ');
+              const { st, c, dates, col, notes, info } = cellContent(row, t, selectedBoat);
+              const detail = info ? '' : [col, notes].filter(Boolean).join(' · ');
               return (
                 <div key={t} className="lam-part" onClick={(e) => openMenu(e, selectedBoat.boat_id, t)}>
                   <span className="lam-part-main">
@@ -307,7 +326,7 @@ function LaminationTracker() {
                   </span>
                   <span className="lam-part-right">
                     <FlagIcons flags={row} defs={STANDARD_FLAGS} size={14} />
-                    <span className="lam-badge" style={{ background: c.bg, color: c.fg }}>{st}{dates ? ` • ${dates}` : ''}</span>
+                    <span className="lam-badge" style={{ background: c.bg, color: c.fg }}>{info ? (notes || 'set type') : `${st}${dates ? ` • ${dates}` : ''}`}</span>
                   </span>
                 </div>
               );

@@ -54,6 +54,8 @@
 .lam-cellstatus { font-size: 10px; font-weight: 600; line-height: 1.2; }
 .lam-celldate { font-size: 9px; margin-top: 1px; }
 .lam-cellcolor { font-size: 9px; font-style: italic; margin-top: 1px; opacity: 0.9; }
+.lam-cellinfo { font-size: 10px; font-weight: 600; line-height: 1.2; }
+.lam-cellnone { font-weight: 400; opacity: 0.6; }
 
 .lam-legend { padding: 12px 16px; border-top: 1px solid #E6E9EC; }
 .lam-legend-title { font-size: 10px; font-weight: 700; color: #5F6B73; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; }

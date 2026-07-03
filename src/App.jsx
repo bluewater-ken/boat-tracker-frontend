@@ -7,6 +7,7 @@ import FinishingTracker from './FinishingTracker';
 import AssemblyTracker from './AssemblyTracker';
 import ShopFeed from './ShopFeed';
 import UsersAdmin from './UsersAdmin';
+import AskBoss from './AskBoss';
 import Login from './Login';
 import Logo from './Logo';
 import { useAuth } from './AuthContext';
@@ -26,6 +27,7 @@ function App() {
   const { user, status, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('schedule');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [askOpen, setAskOpen] = useState(false);
   const handleRefresh = () => setRefreshTrigger(p => p + 1);
 
   // Gate the whole app behind login.
@@ -48,6 +50,7 @@ function App() {
             </span>
           </div>
           <div className="app-header-user">
+            <button className="btn-ask" onClick={() => setAskOpen(true)}>💬 Ask</button>
             <span className="app-header-name">{user?.display_name || user?.username}{roleLabel ? ` · ${roleLabel}` : ''}</span>
             <button className="btn-logout" onClick={signOut}>Log Out</button>
           </div>
@@ -68,6 +71,7 @@ function App() {
           {activeTab === 'users' && isOps && <UsersAdmin />}
         </main>
       </div>
+      {askOpen && <AskBoss onClose={() => setAskOpen(false)} />}
     </div>
   );
 }

@@ -248,7 +248,7 @@ function LaminationTracker() {
                 ) : (
                   <tr key={r.boat.boat_id}>
                     <td className="lam-boatcell">
-                      <div className="lam-bid">{r.boat.boat_id} · {r.boat.customer_name}</div>
+                      <div className="lam-bid">{r.boat.sequence_number ? <span className="lam-seq" title="Production build order">{r.boat.sequence_number}</span> : null}{r.boat.boat_id} · {r.boat.customer_name}</div>
                       <div className="lam-bmeta">{r.boat.boat_model} · <span className="lam-bhull">{r.boat.hull_color}</span></div>
                     </td>
                     {LAM_TASKS.map(t => {

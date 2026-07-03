@@ -18,6 +18,15 @@
 }
 .lam-groupcount { color: #5F6B73; font-weight: 600; text-transform: none; letter-spacing: 0; }
 
+/* Production build-order badge on the boat cell */
+.lam-seq {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 4px; margin-right: 7px;
+  background: #173A5E; color: #fff;
+  font-size: 10px; font-weight: 700; border-radius: 9px;
+  vertical-align: middle;
+}
+
 .lam-scroll { overflow: auto; max-height: calc(100vh - 300px); margin-top: 12px; }
 .lam-table { border-collapse: separate; border-spacing: 0; font-size: 11px; width: 100%; }
 .lam-table th {

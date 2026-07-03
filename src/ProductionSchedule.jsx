@@ -69,20 +69,34 @@ function ProductionSchedule({ refreshTrigger }) {
     persist(boat.boat_id, { [key]: next });
   };
 
-  const handleDrop = async (targetIndex) => {
-    if (draggedIndex === null || draggedIndex === targetIndex) { setDraggedIndex(null); return; }
-    // Reorder within the visible list, then keep any hidden delivered boats at the
-    // end so they're never dropped from the saved build order.
-    const nb = [...visible];
-    const [dragged] = nb.splice(draggedIndex, 1);
-    nb.splice(targetIndex, 0, dragged);
+  // Persist a new visible order; hidden delivered boats stay at the end so they're
+  // never dropped from the saved build order.
+  const applyOrder = async (nb) => {
     const hidden = showDelivered ? [] : boats.filter(isDelivered);
     const updated = [...nb, ...hidden].map((b, i) => ({ ...b, sequence_number: i + 1 }));
     setBoats(updated);
-    setDraggedIndex(null);
     try {
       await apiFetch('/api/schedule/reorder', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ boats: updated.map(b => ({ boat_id: b.boat_id, sequence_number: b.sequence_number })) }) });
     } catch (e) { alert('Failed to reorder'); fetchBoats(); }
+  };
+
+  const handleDrop = (targetIndex) => {
+    if (draggedIndex === null || draggedIndex === targetIndex) { setDraggedIndex(null); return; }
+    const nb = [...visible];
+    const [dragged] = nb.splice(draggedIndex, 1);
+    nb.splice(targetIndex, 0, dragged);
+    setDraggedIndex(null);
+    applyOrder(nb);
+  };
+
+  // Precise one-step reorder from the popup menu — no dragging needed.
+  const moveBoat = (boat, delta) => {
+    const nb = [...visible];
+    const i = nb.findIndex(b => b.boat_id === boat.boat_id);
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= nb.length) return;
+    [nb[i], nb[j]] = [nb[j], nb[i]];
+    applyOrder(nb);
   };
 
   if (loading) return <div className="loading">Loading production schedule...</div>;
@@ -96,7 +110,7 @@ function ProductionSchedule({ refreshTrigger }) {
     <div className="sched">
       <div className="sched-intro">
         Build order, top to bottom. Each boat shows its current production stage — Advance moves it forward.
-        {isOps ? ' Drag rows to reorder the build sequence.' : ''} Tap a boat for more actions.
+        {isOps ? ' Grab the ⠿ handle to drag-reorder, or tap a boat and use Move up / Move down.' : ''} Tap a boat for more actions.
       </div>
       <div className="sched-toolbar">
         <ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} />
@@ -107,16 +121,21 @@ function ProductionSchedule({ refreshTrigger }) {
           const stageIdx = STATUSES.indexOf(boat.global_status);
           return (
             <div key={boat.boat_id} className="sched-row"
-              draggable={isOps}
-              onDragStart={() => setDraggedIndex(idx)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => handleDrop(idx)}
               style={{ opacity: draggedIndex === idx ? 0.6 : 1 }}
               onClick={(e) => setMenu({ boatId: boat.boat_id, x: e.clientX, y: e.clientY })}>
+              {/* The grip is the ONE drag zone — the rest of the row stays click-for-menu. */}
+              {isOps && (
+                <div className="sched-grip" title="Drag to reorder" draggable
+                  onDragStart={() => setDraggedIndex(idx)}
+                  onDragEnd={() => setDraggedIndex(null)}
+                  onClick={(e) => e.stopPropagation()}>⠿</div>
+              )}
               <div className="sched-num">{boat.sequence_number || idx + 1}</div>
               <div className="sched-boat">
-                <div className="sched-id">{boat.boat_id}</div>
-                <div className="sched-sub">{boat.customer_name} · {boat.boat_model} · {boat.hull_color}</div>
+                <div className="sched-id">{boat.boat_id} · {boat.customer_name}</div>
+                <div className="sched-sub">{boat.boat_model} · {boat.hull_color}</div>
               </div>
               <div className="sched-pipswrap">
                 <div className="sched-pips">
@@ -140,6 +159,13 @@ function ProductionSchedule({ refreshTrigger }) {
         <ActionMenu anchor={{ x: menu.x, y: menu.y }} title={menuBoat.boat_id} subtitle={`${menuBoat.customer_name} · ${menuBoat.global_status}`} onClose={() => setMenu(null)}>
           <MenuBtn label={atEnd ? 'Delivered' : `Advance to ${STATUSES[STATUSES.indexOf(menuBoat.global_status) + 1]} ›`} primary disabled={atEnd} onClick={() => { advance(menuBoat); setMenu(null); }} />
           <MenuBtn label={atStart ? '‹ Step back' : `‹ Back to ${STATUSES[STATUSES.indexOf(menuBoat.global_status) - 1]}`} disabled={atStart} onClick={() => { stepBack(menuBoat); setMenu(null); }} />
+          {isOps && (
+            <>
+              <MenuLabel>Build order</MenuLabel>
+              <MenuBtn label="↑ Move up" disabled={visible.findIndex(b => b.boat_id === menuBoat.boat_id) <= 0} onClick={() => moveBoat(menuBoat, -1)} />
+              <MenuBtn label="↓ Move down" disabled={visible.findIndex(b => b.boat_id === menuBoat.boat_id) >= visible.length - 1} onClick={() => moveBoat(menuBoat, 1)} />
+            </>
+          )}
           <MenuLabel>Flags</MenuLabel>
           {SCHEDULE_FLAGS.map(f => (
             <MenuToggle key={f.key} label={f.label} color={f.color} active={!!menuBoat[f.key]} onClick={() => toggleFlag(menuBoat, f.key)} />

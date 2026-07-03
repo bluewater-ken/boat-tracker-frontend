@@ -24,6 +24,7 @@ const isAutoLate = (row) =>
 const effFlags = (row) => ({
   flag_late: !!row.flag_late || isAutoLate(row),
   flag_backordered: !!row.flag_backordered,
+  flag_partial: !!row.flag_partial,
   flag_unsatisfactory: !!row.flag_unsatisfactory,
 });
 

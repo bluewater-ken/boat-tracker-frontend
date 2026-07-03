@@ -48,6 +48,13 @@ const HourglassIcon = (p) => (
     <path d="M6 21 h12 l-6 -9 z" />
   </Svg>
 );
+// Half-filled circle — Partial (some of the order arrived)
+const HalfIcon = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 3 a9 9 0 0 1 0 18 z" fill={p.color} stroke="none" />
+  </Svg>
+);
 
 // Face icons for the Finishing part grade (how the part arrived from lamination).
 const HappyIcon = (p) => (
@@ -93,6 +100,7 @@ export const STANDARD_FLAGS = [
 export const KEYPARTS_FLAGS = [
   { key: 'flag_late', label: 'Late', color: '#A32D2D', Icon: ClockIcon },
   { key: 'flag_backordered', label: 'Backordered', color: '#BA7517', Icon: HourglassIcon },
+  { key: 'flag_partial', label: 'Partial', color: '#2E7D8A', Icon: HalfIcon },
   { key: 'flag_unsatisfactory', label: 'Unsatisfactory', color: '#185FA5', Icon: FlagIcon },
 ];
 

@@ -3,6 +3,19 @@
 .sched-toolbar { display: flex; justify-content: flex-end; margin-bottom: 8px; min-height: 18px; }
 .sched-list { display: flex; flex-direction: column; gap: 8px; }
 
+.sched-grip {
+  flex: 0 0 auto;
+  cursor: grab;
+  color: #B9C2C9;
+  font-size: 16px;
+  padding: 6px 4px;
+  border-radius: 6px;
+  user-select: none;
+  touch-action: none;
+}
+.sched-grip:hover { color: #2E92D6; background: #f2f8fc; }
+.sched-grip:active { cursor: grabbing; }
+
 .sched-row {
   display: flex;
   align-items: center;

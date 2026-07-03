@@ -1,0 +1,9 @@
+.admin { display: flex; flex-direction: column; }
+.admin-nav { display: flex; gap: 8px; padding: 14px 16px 0; }
+.admin-nav-btn {
+  padding: 8px 16px; font-size: 13px; font-weight: 600;
+  color: #5F6B73; background: #fff; border: 1px solid #C7D2DB; border-radius: 8px;
+  cursor: pointer;
+}
+.admin-nav-btn.active { background: #173A5E; border-color: #173A5E; color: #fff; }
+.admin-nav-btn:hover:not(.active) { border-color: #2E92D6; color: #2E92D6; }

@@ -6,7 +6,7 @@ import LaminationTracker from './LaminationTracker';
 import FinishingTracker from './FinishingTracker';
 import AssemblyTracker from './AssemblyTracker';
 import ShopFeed from './ShopFeed';
-import UsersAdmin from './UsersAdmin';
+import AdminPanel from './AdminPanel';
 import Login from './Login';
 import Logo from './Logo';
 import { useAuth } from './AuthContext';
@@ -42,7 +42,7 @@ function App() {
 
   const roleLabel = user?.role === 'ops' ? 'Ops' : user?.role === 'shop' ? 'Shop' : '';
   const isOps = user?.role === 'ops';
-  const tabs = isOps ? [...BASE_TABS, { key: 'users', label: 'Users' }] : BASE_TABS;
+  const tabs = isOps ? [...BASE_TABS, { key: 'admin', label: 'Admin' }] : BASE_TABS;
 
   return (
     <div className="app">
@@ -72,7 +72,7 @@ function App() {
           {activeTab === 'finishing' && <FinishingTracker />}
           {activeTab === 'assembly' && <AssemblyTracker />}
           {activeTab === 'feed' && <ShopFeed />}
-          {activeTab === 'users' && isOps && <UsersAdmin />}
+          {activeTab === 'admin' && isOps && <AdminPanel />}
         </main>
       </div>
 

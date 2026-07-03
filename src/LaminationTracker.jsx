@@ -19,6 +19,19 @@ const TASK_ORDER = {
 const orderFor = (task) => TASK_ORDER[task] || LAM_ORDER;
 const firstStatus = (task) => orderFor(task)[0];
 const NA = 'Not Applicable';
+// Model grouping order (small to large); anything unrecognized sorts last.
+const MODEL_ORDER = ['23T', '25T', '2850', '36'];
+const modelRank = (m) => { const i = MODEL_ORDER.indexOf(m); return i < 0 ? 99 : i; };
+// Turn a flat boat list into rows with model-section headers when grouping is on.
+const groupRows = (boats, group) => {
+  if (!group) return boats.map(b => ({ boat: b }));
+  const groups = {};
+  for (const b of boats) { const m = b.boat_model || 'Other'; (groups[m] ||= []).push(b); }
+  const keys = Object.keys(groups).sort((a, b) => modelRank(a) - modelRank(b) || a.localeCompare(b));
+  const rows = [];
+  for (const m of keys) { rows.push({ header: m, count: groups[m].length }); for (const b of groups[m]) rows.push({ boat: b }); }
+  return rows;
+};
 // Palette from BluewaterDemo.jsx (plus Not Started / Complete for the non-mold tasks).
 const CELL = {
   'Mold Unavailable': { bg: '#EEF0F2', fg: '#5F6B73' },
@@ -67,6 +80,7 @@ function LaminationTracker() {
   const [selectedBoat, setSelectedBoat] = useState(null);
   const [search, setSearch] = useState('');
   const [showDelivered, setShowDelivered] = useState(false);
+  const [groupByModel, setGroupByModel] = useState(false);
   const [loading, setLoading] = useState(true);
   const [menu, setMenu] = useState(null); // { boatId, task, x, y }
 
@@ -211,6 +225,9 @@ function LaminationTracker() {
       <div className="lam-tablewrap">
         <div className="lam-toolbar">
           <button className="lam-toggle" onClick={() => setView('boat')}>Boat view</button>
+          <button className={`lam-groupbtn ${groupByModel ? 'on' : ''}`} onClick={() => setGroupByModel(g => !g)}>
+            {groupByModel ? '✓ Grouped by model' : 'Group by model'}
+          </button>
           <span className="lam-toolbar-note">{isOps ? 'Tap a cell to update.' : 'Tap a cell to advance, step back, or flag.'}</span>
           <span style={{ marginLeft: 'auto' }}><ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} /></span>
         </div>
@@ -223,26 +240,32 @@ function LaminationTracker() {
               </tr>
             </thead>
             <tbody>
-              {visible.map(boat => (
-                <tr key={boat.boat_id}>
-                  <td className="lam-boatcell">
-                    <div className="lam-bid">{boat.boat_id} · {boat.customer_name}</div>
-                    <div className="lam-bmeta">{boat.boat_model} · <span className="lam-bhull">{boat.hull_color}</span></div>
-                  </td>
-                  {LAM_TASKS.map(t => {
-                    const row = getRow(boat.boat_id, t);
-                    const { st, c, dates, col, notes } = cellContent(row, t, boat);
-                    return (
-                      <td key={t} className="lam-cell" style={{ background: c.bg, color: c.fg }} onClick={(e) => openMenu(e, boat.boat_id, t)}>
-                        <span className="lam-flagwrap"><FlagIcons flags={row} defs={STANDARD_FLAGS} size={11} /></span>
-                        <div className="lam-cellstatus">{st}</div>
-                        {dates && <div className="lam-celldate">{dates}</div>}
-                        {col && <div className="lam-cellcolor">{col}</div>}
-                        {notes && <div className="lam-cellcolor">{notes}</div>}
-                      </td>
-                    );
-                  })}
-                </tr>
+              {groupRows(visible, groupByModel).map((r) => (
+                r.header ? (
+                  <tr key={`h-${r.header}`} className="lam-grouphead">
+                    <td colSpan={LAM_TASKS.length + 1}>{r.header} <span className="lam-groupcount">({r.count})</span></td>
+                  </tr>
+                ) : (
+                  <tr key={r.boat.boat_id}>
+                    <td className="lam-boatcell">
+                      <div className="lam-bid">{r.boat.boat_id} · {r.boat.customer_name}</div>
+                      <div className="lam-bmeta">{r.boat.boat_model} · <span className="lam-bhull">{r.boat.hull_color}</span></div>
+                    </td>
+                    {LAM_TASKS.map(t => {
+                      const row = getRow(r.boat.boat_id, t);
+                      const { st, c, dates, col, notes } = cellContent(row, t, r.boat);
+                      return (
+                        <td key={t} className="lam-cell" style={{ background: c.bg, color: c.fg }} onClick={(e) => openMenu(e, r.boat.boat_id, t)}>
+                          <span className="lam-flagwrap"><FlagIcons flags={row} defs={STANDARD_FLAGS} size={11} /></span>
+                          <div className="lam-cellstatus">{st}</div>
+                          {dates && <div className="lam-celldate">{dates}</div>}
+                          {col && <div className="lam-cellcolor">{col}</div>}
+                          {notes && <div className="lam-cellcolor">{notes}</div>}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )
               ))}
             </tbody>
           </table>

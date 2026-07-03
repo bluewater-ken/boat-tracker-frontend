@@ -17,6 +17,15 @@
 .feed-post-submit { padding: 8px 22px; font-size: 13px; font-weight: 700; color: #fff; background: #2E92D6; border: none; border-radius: 7px; cursor: pointer; }
 .feed-post-submit:disabled { background: #A9C3D4; cursor: default; }
 
+/* Category filter chips */
+.issue-cats { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+.issue-cat {
+  padding: 5px 12px; font-size: 12px; font-weight: 600;
+  background: #fff; border: 1px solid #C7D2DB; border-radius: 14px;
+  color: #5F6B73; cursor: pointer;
+}
+.issue-cat.on { background: #173A5E; border-color: #173A5E; color: #fff; }
+
 /* Issue rows */
 .issue-row {
   display: flex; align-items: flex-start; gap: 10px;

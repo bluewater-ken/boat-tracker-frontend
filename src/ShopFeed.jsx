@@ -36,6 +36,19 @@ const RULE_ICON = {
   question: '❓',
 };
 
+// Issue categories = the tab the issue came from (+ Questions). Colors the left edge
+// of each card and powers the filter chips. Keys match source_tab from the backend.
+const ISSUE_CATS = [
+  { key: 'Key Parts', color: '#BA7517' },
+  { key: 'Schedule', color: '#185FA5' },
+  { key: 'Lamination', color: '#2E7D8A' },
+  { key: 'Finishing', color: '#A32D2D' },
+  { key: 'Assembly', color: '#5C9A2E' },
+  { key: 'Questions', color: '#2E92D6' },
+];
+const catOf = (iss) => iss.kind === 'question' ? 'Questions' : (iss.source_tab || 'Questions');
+const catColor = (iss) => (ISSUE_CATS.find(c => c.key === catOf(iss)) || {}).color || '#BA7517';
+
 const fmtTime = (iso) => {
   const d = new Date(iso);
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -66,6 +79,7 @@ function ShopFeed() {
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
+  const [catFilter, setCatFilter] = useState('all');
   const [qText, setQText] = useState('');
   const [qBoat, setQBoat] = useState('');
   const [boats, setBoats] = useState([]);
@@ -131,6 +145,9 @@ function ShopFeed() {
 
   // ---------- Issues view ----------
   if (view === 'issues') {
+    const catCounts = {};
+    for (const iss of issues || []) catCounts[catOf(iss)] = (catCounts[catOf(iss)] || 0) + 1;
+    const shown = (issues || []).filter(iss => catFilter === 'all' || catOf(iss) === catFilter);
     return (
       <div className="feed">
         <div className="feed-head">
@@ -141,6 +158,21 @@ function ShopFeed() {
           Auto-flagged from tracker data + posted questions. Fix the data on its tab and an auto-issue clears itself;
           Resolve just hides it{isOps ? '' : ' (Ops)'} — it returns in 7 days if still true.
         </div>
+
+        {(issues || []).length > 0 && (
+          <div className="issue-cats">
+            <button className={`issue-cat ${catFilter === 'all' ? 'on' : ''}`} onClick={() => setCatFilter('all')}>
+              All ({(issues || []).length})
+            </button>
+            {ISSUE_CATS.filter(c => catCounts[c.key]).map(c => (
+              <button key={c.key} className={`issue-cat ${catFilter === c.key ? 'on' : ''}`}
+                style={catFilter === c.key ? { background: c.color, borderColor: c.color, color: '#fff' } : { color: c.color, borderColor: c.color + '55' }}
+                onClick={() => setCatFilter(catFilter === c.key ? 'all' : c.key)}>
+                {c.key} ({catCounts[c.key]})
+              </button>
+            ))}
+          </div>
+        )}
 
         {posting && (
           <div className="feed-postform">
@@ -162,8 +194,8 @@ function ShopFeed() {
         {issues !== null && issues.length === 0 && (
           <div className="feed-quiet">🎉 No open issues. Anything needing attention shows up here automatically.</div>
         )}
-        {(issues || []).map(iss => (
-          <div key={iss.id} className="issue-row">
+        {shown.map(iss => (
+          <div key={iss.id} className="issue-row" style={{ borderLeftColor: catColor(iss) }}>
             <span className="issue-icon">{RULE_ICON[iss.rule_key] || '⚠️'}</span>
             <span className="issue-main">
               <span className="issue-title">{iss.title}</span>

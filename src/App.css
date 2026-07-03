@@ -5,6 +5,31 @@ body {
   background-color: #EEF1F4;
 }
 .app { min-height: 100vh; padding: 16px; }
+
+/* Manage Boats slide-over drawer */
+.drawer-backdrop {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(15, 32, 51, 0.45);
+  display: flex; justify-content: flex-end;
+}
+.drawer-panel {
+  width: min(1100px, 96vw); height: 100%;
+  background: #EEF1F4; box-shadow: -8px 0 30px rgba(0,0,0,0.25);
+  display: flex; flex-direction: column;
+  animation: drawer-in 0.18s ease-out;
+}
+@keyframes drawer-in { from { transform: translateX(24px); opacity: 0.6; } to { transform: translateX(0); opacity: 1; } }
+.drawer-head {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #173A5E; color: #fff; padding: 13px 18px; flex: 0 0 auto;
+}
+.drawer-title { font-size: 15px; font-weight: 700; }
+.drawer-close {
+  padding: 6px 13px; font-size: 12px; font-weight: 700;
+  color: #fff; background: #2E92D6; border: none; border-radius: 6px; cursor: pointer;
+}
+.drawer-close:hover { background: #2680bd; }
+.drawer-body { flex: 1; overflow: auto; }
 /* Fluid: fill the browser width (with a cap on ultra-wide screens) so wide grids
    like Key Parts can show more columns instead of leaving big side margins. */
 .app-shell { max-width: 2200px; margin: 0 auto; }

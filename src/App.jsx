@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ProductionSchedule from './ProductionSchedule';
 import BoatInformation from './BoatInformation';
 import KeyPartsTracker from './KeyPartsTracker';
@@ -14,7 +14,6 @@ import './App.css';
 
 const BASE_TABS = [
   { key: 'schedule', label: 'Production Schedule' },
-  { key: 'boats', label: 'Boat Information' },
   { key: 'parts', label: 'Key Parts' },
   { key: 'lamination', label: 'Lamination' },
   { key: 'finishing', label: 'Finishing' },
@@ -26,7 +25,16 @@ function App() {
   const { user, status, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('schedule');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [manageBoats, setManageBoats] = useState(false);
   const handleRefresh = () => setRefreshTrigger(p => p + 1);
+
+  // Close the Manage Boats drawer with Esc.
+  useEffect(() => {
+    if (!manageBoats) return;
+    const onKey = (e) => { if (e.key === 'Escape') setManageBoats(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [manageBoats]);
 
   // Gate the whole app behind login.
   if (status === 'loading') return <div className="loading">Loading…</div>;
@@ -58,8 +66,7 @@ function App() {
           ))}
         </nav>
         <main className="app-content">
-          {activeTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} />}
-          {activeTab === 'boats' && <BoatInformation refreshTrigger={refreshTrigger} onRefresh={handleRefresh} />}
+          {activeTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onManageBoats={() => setManageBoats(true)} />}
           {activeTab === 'parts' && <KeyPartsTracker />}
           {activeTab === 'lamination' && <LaminationTracker />}
           {activeTab === 'finishing' && <FinishingTracker />}
@@ -68,6 +75,20 @@ function App() {
           {activeTab === 'users' && isOps && <UsersAdmin />}
         </main>
       </div>
+
+      {manageBoats && (
+        <div className="drawer-backdrop" onClick={() => setManageBoats(false)}>
+          <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-head">
+              <span className="drawer-title">Manage Boats</span>
+              <button className="drawer-close" onClick={() => setManageBoats(false)}>✕ Close</button>
+            </div>
+            <div className="drawer-body">
+              <BoatInformation refreshTrigger={refreshTrigger} onRefresh={handleRefresh} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

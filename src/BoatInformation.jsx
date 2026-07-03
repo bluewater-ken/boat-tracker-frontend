@@ -48,7 +48,8 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
   const filtered = boats.filter(b =>
     b.boat_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     b.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.boat_model?.toLowerCase().includes(searchTerm.toLowerCase()));
+    b.boat_model?.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => (a.boat_id || '').localeCompare(b.boat_id || '', undefined, { numeric: true }));
 
   if (loading) return <div className="loading">Loading boat information...</div>;
 

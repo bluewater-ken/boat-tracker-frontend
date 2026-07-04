@@ -84,6 +84,8 @@ function ShopFeed() {
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [catFilter, setCatFilter] = useState('all');
+  const [issueTab, setIssueTab] = useState('open'); // open | resolved
+  const [resolved, setResolved] = useState(null); // loaded on demand
   const [qText, setQText] = useState('');
   const [qBoat, setQBoat] = useState('');
   const [boats, setBoats] = useState([]);
@@ -131,7 +133,18 @@ function ShopFeed() {
       const r = await apiFetch(`/api/issues/${id}/resolve`, { method: 'PUT' });
       if (!r.ok) throw new Error();
       setIssues(prev => (prev || []).filter(i => i.id !== id));
+      setResolved(null); // force a fresh load next time the Resolved view is opened
     } catch (e) { alert('Failed to resolve'); }
+  };
+
+  // Resolved issues load only when the Resolved view is opened (last 30 days).
+  const openResolvedTab = async () => {
+    setIssueTab('resolved');
+    if (resolved !== null) return;
+    try {
+      const r = await apiFetch('/api/issues/resolved?days=30').catch(() => null);
+      setResolved(r && r.ok ? await r.json() : []);
+    } catch (e) { setResolved([]); }
   };
 
   if (loading) return <div className="loading">Loading shop feed...</div>;
@@ -205,8 +218,36 @@ function ShopFeed() {
       <div className="feed-head">
         {viewToggle}
         <span className="feed-col-title">Issues{issueCount ? ` (${issueCount})` : ''}</span>
-        <button className="feed-post-btn" onClick={() => setPosting(p => !p)}>{posting ? 'Cancel' : '+ Post issue / question'}</button>
+        {issueTab === 'open' && <button className="feed-post-btn" onClick={() => setPosting(p => !p)}>{posting ? 'Cancel' : '+ Post issue / question'}</button>}
       </div>
+
+      <div className="issue-tabs">
+        <button className={`issue-tab ${issueTab === 'open' ? 'on' : ''}`} onClick={() => setIssueTab('open')}>Open{issueCount ? ` (${issueCount})` : ''}</button>
+        <button className={`issue-tab ${issueTab === 'resolved' ? 'on' : ''}`} onClick={openResolvedTab}>Resolved</button>
+      </div>
+
+      {issueTab === 'resolved' ? (
+        <>
+          {resolved === null && <div className="feed-quiet">Loading resolved…</div>}
+          {resolved !== null && resolved.length === 0 && <div className="feed-quiet">Nothing resolved in the last 30 days.</div>}
+          {(resolved || []).map(iss => (
+            <div key={iss.id} className="issue-row issue-resolved" style={{ borderLeftColor: catColor(iss) }}>
+              <span className="issue-icon">✓</span>
+              <span className="issue-main">
+                <span className="issue-title">{iss.title}</span>
+                <span className="issue-sub">
+                  {iss.boat_id ? `${iss.boat_id}${iss.customer_name ? ' · ' + iss.customer_name : ''} · ` : ''}
+                  {iss.source_tab ? `${iss.source_tab} · ` : ''}
+                  resolved {ageLabel(iss.resolved_at)}{iss.resolved_by ? ` by ${iss.resolved_by}` : ''}
+                </span>
+                {iss.detail && <span className="issue-detail">{iss.detail}</span>}
+              </span>
+            </div>
+          ))}
+          <div className="feed-note" style={{ display: 'block', marginTop: 10 }}>Resolved in the last 30 days. Auto-issues that are still unfixed come back on their own after 24 hours.</div>
+        </>
+      ) : (
+      <>
 
       {posting && (
         <div className="feed-postform">
@@ -263,6 +304,8 @@ function ShopFeed() {
         Auto-flagged from tracker data + CompanyCam Build Improvements + posted questions. Fix the real thing and an
         auto-issue clears itself; Resolve just hides it{isOps ? '' : ' (Ops)'} — it returns in 24 hours if still true.
       </div>
+      </>
+      )}
     </div>
   );
 

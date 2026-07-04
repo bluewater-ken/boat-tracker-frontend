@@ -11,7 +11,7 @@
 }
 @media (min-width: 1280px) {
   .feed-split { grid-template-columns: 11fr 9fr; gap: 28px; max-width: 1600px; }
-  .feed-views { display: none; }        /* both columns visible — no toggle needed */
+  .feed-split .feed-views { display: none; }   /* both columns visible — no toggle needed (specific enough to beat the base rule below) */
   .feed-col-title { display: inline; }
 }
 

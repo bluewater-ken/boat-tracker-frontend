@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
+import { isDelivered } from './boatFilter';
 import './ShopFeed.css';
 
 // Shop Feed — Activity (event stream) + Issues (open items).
@@ -214,7 +215,7 @@ function ShopFeed() {
           <div className="feed-post-row">
             <select className="feed-post-boat" value={qBoat} onChange={e => setQBoat(e.target.value)}>
               <option value="">No specific boat</option>
-              {boats.map(b => <option key={b.boat_id} value={b.boat_id}>{b.boat_id} · {b.customer_name}</option>)}
+              {boats.filter(b => !isDelivered(b)).map(b => <option key={b.boat_id} value={b.boat_id}>{b.boat_id} · {b.customer_name}</option>)}
             </select>
             <button className="feed-post-submit" onClick={postQuestion} disabled={!qText.trim()}>Post</button>
           </div>

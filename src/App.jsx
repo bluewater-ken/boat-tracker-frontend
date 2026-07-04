@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import ProductionSchedule from './ProductionSchedule';
+import BoatCommandCenter from './BoatCommandCenter';
 import BoatInformation from './BoatInformation';
 import KeyPartsTracker from './KeyPartsTracker';
 import LaminationTracker from './LaminationTracker';
@@ -14,6 +15,7 @@ import './App.css';
 
 const BASE_TABS = [
   { key: 'schedule', label: 'Production Schedule' },
+  { key: 'boats', label: 'Boats' },
   { key: 'parts', label: 'Key Parts' },
   { key: 'lamination', label: 'Lamination' },
   { key: 'finishing', label: 'Finishing' },
@@ -67,6 +69,7 @@ function App() {
         </nav>
         <main className="app-content">
           {activeTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onManageBoats={() => setManageBoats(true)} />}
+          {activeTab === 'boats' && <BoatCommandCenter />}
           {activeTab === 'parts' && <KeyPartsTracker />}
           {activeTab === 'lamination' && <LaminationTracker />}
           {activeTab === 'finishing' && <FinishingTracker />}

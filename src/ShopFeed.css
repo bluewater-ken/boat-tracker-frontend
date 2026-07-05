@@ -11,7 +11,7 @@
 }
 @media (min-width: 1280px) {
   .feed-split { grid-template-columns: 11fr 9fr; gap: 28px; max-width: 1600px; }
-  .feed-views { display: none; }        /* both columns visible — no toggle needed */
+  .feed-split .feed-views { display: none; }   /* both columns visible — no toggle needed (specific enough to beat the base rule below) */
   .feed-col-title { display: inline; }
 }
 
@@ -29,6 +29,18 @@
 .feed-post-boat { flex: 1; padding: 8px 10px; font-size: 13px; border: 1px solid #D6DBE0; border-radius: 7px; background: #fff; }
 .feed-post-submit { padding: 8px 22px; font-size: 13px; font-weight: 700; color: #fff; background: #2E92D6; border: none; border-radius: 7px; cursor: pointer; }
 .feed-post-submit:disabled { background: #A9C3D4; cursor: default; }
+
+/* Open / Resolved sub-tabs */
+.issue-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+.issue-tab {
+  padding: 5px 14px; font-size: 12px; font-weight: 600;
+  color: #5F6B73; background: #fff; border: 1px solid #C7D2DB;
+  border-radius: 7px; cursor: pointer;
+}
+.issue-tab.on { background: #173A5E; border-color: #173A5E; color: #fff; }
+
+.issue-resolved { opacity: 0.72; }
+.issue-resolved .issue-icon { color: #3B6D11; }
 
 /* Category filter chips */
 .issue-cats { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }

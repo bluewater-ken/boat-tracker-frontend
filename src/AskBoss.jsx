@@ -56,7 +56,7 @@ function AskBoss({ onClose }) {
     <div className="ask-backdrop" onClick={onClose}>
       <div className="ask-panel" onClick={(e) => e.stopPropagation()}>
         <div className="ask-head">
-          <span className="ask-title">Ask <i>B.O.S.S</i></span>
+          <span className="ask-title">Ask the <i>B.O.S.S</i></span>
           <button className="ask-close" onClick={onClose}>✕</button>
         </div>
         <div className="ask-body" ref={bodyRef}>

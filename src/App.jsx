@@ -58,7 +58,7 @@ function App() {
             </span>
           </div>
           <div className="app-header-user">
-            {isOps && <button className="btn-ask" onClick={() => setAskOpen(true)}>💬 Ask</button>}
+            {isOps && <button className="btn-ask" onClick={() => setAskOpen(true)}>💬 Ask the B.O.S.S</button>}
             <span className="app-header-name">{user?.display_name || user?.username}{roleLabel ? ` · ${roleLabel}` : ''}</span>
             <button className="btn-logout" onClick={signOut}>Log Out</button>
           </div>

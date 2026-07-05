@@ -14,6 +14,17 @@ const EXAMPLES = [
   'What are the open issues on 28224?',
 ];
 
+// Broader set shown in the ⓘ hover, so guidance is always available (not just the empty state).
+const TIP_EXAMPLES = [
+  'Where do I stand on the Oksas boat?',
+  'Which parts are overdue, and on which boats?',
+  'What got done today? This week?',
+  'What are the open issues on 28224?',
+  'Which boats are in Glass Shop right now?',
+  'Which Suzuki-powered boats are behind on lamination?',
+  'What is 25T047 waiting on before it can move to QC?',
+];
+
 function AskBoss({ onClose }) {
   const [q, setQ] = useState('');
   const [items, setItems] = useState([]); // { q, a, error }
@@ -57,6 +68,14 @@ function AskBoss({ onClose }) {
       <div className="ask-panel" onClick={(e) => e.stopPropagation()}>
         <div className="ask-head">
           <span className="ask-title">Ask the <i>B.O.S.S</i></span>
+          <span className="ask-info" tabIndex={0} aria-label="Examples of what to ask">
+            ⓘ
+            <span className="ask-tip">
+              <b>Ask in plain English</b> about your active boats — status, parts, timing, issues. For example:
+              <ul>{TIP_EXAMPLES.map((ex, i) => <li key={i}>{ex}</li>)}</ul>
+              <span className="ask-tip-note">Answers come from live tracker data only — it reads everything, changes nothing.</span>
+            </span>
+          </span>
           <button className="ask-close" onClick={onClose}>✕</button>
         </div>
         <div className="ask-body" ref={bodyRef}>

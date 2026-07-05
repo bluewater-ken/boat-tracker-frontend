@@ -20,6 +20,23 @@
 }
 .ask-title { font-size: 15px; font-weight: 700; }
 .ask-title i { font-style: italic; font-weight: 800; letter-spacing: 0.5px; }
+
+/* Info hover — examples of what to ask */
+.ask-info { position: relative; margin-left: 8px; margin-right: auto; font-size: 13px; color: #A9C3D4; cursor: help; outline: none; }
+.ask-info:hover, .ask-info:focus { color: #fff; }
+.ask-tip {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 10; width: 300px;
+  background: #fff; color: #33424C; border: 1px solid #C7D2DB; border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(15, 32, 51, 0.25);
+  padding: 12px 14px; font-size: 12px; font-weight: 400; line-height: 1.5; text-align: left;
+  opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .12s, transform .12s;
+}
+.ask-info:hover .ask-tip, .ask-info:focus .ask-tip, .ask-info:focus-within .ask-tip { opacity: 1; visibility: visible; transform: translateY(0); }
+.ask-tip b { color: #173A5E; }
+.ask-tip ul { margin: 8px 0; padding-left: 18px; }
+.ask-tip li { margin-bottom: 4px; }
+.ask-tip-note { display: block; margin-top: 6px; color: #8A969E; font-size: 11px; }
+
 .ask-close { background: none; border: none; color: #A9C3D4; font-size: 15px; cursor: pointer; padding: 2px 6px; }
 .ask-close:hover { color: #fff; }
 

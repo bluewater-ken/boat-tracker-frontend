@@ -73,6 +73,12 @@ body {
   letter-spacing: 0.3px;
 }
 .app-header-user { display: flex; align-items: center; gap: 14px; }
+.btn-ask {
+  padding: 6px 13px; font-size: 12px; font-weight: 700;
+  color: #fff; background: transparent;
+  border: 1px solid #2E92D6; border-radius: 6px; cursor: pointer;
+}
+.btn-ask:hover { background: #2E92D6; }
 .app-header-name { color: #7FB0D6; font-size: 12px; }
 .btn-logout {
   padding: 6px 13px;

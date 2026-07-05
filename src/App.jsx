@@ -7,6 +7,7 @@ import FinishingTracker from './FinishingTracker';
 import AssemblyTracker from './AssemblyTracker';
 import ShopFeed from './ShopFeed';
 import AdminPanel from './AdminPanel';
+import AskBoss from './AskBoss';
 import Login from './Login';
 import Logo from './Logo';
 import { useAuth } from './AuthContext';
@@ -27,6 +28,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('schedule');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [manageBoats, setManageBoats] = useState(false);
+  const [askOpen, setAskOpen] = useState(false);
   const handleRefresh = () => setRefreshTrigger(p => p + 1);
 
   // Close the Manage Boats drawer with Esc.
@@ -61,6 +63,7 @@ function App() {
             </span>
           </div>
           <div className="app-header-user">
+            {isOps && <button className="btn-ask" onClick={() => setAskOpen(true)}>💬 Ask the B.O.S.S</button>}
             <span className="app-header-name">{user?.display_name || user?.username}{roleLabel ? ` · ${roleLabel}` : ''}</span>
             <button className="btn-logout" onClick={signOut}>Log Out</button>
           </div>
@@ -80,6 +83,8 @@ function App() {
           {activeTab === 'admin' && isOps && <AdminPanel />}
         </main>
       </div>
+
+      {isOps && askOpen && <AskBoss onClose={() => setAskOpen(false)} />}
 
       {isOps && manageBoats && (
         <div className="drawer-backdrop" onClick={() => setManageBoats(false)}>

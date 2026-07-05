@@ -8,6 +8,8 @@ import {
   clearToken,
   getToken,
   setUnauthorizedHandler,
+  setDemoMode,
+  isDemoUser,
 } from './api';
 
 const AuthContext = createContext(null);
@@ -19,6 +21,7 @@ export function AuthProvider({ children }) {
 
   const signOut = () => {
     clearToken();
+    setDemoMode(false);
     setUser(null);
     setStatus('anon');
   };
@@ -26,6 +29,7 @@ export function AuthProvider({ children }) {
   const signIn = async (username, password) => {
     const { token, user } = await apiLogin({ username, password });
     setToken(token);
+    setDemoMode(isDemoUser(user));
     setUser(user);
     setStatus('authed');
   };
@@ -41,6 +45,7 @@ export function AuthProvider({ children }) {
     }
     fetchMe()
       .then((u) => {
+        setDemoMode(isDemoUser(u));
         setUser(u);
         setStatus('authed');
       })

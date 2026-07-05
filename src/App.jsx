@@ -10,6 +10,7 @@ import AdminPanel from './AdminPanel';
 import Login from './Login';
 import Logo from './Logo';
 import { useAuth } from './AuthContext';
+import { isDemoUser } from './api';
 import './App.css';
 
 const BASE_TABS = [
@@ -42,10 +43,14 @@ function App() {
 
   const roleLabel = user?.role === 'ops' ? 'Ops' : user?.role === 'shop' ? 'Shop' : '';
   const isOps = user?.role === 'ops';
+  const isDemo = isDemoUser(user);
   const tabs = isOps ? [...BASE_TABS, { key: 'admin', label: 'Admin' }] : BASE_TABS;
 
   return (
     <div className="app">
+      {isDemo && (
+        <div className="demo-banner">🔒 Demo mode — explore anything; your changes are shown but never saved.</div>
+      )}
       <div className="app-shell">
         <header className="app-header">
           <div className="app-header-left">

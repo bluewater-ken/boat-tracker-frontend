@@ -30,11 +30,31 @@ export function setUnauthorizedHandler(fn) {
   onUnauthorized = fn;
 }
 
+// --- Demo mode ---
+// A demo account reads all live data but can never save: every write is intercepted
+// here and faked as a success, so the UI updates optimistically but nothing is sent
+// to the server. A refresh reloads real data and wipes the demo's local changes.
+let demoMode = false;
+export function setDemoMode(v) { demoMode = !!v; }
+export function isDemoUser(user) {
+  if (!user) return false;
+  return user.role === 'demo' || (user.username || '').toLowerCase().startsWith('demo');
+}
+
 // Central fetch wrapper. Call it with a path like '/api/boats' (no host).
 // It prefixes the API base URL and adds the Authorization header when logged in.
 export async function apiFetch(path, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
+
+  // Demo accounts never write: short-circuit any mutating request with a fake OK
+  // response so the UI stays optimistic and nothing reaches the server.
+  const method = (options.method || 'GET').toUpperCase();
+  if (demoMode && method !== 'GET' && method !== 'HEAD') {
+    return new Response(JSON.stringify({ demo: true }), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
 

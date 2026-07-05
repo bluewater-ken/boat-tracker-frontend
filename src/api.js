@@ -49,8 +49,11 @@ export async function apiFetch(path, options = {}) {
 
   // Demo accounts never write: short-circuit any mutating request with a fake OK
   // response so the UI stays optimistic and nothing reaches the server.
+  // Exception: /api/ask is read-only (it reads data and answers; it never writes),
+  // so demo users get real answers from it.
   const method = (options.method || 'GET').toUpperCase();
-  if (demoMode && method !== 'GET' && method !== 'HEAD') {
+  const readOnly = method === 'GET' || method === 'HEAD' || path === '/api/ask';
+  if (demoMode && !readOnly) {
     return new Response(JSON.stringify({ demo: true }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     });

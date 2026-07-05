@@ -50,6 +50,10 @@ const ISSUE_CATS = [
   { key: 'Build Improvements', color: '#5C7A92' },
   { key: 'Questions', color: '#2E92D6' },
 ];
+// Reported-issue pickers: what kind of problem, and which area (area reuses the colors above).
+const ISSUE_KINDS = ['Damage', 'Missing / Short', 'Rework', 'Safety', 'Other'];
+const ISSUE_DEPTS = ['Key Parts', 'Schedule', 'Lamination', 'Finishing', 'Assembly'];
+
 const catOf = (iss) => iss.kind === 'question' ? 'Questions' : (iss.source_tab || 'Questions');
 const catColor = (iss) => (ISSUE_CATS.find(c => c.key === catOf(iss)) || {}).color || '#BA7517';
 
@@ -88,6 +92,9 @@ function ShopFeed() {
   const [resolved, setResolved] = useState(null); // loaded on demand
   const [qText, setQText] = useState('');
   const [qBoat, setQBoat] = useState('');
+  const [qDept, setQDept] = useState('');
+  const [qKind, setQKind] = useState('');
+  const [qPhotos, setQPhotos] = useState([]); // { file, url } — local previews until posted
   const [boats, setBoats] = useState([]);
 
   useEffect(() => {
@@ -114,16 +121,41 @@ function ShopFeed() {
     finally { if (!quiet) setLoading(false); }
   };
 
+  // Camera/file input → local preview thumbnails (uploaded on Post).
+  const addPhotos = (e) => {
+    const files = Array.from(e.target.files || []);
+    setQPhotos(prev => [...prev, ...files.map(f => ({ file: f, url: URL.createObjectURL(f) }))]);
+    e.target.value = '';
+  };
+  const removePhoto = (i) => setQPhotos(prev => {
+    if (prev[i]) URL.revokeObjectURL(prev[i].url);
+    return prev.filter((_, j) => j !== i);
+  });
+
   const postQuestion = async () => {
     const title = qText.trim();
     if (!title) return;
     try {
-      const r = await apiFetch('/api/issues', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, boat_id: qBoat || null }),
-      });
+      // Multipart when there are photos (so the files ride along); plain JSON otherwise.
+      let opts;
+      if (qPhotos.length) {
+        const fd = new FormData();
+        fd.append('title', title);
+        if (qBoat) fd.append('boat_id', qBoat);
+        if (qDept) fd.append('source_tab', qDept);
+        if (qKind) fd.append('problem_type', qKind);
+        qPhotos.forEach(p => fd.append('photos', p.file));
+        opts = { method: 'POST', body: fd }; // no Content-Type — browser sets the multipart boundary
+      } else {
+        opts = {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, boat_id: qBoat || null, source_tab: qDept || null, problem_type: qKind || null }),
+        };
+      }
+      const r = await apiFetch('/api/issues', opts);
       if (!r.ok) throw new Error();
-      setQText(''); setQBoat(''); setPosting(false);
+      qPhotos.forEach(p => URL.revokeObjectURL(p.url));
+      setQText(''); setQBoat(''); setQDept(''); setQKind(''); setQPhotos([]); setPosting(false);
       init(true);
     } catch (e) { alert('Failed to post — is the issues backend set up?'); }
   };
@@ -251,13 +283,50 @@ function ShopFeed() {
 
       {posting && (
         <div className="feed-postform">
-          <textarea className="feed-post-text" rows={3} placeholder="Type the issue or question... (your name attaches automatically)"
+          <textarea className="feed-post-text" rows={3} placeholder="Describe the issue or question... (your name attaches automatically)"
             value={qText} onChange={e => setQText(e.target.value)} />
+
+          <div className="ir-label">Type</div>
+          <div className="ir-chips">
+            {ISSUE_KINDS.map(k => (
+              <button key={k} className={`ir-chip ${qKind === k ? 'on' : ''}`} onClick={() => setQKind(qKind === k ? '' : k)}>{k}</button>
+            ))}
+          </div>
+
+          <div className="ir-label">Area</div>
+          <div className="ir-chips">
+            {ISSUE_DEPTS.map(d => {
+              const col = (ISSUE_CATS.find(c => c.key === d) || {}).color || '#5F6B73';
+              return (
+                <button key={d} className={`ir-chip ${qDept === d ? 'on' : ''}`}
+                  style={qDept === d ? { background: col, borderColor: col, color: '#fff' } : { color: col, borderColor: col + '55' }}
+                  onClick={() => setQDept(qDept === d ? '' : d)}>{d}</button>
+              );
+            })}
+          </div>
+
           <div className="feed-post-row">
             <select className="feed-post-boat" value={qBoat} onChange={e => setQBoat(e.target.value)}>
               <option value="">No specific boat</option>
               {boats.filter(b => !isDelivered(b)).map(b => <option key={b.boat_id} value={b.boat_id}>{b.boat_id} · {b.customer_name}</option>)}
             </select>
+          </div>
+
+          {qPhotos.length > 0 && (
+            <div className="ir-thumbs">
+              {qPhotos.map((p, i) => (
+                <div key={i} className="ir-thumb">
+                  <img src={p.url} alt="" />
+                  <button className="ir-thumb-x" onClick={() => removePhoto(i)} aria-label="Remove photo">×</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="ir-actions">
+            <label className="ir-photo-btn">📷 Add photo
+              <input type="file" accept="image/*" capture="environment" multiple onChange={addPhotos} hidden />
+            </label>
             <button className="feed-post-submit" onClick={postQuestion} disabled={!qText.trim()}>Post</button>
           </div>
         </div>
@@ -296,6 +365,14 @@ function ShopFeed() {
               {iss.actor_name ? ` — asked by ${iss.actor_name}` : ''}
             </span>
             {iss.detail && <span className="issue-detail">{iss.detail}</span>}
+            {iss.problem_type && <span className="ir-kind-badge">{iss.problem_type}</span>}
+            {iss.photo_urls?.length > 0 && (
+              <span className="ir-card-thumbs">
+                {iss.photo_urls.map((u, i) => (
+                  <a key={i} href={u} target="_blank" rel="noreferrer"><img src={u} alt="issue photo" /></a>
+                ))}
+              </span>
+            )}
           </span>
           {isOps && <button className="issue-resolve" onClick={() => resolve(iss.id)}>Resolve</button>}
         </div>
@@ -311,8 +388,8 @@ function ShopFeed() {
 
   return (
     <div className="feed feed-split">
-      {activityCol}
       {issuesCol}
+      {activityCol}
     </div>
   );
 }

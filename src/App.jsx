@@ -1,18 +1,20 @@
-import { useState, useEffect } from 'react';
-import ProductionSchedule from './ProductionSchedule';
-import BoatInformation from './BoatInformation';
-import KeyPartsTracker from './KeyPartsTracker';
-import LaminationTracker from './LaminationTracker';
-import FinishingTracker from './FinishingTracker';
-import AssemblyTracker from './AssemblyTracker';
-import ShopFeed from './ShopFeed';
-import AdminPanel from './AdminPanel';
-import AskBoss from './AskBoss';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import ProductionSchedule from './ProductionSchedule'; // default tab — eager so first paint has no delay
 import Login from './Login';
 import Logo from './Logo';
 import { useAuth } from './AuthContext';
 import { isDemoUser } from './api';
 import './App.css';
+
+// Other tabs load only when opened — keeps the initial download small.
+const BoatInformation = lazy(() => import('./BoatInformation'));
+const KeyPartsTracker = lazy(() => import('./KeyPartsTracker'));
+const LaminationTracker = lazy(() => import('./LaminationTracker'));
+const FinishingTracker = lazy(() => import('./FinishingTracker'));
+const AssemblyTracker = lazy(() => import('./AssemblyTracker'));
+const ShopFeed = lazy(() => import('./ShopFeed'));
+const AdminPanel = lazy(() => import('./AdminPanel'));
+const AskBoss = lazy(() => import('./AskBoss'));
 
 const BASE_TABS = [
   { key: 'schedule', label: 'Production Schedule' },
@@ -63,7 +65,7 @@ function App() {
             </span>
           </div>
           <div className="app-header-user">
-            {isOps && <button className="btn-ask" onClick={() => setAskOpen(true)}>💬 Ask the B.O.S.S</button>}
+            <button className="btn-ask" onClick={() => setAskOpen(true)}>💬 Ask the B.O.S.S</button>
             <span className="app-header-name">{user?.display_name || user?.username}{roleLabel ? ` · ${roleLabel}` : ''}</span>
             <button className="btn-logout" onClick={signOut}>Log Out</button>
           </div>
@@ -74,17 +76,21 @@ function App() {
           ))}
         </nav>
         <main className="app-content">
-          {activeTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onManageBoats={() => setManageBoats(true)} />}
-          {activeTab === 'parts' && <KeyPartsTracker />}
-          {activeTab === 'lamination' && <LaminationTracker />}
-          {activeTab === 'finishing' && <FinishingTracker />}
-          {activeTab === 'assembly' && <AssemblyTracker />}
-          {activeTab === 'feed' && <ShopFeed />}
-          {activeTab === 'admin' && isOps && <AdminPanel />}
+          <Suspense fallback={<div className="loading">Loading…</div>}>
+            {activeTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onManageBoats={() => setManageBoats(true)} />}
+            {activeTab === 'parts' && <KeyPartsTracker />}
+            {activeTab === 'lamination' && <LaminationTracker />}
+            {activeTab === 'finishing' && <FinishingTracker />}
+            {activeTab === 'assembly' && <AssemblyTracker />}
+            {activeTab === 'feed' && <ShopFeed />}
+            {activeTab === 'admin' && isOps && <AdminPanel />}
+          </Suspense>
         </main>
       </div>
 
-      {isOps && askOpen && <AskBoss onClose={() => setAskOpen(false)} />}
+      {askOpen && (
+        <Suspense fallback={null}><AskBoss onClose={() => setAskOpen(false)} /></Suspense>
+      )}
 
       {isOps && manageBoats && (
         <div className="drawer-backdrop" onClick={() => setManageBoats(false)}>
@@ -94,7 +100,9 @@ function App() {
               <button className="drawer-close" onClick={() => setManageBoats(false)}>✕ Close</button>
             </div>
             <div className="drawer-body">
-              <BoatInformation refreshTrigger={refreshTrigger} onRefresh={handleRefresh} />
+              <Suspense fallback={<div className="loading">Loading…</div>}>
+                <BoatInformation refreshTrigger={refreshTrigger} onRefresh={handleRefresh} />
+              </Suspense>
             </div>
           </div>
         </div>

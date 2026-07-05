@@ -7,11 +7,13 @@ import './AskBoss.css';
 // asks Claude (model set server-side in .env ASK_MODEL), and returns the answer.
 // Read-only by design: it can summarize and answer, never change anything.
 
+// Default chips shown in the empty state. `q` is sent as-is; a `fill` chip instead drops
+// a starter into the input and focuses it, so Ken can name the boat before sending.
 const EXAMPLES = [
-  'Where do I stand on the Oksas boat?',
-  'Which parts are overdue right now?',
-  'What got done today?',
-  'What are the open issues on 28224?',
+  { label: 'Give me a full shop status', q: 'Give me a full shop status — where every active boat stands.' },
+  { label: 'Status of a specific boat…', q: 'What is the status of ', fill: true },
+  { label: 'What parts do we need ASAP?', q: 'Which parts do we need most urgently right now, and on which boats?' },
+  { label: 'What are the open issues right now?', q: 'What are the open issues right now, across all boats?' },
 ];
 
 // Broader set shown in the ⓘ hover, so guidance is always available (not just the empty state).
@@ -70,7 +72,40 @@ function AskBoss({ onClose }) {
   const [q, setQ] = useState('');
   const [items, setItems] = useState([]); // { q, a, error }
   const [busy, setBusy] = useState(false);
+  const [listening, setListening] = useState(false);
   const bodyRef = useRef(null);
+  const inputRef = useRef(null);
+  const recRef = useRef(null);
+
+  // A chip either sends immediately, or (fill) primes the input so Ken names the boat first.
+  const onExample = (ex) => {
+    if (ex.fill) { setQ(ex.q); inputRef.current?.focus(); }
+    else ask(ex.q);
+  };
+
+  // Voice input via the browser's built-in speech recognition (Brave/Chrome/Safari).
+  // The button hides itself where unsupported; dictation fills the text box, then Ask sends it.
+  const SpeechRec = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+  const toggleMic = () => {
+    if (!SpeechRec) return;
+    if (listening) { recRef.current?.stop(); return; }
+    const rec = new SpeechRec();
+    rec.lang = 'en-US';
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.onresult = (e) => {
+      let text = '';
+      for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+      setQ(text);
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recRef.current = rec;
+    setListening(true);
+    rec.start();
+    inputRef.current?.focus();
+  };
+  useEffect(() => () => recRef.current?.stop(), []); // stop mic if the panel closes
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -125,7 +160,7 @@ function AskBoss({ onClose }) {
               <p>Ask anything about your boats, parts, or shop — answered from live tracker data.</p>
               <div className="ask-examples">
                 {EXAMPLES.map(ex => (
-                  <button key={ex} className="ask-example" onClick={() => ask(ex)}>{ex}</button>
+                  <button key={ex.label} className="ask-example" onClick={() => onExample(ex)}>{ex.label}</button>
                 ))}
               </div>
             </div>
@@ -140,7 +175,11 @@ function AskBoss({ onClose }) {
           ))}
         </div>
         <div className="ask-inputrow">
-          <input className="ask-input" placeholder="Type a question..." value={q} autoFocus
+          {SpeechRec && (
+            <button className={`ask-mic ${listening ? 'on' : ''}`} onClick={toggleMic}
+              title={listening ? 'Stop listening' : 'Speak your question'} aria-label="Speak your question">🎤</button>
+          )}
+          <input ref={inputRef} className="ask-input" placeholder={listening ? 'Listening…' : 'Type a question...'} value={q} autoFocus
             onChange={e => setQ(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') ask(); }} />
           <button className="ask-send" disabled={busy || !q.trim()} onClick={() => ask()}>Ask</button>

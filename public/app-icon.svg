@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#173A5E"/>
+  <!-- // brand mark: two thick slanted bars (matches the Bluewater logo) -->
+  <polygon points="190,96 220,96 184,256 154,256" fill="#2E92D6"/>
+  <polygon points="238,96 268,96 232,256 202,256" fill="#A9C3D4"/>
+  <!-- B, heavy italic sans, forming //B -->
+  <text x="284" y="256" text-anchor="start"
+    font-family="Impact, 'Arial Narrow', 'Helvetica Neue', sans-serif" font-style="italic" font-weight="900"
+    font-size="222" fill="#ffffff">B</text>
+  <!-- B.O.S.S wordmark underneath -->
+  <text x="256" y="380" text-anchor="middle"
+    font-family="Impact, 'Arial Narrow', 'Helvetica Neue', sans-serif" font-style="italic" font-weight="900"
+    font-size="92" letter-spacing="3" fill="#ffffff">B.O.S.S</text>
+</svg>

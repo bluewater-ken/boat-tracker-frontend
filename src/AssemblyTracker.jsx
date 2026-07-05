@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
-import ActionMenu, { MenuLabel } from './ActionMenu';
+import ActionMenu from './ActionMenu';
 import { applyDeliveredFilter, ShowDeliveredToggle } from './boatFilter';
 import './AssemblyTracker.css';
 
@@ -24,16 +24,17 @@ const FIN_TASKS = ['Hull', 'Liner', 'Ring', 'Hard Top', 'Console', 'Console Face
 
 // Roll a tracker's rows for one boat into {completed, total, remaining[]} — N/A tasks excluded.
 const rollup = (rowsForBoat, tasks, finalOf, defaultOf) => {
-  let completed = 0, total = 0; const remaining = [];
+  let completed = 0, total = 0; const remaining = []; const items = [];
   for (const t of tasks) {
     const row = rowsForBoat?.[t] || {};
     if (row.na) continue;
     total++;
     const status = row.status || defaultOf(t);
-    if (status === finalOf(t)) completed++;
-    else remaining.push(t);
+    const done = status === finalOf(t);
+    if (done) completed++; else remaining.push(t);
+    items.push({ name: t, done }); // full checklist for the popup
   }
-  return { completed_items: completed, total_items: total, remaining };
+  return { completed_items: completed, total_items: total, remaining, items };
 };
 
 const APP_COLS = [
@@ -65,6 +66,7 @@ function AssemblyTracker() {
   const [showDelivered, setShowDelivered] = useState(false);
   const [loading, setLoading] = useState(true);
   const [menu, setMenu] = useState(null); // { boatId, wcId, x, y }
+  const [checkFilter, setCheckFilter] = useState('all'); // popup checklist filter: all | todo | done
 
   useEffect(() => {
     init();
@@ -124,11 +126,15 @@ function AssemblyTracker() {
   const menuBoat = menu ? boats.find(b => b.boat_id === menu.boatId) : null;
   const menuWc = menu ? columns.find(w => w.id === menu.wcId) : null;
   const menuRow = menu ? getRow(menu.boatId, menu.wcId) : null;
-  // Show what's left whenever a cell is tapped (the BRD's 75% gate made sense for a
-  // dashboard, not an on-demand popup). Cap the list; the rest lives in CompanyCam.
-  const allRemaining = menuRow?.remaining || [];
-  const menuRemaining = allRemaining.slice(0, 8);
-  const moreCount = allRemaining.length - menuRemaining.length;
+  // The full checklist for the popup. Our own columns (Lamination/Finishing) always carry a
+  // per-item list; CompanyCam columns only send `remaining` until the backend adds `items`,
+  // so fall back to listing the unfinished ones (Done names then live in CompanyCam).
+  const menuItems = menuRow?.items
+    ? menuRow.items
+    : (menuRow?.remaining || []).map(name => ({ name, done: false }));
+  const menuNoDoneNames = !menuRow?.items && (menuRow?.completed_items || 0) > 0;
+  const shownItems = menuItems.filter(it =>
+    checkFilter === 'todo' ? !it.done : checkFilter === 'done' ? it.done : true);
 
   return (
     <div className="asm-wrap">
@@ -162,7 +168,7 @@ function AssemblyTracker() {
                   const pct = row?.total_items ? row.completed_items / row.total_items : 0;
                   return (
                     <td key={w.id} className="asm-cell" style={{ background: c.bg, color: c.fg }}
-                      onClick={(e) => row && setMenu({ boatId: boat.boat_id, wcId: w.id, x: e.clientX, y: e.clientY })}>
+                      onClick={(e) => { if (row) { setCheckFilter('all'); setMenu({ boatId: boat.boat_id, wcId: w.id, x: e.clientX, y: e.clientY }); } }}>
                       {st === 'NONE' ? (
                         <div className="asm-count asm-none">—</div>
                       ) : (
@@ -188,20 +194,32 @@ function AssemblyTracker() {
       </div>
 
       {menu && menuBoat && menuWc && menuRow && (
-        <ActionMenu anchor={{ x: menu.x, y: menu.y }} title={menuWc.name} subtitle={`${menuBoat.boat_id} · ${menuBoat.customer_name}`} onClose={() => setMenu(null)}>
+        <ActionMenu className="asm-check-pop" anchor={{ x: menu.x, y: menu.y }} title={menuWc.name} subtitle={`${menuBoat.boat_id} · ${menuBoat.customer_name}`} onClose={() => setMenu(null)}>
           <div className="asm-menu-count">{menuRow.completed_items} / {menuRow.total_items} items complete</div>
-          {menuRemaining.length > 0 && (
-            <>
-              <MenuLabel>Remaining</MenuLabel>
-              <ul className="asm-remaining">
-                {menuRemaining.map((t, i) => <li key={i}>{t}</li>)}
-              </ul>
-              {moreCount > 0 && <div className="asm-more">+ {moreCount} more in CompanyCam</div>}
-            </>
-          )}
-          {menuRow.cc_url && (
-            <a className="asm-cc-link" href={menuRow.cc_url} target="_blank" rel="noreferrer">Open in CompanyCam →</a>
-          )}
+          <div className="asm-check-tabs">
+            {[['all', 'All'], ['todo', 'To do'], ['done', 'Done']].map(([k, label]) => (
+              <button key={k} className={`asm-check-tab ${checkFilter === k ? 'on' : ''}`} onClick={() => setCheckFilter(k)}>{label}</button>
+            ))}
+          </div>
+          <ul className="asm-checklist">
+            {shownItems.map((it, i) => (
+              <li key={i} className={`asm-check-item ${it.done ? 'done' : ''}`}>
+                <span className="asm-check-box">{it.done ? '✓' : ''}</span>
+                <span className="asm-check-name">{it.name}</span>
+              </li>
+            ))}
+            {shownItems.length === 0 && (
+              <li className="asm-check-empty">
+                {checkFilter === 'todo' ? 'Nothing left — all complete.'
+                  : checkFilter === 'done' && menuNoDoneNames ? 'Completed items are tracked in CompanyCam.'
+                  : checkFilter === 'done' ? 'Nothing complete yet.'
+                  : 'No checklist items.'}
+              </li>
+            )}
+            {checkFilter === 'all' && menuNoDoneNames && (
+              <li className="asm-check-note">{menuRow.completed_items} completed item{menuRow.completed_items === 1 ? '' : 's'} tracked in CompanyCam</li>
+            )}
+          </ul>
           <div className="am-spec-hint">
             {menuWc.app
               ? `Read-only here — update tasks on the ${menuWc.name} tab.`

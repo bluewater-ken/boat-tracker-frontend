@@ -36,8 +36,31 @@
 .asm-legend-item i { width: 15px; height: 15px; border-radius: 3px; border: 1px solid #D6DBE0; }
 .asm-legend-note { font-size: 11px; color: #8A969E; }
 
-.asm-menu-count { font-size: 14px; font-weight: 700; color: #173A5E; padding: 2px 0 6px; }
-.asm-remaining { margin: 0 0 6px; padding-left: 18px; font-size: 12px; color: #33424C; line-height: 1.6; }
-.asm-cc-link { display: inline-block; font-size: 12px; font-weight: 600; color: #2E92D6; text-decoration: none; margin: 4px 0; }
-.asm-cc-link:hover { text-decoration: underline; }
-.asm-more { font-size: 11px; color: #8A969E; margin: -2px 0 6px 2px; }
+.asm-menu-count { font-size: 14px; font-weight: 700; color: #173A5E; padding: 2px 0 8px; }
+
+/* Wider popup so the full checklist reads comfortably (desktop; phones force full-width). */
+.asm-check-pop { width: 320px; }
+
+/* All / To do / Done filter */
+.asm-check-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.asm-check-tab {
+  flex: 1; padding: 7px 4px; font-size: 12px; font-weight: 600;
+  color: #5F6B73; background: #fff; border: 1px solid #D6DBE0;
+  border-radius: 7px; cursor: pointer;
+}
+.asm-check-tab.on { background: #173A5E; border-color: #173A5E; color: #fff; }
+
+/* Full checklist */
+.asm-checklist { list-style: none; margin: 0; padding: 0; max-height: 46vh; overflow-y: auto; }
+.asm-check-item { display: flex; align-items: flex-start; gap: 9px; padding: 7px 2px; font-size: 13px; color: #33424C; border-bottom: 1px solid #F0F2F4; line-height: 1.35; }
+.asm-check-item:last-child { border-bottom: none; }
+.asm-check-box {
+  flex: 0 0 18px; height: 18px; margin-top: 1px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid #C7D2DB; border-radius: 5px;
+  font-size: 12px; font-weight: 800; color: #fff;
+}
+.asm-check-item.done .asm-check-box { background: #3B6D11; border-color: #3B6D11; }
+.asm-check-item.done .asm-check-name { color: #8A969E; text-decoration: line-through; }
+.asm-check-empty { padding: 14px 2px; font-size: 12px; color: #8A969E; text-align: center; }
+.asm-check-note { padding: 9px 2px 2px; font-size: 11px; color: #A9B4BC; font-style: italic; }

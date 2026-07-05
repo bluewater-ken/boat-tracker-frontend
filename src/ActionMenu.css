@@ -81,6 +81,34 @@
 }
 .am-spec-input:focus { border-color: #2E92D6; box-shadow: 0 0 0 3px rgba(46, 146, 214, 0.18); }
 .am-spec-hint { font-size: 10px; color: #A9B4BC; margin-top: 4px; line-height: 1.4; }
+
+/* ---------- Mobile: render as a bottom sheet (thumb reach + big targets) ---------- */
+@media (max-width: 640px) {
+  .am-overlay { background: rgba(15, 32, 51, 0.4); }
+  .am-pop {
+    left: 0 !important;
+    right: 0;
+    top: auto !important;
+    bottom: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    border-radius: 18px 18px 0 0;
+    max-height: 88vh;
+    padding: 16px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    visibility: visible !important;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25);
+    animation: am-sheet-up 0.2s ease-out;
+  }
+  @keyframes am-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .am-pop-title { font-size: 16px; }
+  .am-pop-close { font-size: 26px; padding: 0 6px; }
+  .am-pop-sub { font-size: 13px; margin-bottom: 12px; }
+  .am-btn { padding: 14px; font-size: 15px; margin-bottom: 8px; }
+  .am-toggle { padding: 13px 12px; font-size: 14px; margin-bottom: 7px; }
+  .am-menu-label { font-size: 11px; margin: 14px 0 7px; }
+  .am-spec-input, .am-date-input { padding: 12px; font-size: 16px; }
+}
 .am-notes {
   width: 100%;
   box-sizing: border-box;

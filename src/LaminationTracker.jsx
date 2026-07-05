@@ -4,8 +4,9 @@ import { useAuth } from './AuthContext';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { FlagIcons, STANDARD_FLAGS } from './flags';
 import { colorOptions } from './colors';
-import { applyDeliveredFilter, ShowDeliveredToggle } from './boatFilter';
+import { applyDeliveredFilter, ShowDeliveredToggle, inProduction } from './boatFilter';
 import SmartInput from './SmartInput';
+import useIsMobile from './useIsMobile';
 import './LaminationTracker.css';
 
 // BRD §7 — 13 tasks, 5-status mold cycle that STOPS at Pulled, plus an N/A state.
@@ -75,9 +76,12 @@ function LaminationTracker() {
   const { user } = useAuth();
   const isOps = user?.role === 'ops';
 
+  const isMobile = useIsMobile();
   const [boats, setBoats] = useState([]);
   const [lamData, setLamData] = useState({}); // boatId -> taskName -> row
-  const [view, setView] = useState('table'); // table | boat
+  // Phones start in the boat view (the wide grid is desktop-only).
+  const [view, setView] = useState(() => isMobile ? 'boat' : 'table'); // table | boat
+  const [mobileView, setMobileView] = useState('list'); // phone master→detail: list | detail
   const [selectedBoat, setSelectedBoat] = useState(null);
   const [search, setSearch] = useState('');
   const [showDelivered, setShowDelivered] = useState(false);
@@ -170,10 +174,12 @@ function LaminationTracker() {
   };
 
   const { visible, delivered } = applyDeliveredFilter(boats, showDelivered);
+  // On the phone (employee view) only show boats actually in production (Glass Shop onward).
   const filteredBoats = visible.filter(b =>
+    (!isMobile || inProduction(b)) && (
     b.boat_id?.toLowerCase().includes(search.toLowerCase()) ||
     b.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
-    b.boat_model?.toLowerCase().includes(search.toLowerCase()));
+    b.boat_model?.toLowerCase().includes(search.toLowerCase())));
 
   if (loading) return <div className="loading">Loading lamination...</div>;
 
@@ -294,21 +300,30 @@ function LaminationTracker() {
     );
   }
 
+  // On phones, show either the boat list or the selected boat's tasks (not both).
+  const pickBoat = (boat) => { setSelectedBoat(boat); if (isMobile) setMobileView('detail'); };
+  const showList = !isMobile || mobileView === 'list';
+  const showDetail = !isMobile || mobileView === 'detail';
+
   return (
-    <div className="lam">
+    <div className={`lam ${isMobile ? 'lam-mobile' : ''}`}>
+      {showList && (
       <div className="lam-list-panel">
-        <button className="lam-toggle" onClick={() => setView('table')}>← Task grid</button>
+        {!isMobile && <button className="lam-toggle" onClick={() => setView('table')}>← Task grid</button>}
         <input className="lam-search" placeholder="Search by ID, customer, or model..." value={search} onChange={e => setSearch(e.target.value)} />
         <div className="lam-boats">
           {filteredBoats.map(boat => (
-            <div key={boat.boat_id} className={`lam-boat-row ${selectedBoat?.boat_id === boat.boat_id ? 'selected' : ''}`} onClick={() => setSelectedBoat(boat)}>
+            <div key={boat.boat_id} className={`lam-boat-row ${selectedBoat?.boat_id === boat.boat_id ? 'selected' : ''}`} onClick={() => pickBoat(boat)}>
               <div className="lam-bid">{boat.boat_id} - {boat.customer_name}</div>
               <div className="lam-bhull">{boat.hull_color} {boat.boat_model}</div>
             </div>
           ))}
         </div>
       </div>
+      )}
+      {showDetail && (
       <div className="lam-detail">
+        {isMobile && <button className="lam-back" onClick={() => setMobileView('list')}>← Boats</button>}
         {selectedBoat ? (
           <>
             <h2>{selectedBoat.boat_id} - {selectedBoat.customer_name}</h2>
@@ -333,6 +348,7 @@ function LaminationTracker() {
           </>
         ) : <p>Select a boat</p>}
       </div>
+      )}
       {actionMenu}
     </div>
   );

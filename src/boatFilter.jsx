@@ -6,6 +6,12 @@ import './boatFilter.css';
 
 export const isDelivered = (b) => b?.global_status === 'Delivered';
 
+// Pre-production stages (office / backlog) — a boat isn't on the shop floor yet.
+export const PRE_PRODUCTION_STAGES = ['Backlog', 'Pre-Production'];
+// "In production" = has reached Glass Shop or beyond. The phone/employee view shows only
+// these, so managers on the floor don't wade through backlog and pre-production boats.
+export const inProduction = (b) => !PRE_PRODUCTION_STAGES.includes(b?.global_status);
+
 // Split a boat list into what's shown vs. how many delivered are hidden.
 export function applyDeliveredFilter(boats, showDelivered) {
   const delivered = boats.filter(isDelivered).length;

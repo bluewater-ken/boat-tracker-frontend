@@ -4,8 +4,9 @@ import { useAuth } from './AuthContext';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { GRADES } from './flags';
 import { colorOptions } from './colors';
-import { applyDeliveredFilter, ShowDeliveredToggle } from './boatFilter';
+import { applyDeliveredFilter, ShowDeliveredToggle, inProduction } from './boatFilter';
 import SmartInput from './SmartInput';
+import useIsMobile from './useIsMobile';
 import './FinishingTracker.css';
 
 // BRD §9 — post-lamination finishing. 10 tasks, 4-status line that STOPS at Complete, plus N/A.
@@ -35,9 +36,12 @@ function FinishingTracker() {
   const { user } = useAuth();
   const isOps = user?.role === 'ops';
 
+  const isMobile = useIsMobile();
   const [boats, setBoats] = useState([]);
   const [finData, setFinData] = useState({}); // boatId -> taskName -> row
-  const [view, setView] = useState('table'); // table | boat
+  // Phones start in the boat view (the wide grid is desktop-only).
+  const [view, setView] = useState(() => isMobile ? 'boat' : 'table'); // table | boat
+  const [mobileView, setMobileView] = useState('list'); // phone master→detail: list | detail
   const [selectedBoat, setSelectedBoat] = useState(null);
   const [search, setSearch] = useState('');
   const [showDelivered, setShowDelivered] = useState(false);
@@ -112,10 +116,12 @@ function FinishingTracker() {
   };
 
   const { visible, delivered } = applyDeliveredFilter(boats, showDelivered);
+  // On the phone (employee view) only show boats actually in production (Glass Shop onward).
   const filteredBoats = visible.filter(b =>
+    (!isMobile || inProduction(b)) && (
     b.boat_id?.toLowerCase().includes(search.toLowerCase()) ||
     b.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
-    b.boat_model?.toLowerCase().includes(search.toLowerCase()));
+    b.boat_model?.toLowerCase().includes(search.toLowerCase())));
 
   if (loading) return <div className="loading">Loading finishing...</div>;
 
@@ -206,21 +212,30 @@ function FinishingTracker() {
     );
   }
 
+  // On phones, show either the boat list or the selected boat's tasks (not both).
+  const pickBoat = (boat) => { setSelectedBoat(boat); if (isMobile) setMobileView('detail'); };
+  const showList = !isMobile || mobileView === 'list';
+  const showDetail = !isMobile || mobileView === 'detail';
+
   return (
-    <div className="fin">
+    <div className={`fin ${isMobile ? 'fin-mobile' : ''}`}>
+      {showList && (
       <div className="fin-list-panel">
-        <button className="fin-toggle" onClick={() => setView('table')}>← Task grid</button>
+        {!isMobile && <button className="fin-toggle" onClick={() => setView('table')}>← Task grid</button>}
         <input className="fin-search" placeholder="Search by ID, customer, or model..." value={search} onChange={e => setSearch(e.target.value)} />
         <div className="fin-boats">
           {filteredBoats.map(boat => (
-            <div key={boat.boat_id} className={`fin-boat-row ${selectedBoat?.boat_id === boat.boat_id ? 'selected' : ''}`} onClick={() => setSelectedBoat(boat)}>
+            <div key={boat.boat_id} className={`fin-boat-row ${selectedBoat?.boat_id === boat.boat_id ? 'selected' : ''}`} onClick={() => pickBoat(boat)}>
               <div className="fin-bid">{boat.boat_id} - {boat.customer_name}</div>
               <div className="fin-bhull">{boat.hull_color} {boat.boat_model}</div>
             </div>
           ))}
         </div>
       </div>
+      )}
+      {showDetail && (
       <div className="fin-detail">
+        {isMobile && <button className="fin-back" onClick={() => setMobileView('list')}>← Boats</button>}
         {selectedBoat ? (
           <>
             <h2>{selectedBoat.boat_id} - {selectedBoat.customer_name}</h2>
@@ -244,6 +259,7 @@ function FinishingTracker() {
           </>
         ) : <p>Select a boat</p>}
       </div>
+      )}
       {actionMenu}
     </div>
   );

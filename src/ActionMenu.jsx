@@ -8,7 +8,7 @@ import './ActionMenu.css';
 const NAVY = '#173A5E';
 const SPLASH = '#2E92D6';
 
-function ActionMenu({ anchor, title, subtitle, onClose, children }) {
+function ActionMenu({ anchor, title, subtitle, onClose, children, className = '' }) {
   const ref = useRef(null);
   // Position is set after measuring the popup so it always fits on screen
   // (nudges up/left when near an edge instead of clipping). Hidden until measured.
@@ -43,7 +43,7 @@ function ActionMenu({ anchor, title, subtitle, onClose, children }) {
   return (
     <>
       <div className="am-overlay" onClick={onClose} />
-      <div ref={ref} className="am-pop" style={{ left: pos.left, top: pos.top, visibility: pos.ready ? 'visible' : 'hidden' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div ref={ref} className={`am-pop ${className}`} style={{ left: pos.left, top: pos.top, visibility: pos.ready ? 'visible' : 'hidden' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="am-pop-head">
           <span className="am-pop-title" style={{ color: NAVY }}>{title}</span>
           <span className="am-pop-close" onClick={onClose} aria-label="Close">×</span>

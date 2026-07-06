@@ -133,7 +133,7 @@ function KeyPartsTracker() {
     if (i >= STATUSES.length - 1) return;
     const next = STATUSES[i + 1];
     const patch = { status: next };
-    if (next === 'Ordered' && !row.order_date) patch.order_date = todayStr();
+    if (next === 'Ordered' && !orderDateOf(row)) patch.ordered_at = todayStr();
     if (next === 'Received' && !row.actual_delivery) patch.actual_delivery = todayStr();
     save(boatId, partName, isCustom, patch);
   };
@@ -235,7 +235,7 @@ function KeyPartsTracker() {
       {(menuStatus === 'Ordered' || menuStatus === 'Received') && (
         <>
           <MenuLabel>Order date</MenuLabel>
-          <input type="date" className="am-date-input" value={orderDateOf(menuRow) ? orderDateOf(menuRow).slice(0, 10) : ''} onChange={e => setDate(menu.boatId, menu.partName, menu.isCustom, 'order_date', e.target.value)} />
+          <input type="date" className="am-date-input" value={orderDateOf(menuRow) ? orderDateOf(menuRow).slice(0, 10) : ''} onChange={e => setDate(menu.boatId, menu.partName, menu.isCustom, 'ordered_at', e.target.value)} />
         </>
       )}
       {(menuStatus === 'Ordered' || menuStatus === 'Received') && (

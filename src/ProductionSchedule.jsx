@@ -56,9 +56,23 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
             ...g,
           }));
       } else {
-        // Desktop: use production schedule (lighter payload).
-        const res = await apiFetch('/api/boats');
+        // Desktop: use production schedule for the boat list, but also pull the
+        // timeline so we can show per-stage fill_pct on the pips. /api/boats has
+        // no segment data — without this merge, fillPct is always undefined and
+        // the per-stage % never renders.
+        const [res, tlRes] = await Promise.all([
+          apiFetch('/api/boats'),
+          apiFetch('/api/timeline').catch(() => null),
+        ]);
         boatsData = await res.json();
+        if (tlRes && tlRes.ok) {
+          const tlData = await tlRes.json();
+          const segByBoat = {};
+          for (const g of (tlData.groups || [])) {
+            if (g.kind === 'boat') segByBoat[g.key] = g.segments;
+          }
+          boatsData = boatsData.map(b => ({ ...b, segments: segByBoat[b.boat_id] }));
+        }
       }
       setBoats(boatsData);
     } catch (e) { alert('Failed to load boats. Check backend connection.'); }

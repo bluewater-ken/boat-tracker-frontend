@@ -314,8 +314,8 @@ function KeyPartsTracker() {
               ))}
             </tbody>
           </table>
+          <Legend />
         </div>
-        <Legend />
         {actionMenu}
         {customListMenu}
       </div>

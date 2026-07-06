@@ -205,8 +205,8 @@ function FinishingTracker() {
               ))}
             </tbody>
           </table>
+          <Legend />
         </div>
-        <Legend />
         {actionMenu}
       </div>
     );

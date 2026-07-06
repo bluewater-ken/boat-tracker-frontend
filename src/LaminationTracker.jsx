@@ -293,8 +293,8 @@ function LaminationTracker() {
               ))}
             </tbody>
           </table>
+          <Legend />
         </div>
-        <Legend />
         {actionMenu}
       </div>
     );

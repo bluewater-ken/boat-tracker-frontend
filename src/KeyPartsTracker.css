@@ -73,7 +73,7 @@
 .kpt-celldate { font-size: 9px; margin-top: 1px; }
 .kpt-cellspec { font-size: 9px; font-style: italic; margin-top: 2px; opacity: 0.9; }
 
-.kpt-legend { padding: 12px 16px; border-top: 1px solid #E6E9EC; }
+.kpt-legend { position: sticky; left: 0; background: #fff; padding: 12px 16px; border-top: 1px solid #E6E9EC; }
 .kpt-legend-title { font-size: 10px; font-weight: 700; color: #5F6B73; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; }
 .kpt-legend-row { display: flex; flex-wrap: wrap; gap: 6px 16px; }
 .kpt-legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #33424C; }

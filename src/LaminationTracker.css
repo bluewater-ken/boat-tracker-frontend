@@ -57,7 +57,7 @@
 .lam-cellinfo { font-size: 10px; font-weight: 600; line-height: 1.2; }
 .lam-cellnone { font-weight: 400; opacity: 0.6; }
 
-.lam-legend { padding: 12px 16px; border-top: 1px solid #E6E9EC; }
+.lam-legend { position: sticky; left: 0; background: #fff; padding: 12px 16px; border-top: 1px solid #E6E9EC; }
 .lam-legend-title { font-size: 10px; font-weight: 700; color: #5F6B73; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; }
 .lam-legend-row { display: flex; flex-wrap: wrap; gap: 6px 16px; }
 .lam-legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #33424C; }

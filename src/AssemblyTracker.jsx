@@ -140,6 +140,16 @@ function AssemblyTracker() {
   const shownItems = menuItems.filter(it =>
     checkFilter === 'todo' ? !it.done : checkFilter === 'done' ? it.done : true);
 
+  const legend = (
+    <div className="asm-legend">
+      <span className="asm-legend-item"><i style={{ background: CELL.NOT_STARTED.bg }} />Not started</span>
+      <span className="asm-legend-item"><i style={{ background: CELL.IN_PROGRESS.bg }} />In progress</span>
+      <span className="asm-legend-item"><i style={{ background: CELL.COMPLETE.bg }} />Complete</span>
+      <span className="asm-legend-item"><i style={{ background: '#fff', border: '1px solid #E2E6EA' }} />— No checklist</span>
+      <span className="asm-legend-note">Tap a cell for what's left. Counts are tasks done / total — Lamination &amp; Finishing from this app, other columns from CompanyCam.</span>
+    </div>
+  );
+
   return (
     <div className="asm-wrap">
       <div className="asm-toolbar">
@@ -181,6 +191,7 @@ function AssemblyTracker() {
             </div>
           ))}
           {boardBoats.length === 0 && <div className="feed-quiet">No boats in production right now.</div>}
+          {legend}
         </div>
       ) : (
       <div className="asm-scroll">
@@ -221,15 +232,9 @@ function AssemblyTracker() {
             ))}
           </tbody>
         </table>
+        {legend}
       </div>
       )}
-      <div className="asm-legend">
-        <span className="asm-legend-item"><i style={{ background: CELL.NOT_STARTED.bg }} />Not started</span>
-        <span className="asm-legend-item"><i style={{ background: CELL.IN_PROGRESS.bg }} />In progress</span>
-        <span className="asm-legend-item"><i style={{ background: CELL.COMPLETE.bg }} />Complete</span>
-        <span className="asm-legend-item"><i style={{ background: '#fff', border: '1px solid #E2E6EA' }} />— No checklist</span>
-        <span className="asm-legend-note">Tap a cell for what's left. Counts are tasks done / total — Lamination &amp; Finishing from this app, other columns from CompanyCam.</span>
-      </div>
 
       {menu && menuBoat && menuWc && menuRow && (
         <ActionMenu className="asm-check-pop" anchor={{ x: menu.x, y: menu.y }} title={menuWc.name} subtitle={`${menuBoat.boat_id} · ${menuBoat.customer_name}`} onClose={() => setMenu(null)}>

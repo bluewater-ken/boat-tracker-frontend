@@ -375,16 +375,15 @@ function GanttChart() {
           })}
           {groups.length === 0 && <div className="gantt-nogroups">Nothing to schedule yet.</div>}
         </div>
-      </div>
-
-      <div className="gantt-legend">
-        <span><i className="sw" style={{ background: '#E89A2B' }} />Actual</span>
-        <span><i className="sw swfill" />Current — fill = work done</span>
-        <span><i className="sw swproj" />Projected</span>
-        <span>📌 Pinned / hold</span>
-        <span><i className="sw swdiamond" /> Target delivery</span>
-        <span><i className="sw swbehind" /><b className="gantt-behindtag">Behind target</b></span>
-        <span className="gantt-legend-note">Norms learn from real history per model — see Admin → Timeline.</span>
+        <div className="gantt-legend">
+          <span><i className="sw" style={{ background: '#E89A2B' }} />Actual</span>
+          <span><i className="sw swfill" />Current — fill = work done</span>
+          <span><i className="sw swproj" />Projected</span>
+          <span>📌 Pinned / hold</span>
+          <span><i className="sw swdiamond" /> Target delivery</span>
+          <span><i className="sw swbehind" /><b className="gantt-behindtag">Behind target</b></span>
+          <span className="gantt-legend-note">Norms learn from real history per model — see Admin → Timeline.</span>
+        </div>
       </div>
 
       {editor && (

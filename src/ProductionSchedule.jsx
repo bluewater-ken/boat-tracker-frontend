@@ -262,10 +262,10 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
                     return STATUSES.map((s, i) => {
                       const segment = boat.segments?.find(seg => seg.name === s);
                       const fillPct = segment?.fill_pct;
-                      const isComplete = i < stageIdx;
+                      const isFilled = i <= stageIdx; // completed + current stage (matches mobile)
                       return (
                         <div key={s} className="sched-pip-wrapper" title={s}>
-                          <span className="sched-pip" style={{ background: isComplete ? greenGradient[i] : '#E6E9EC' }} />
+                          <span className="sched-pip" style={{ background: isFilled ? greenGradient[i] : '#E6E9EC' }} />
                           {fillPct !== undefined && <div className="sched-pip-label">{fillPct}%</div>}
                           <div className="sched-pip-stage">{stageLabels[s]}</div>
                         </div>

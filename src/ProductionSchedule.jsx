@@ -8,15 +8,15 @@ import useIsMobile from './useIsMobile';
 import './ProductionSchedule.css';
 
 const STATUSES = ['Backlog', 'Pre-Production', 'Glass Shop', 'Back Line', 'Front Line', 'QC', 'Delivered'];
-// Status palette matches BluewaterDemo.jsx: bg/fg for the pill, tv for filled pips.
-const SCHED = {
-  'Backlog': { bg: '#EEF0F2', fg: '#5F6B73', tv: '#7E8B93' },
-  'Pre-Production': { bg: '#E5EDF3', fg: '#33617F', tv: '#5C7A92' },
-  'Glass Shop': { bg: '#FCEBEB', fg: '#A32D2D', tv: '#D8443F' },
-  'Back Line': { bg: '#FAEEDA', fg: '#854F0B', tv: '#E89A2B' },
-  'Front Line': { bg: '#FBF3D6', fg: '#7A6310', tv: '#D6B33A' },
-  'QC': { bg: '#E6F0F5', fg: '#1E5E7E', tv: '#3A8BB0' },
-  'Delivered': { bg: '#EAF3DE', fg: '#3B6D11', tv: '#5C9A2E' },
+// Stage bar fill colors, light → dark green by position.
+const GREEN_GRADIENT = ['#C8E6C9', '#A5D6A7', '#81C784', '#66BB6A', '#43A047', '#388E3C', '#2E7D32'];
+// Per-stage completion for the segmented bar. Real timeline fill_pct when the
+// stage has a tracked source (Lamination / CompanyCam); otherwise stages before
+// the current one count as done and later ones as not started.
+const stagePct = (boat, stageIdx, i, stageName) => {
+  const seg = boat.segments?.find(sg => sg.name === stageName);
+  if (seg && seg.fill_pct != null) return { pct: seg.fill_pct, real: true };
+  return { pct: i < stageIdx ? 100 : 0, real: false };
 };
 
 function ProductionSchedule({ refreshTrigger, onManageBoats }) {
@@ -179,17 +179,10 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
       </div>
       <div className="sched-list">
         {rows.map((boat, idx) => {
-          const st = SCHED[boat.global_status] || SCHED['Backlog'];
           const stageIdx = STATUSES.indexOf(boat.global_status);
           const { pct } = getStageProgress(boat);
 
           if (isMobile) {
-            // Mobile: progress bar layout with green gradient (light to dark).
-            // Green colors from left (incomplete) to right (complete):
-            const greenGradient = [
-              '#C8E6C9', '#A5D6A7', '#81C784', '#66BB6A',
-              '#43A047', '#388E3C', '#2E7D32',
-            ];
             return (
               <div key={boat.boat_id} className="sched-row-mobile"
                 onClick={(e) => setMenu({ boatId: boat.boat_id, x: e.clientX, y: e.clientY })}>
@@ -203,23 +196,19 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
                 <div className="sched-progress-wrap">
                   <div className="sched-progress-bar">
                     {STATUSES.map((s, i) => {
-                      // Find segment for this stage from timeline data.
-                      const segment = boat.segments?.find(seg => seg.name === s);
-                      const fillPct = segment?.fill_pct;
-                      const isComplete = i < stageIdx;
+                      const { pct: segPct, real } = stagePct(boat, stageIdx, i, s);
                       const isCurrent = i === stageIdx;
-                      // Show progress if: segment exists (has work tracked) or stage is active.
-                      const hasData = segment || isCurrent;
+                      // % text only where it says something: partially-done stages,
+                      // or the current stage when it has real tracked progress.
+                      const showPct = (segPct > 0 && segPct < 100) || (isCurrent && real);
                       return (
-                        <div key={s} className="sched-progress-stage" style={{ flex: 1 }}>
-                          <div className="sched-progress-fill" style={{
-                            background: isComplete ? greenGradient[i] : isCurrent ? greenGradient[i] : '#E6E9EC',
-                            height: '36px',
-                            borderRadius: i === 0 ? '4px 0 0 4px' : i === STATUSES.length - 1 ? '0 4px 4px 0' : '0',
-                          }} />
-                          <div className="sched-stage-label">
+                        <div key={s} className="sched-progress-stage" style={{ flex: 1 }} title={`${s} — ${segPct}%`}>
+                          <div className={`sched-progress-track ${isCurrent ? 'current' : ''}`}>
+                            <div className="sched-progress-fill" style={{ width: `${segPct}%`, background: GREEN_GRADIENT[i] }} />
+                          </div>
+                          <div className={`sched-stage-label ${isCurrent ? 'current' : ''}`}>
                             {stageLabels[s]}
-                            {hasData && fillPct !== undefined && <div className="sched-stage-pct">{fillPct}%</div>}
+                            {showPct && <div className="sched-stage-pct">{segPct}%</div>}
                           </div>
                         </div>
                       );
@@ -256,27 +245,26 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
                 <div className="sched-sub">{boat.boat_model} · {boat.hull_color}</div>
               </div>
               <div className="sched-pipswrap">
-                <div className="sched-pips">
-                  {(() => {
-                    const greenGradient = ['#C8E6C9', '#A5D6A7', '#81C784', '#66BB6A', '#43A047', '#388E3C', '#2E7D32'];
-                    return STATUSES.map((s, i) => {
-                      const segment = boat.segments?.find(seg => seg.name === s);
-                      const fillPct = segment?.fill_pct;
-                      const isFilled = i <= stageIdx; // completed + current stage (matches mobile)
-                      return (
-                        <div key={s} className="sched-pip-wrapper" title={s}>
-                          <span className="sched-pip" style={{ background: isFilled ? greenGradient[i] : '#E6E9EC' }} />
-                          {fillPct !== undefined && <div className="sched-pip-label">{fillPct}%</div>}
-                          <div className="sched-pip-stage">{stageLabels[s]}</div>
+                <div className="sched-segs">
+                  {STATUSES.map((s, i) => {
+                    const { pct: segPct, real } = stagePct(boat, stageIdx, i, s);
+                    const isCurrent = i === stageIdx;
+                    // % text only where it says something: partially-done stages,
+                    // or the current stage when it has real tracked progress.
+                    const showPct = (segPct > 0 && segPct < 100) || (isCurrent && real);
+                    return (
+                      <div key={s} className="sched-seg" title={`${s} — ${segPct}%`}>
+                        <div className={`sched-seg-track ${isCurrent ? 'current' : ''}`}>
+                          <div className="sched-seg-fill" style={{ width: `${segPct}%`, background: GREEN_GRADIENT[i] }} />
                         </div>
-                      );
-                    });
-                  })()}
+                        <div className={`sched-seg-label ${isCurrent ? 'current' : i > stageIdx && segPct === 0 ? 'future' : ''}`}>
+                          {stageLabels[s]}{showPct ? ` ${segPct}%` : ''}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
                 <FlagTags flags={boat} defs={SCHEDULE_FLAGS} />
-              </div>
-              <div className="sched-stat">
-                <span className="sched-pill" style={{ background: st.bg, color: st.fg }}>{boat.global_status}</span>
               </div>
               <div className="sched-acts" onClick={(e) => e.stopPropagation()}>
                 <button className="sched-back" disabled={stageIdx <= 0} onClick={() => stepBack(boat)}>{stageIdx <= 0 ? '‹' : `‹ ${STATUSES[stageIdx - 1]}`}</button>

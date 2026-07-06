@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from './api';
+import { apiFetch, API_URL } from './api';
 import { useAuth } from './AuthContext';
 import { isDelivered } from './boatFilter';
 import './ShopFeed.css';
@@ -58,6 +58,10 @@ const ISSUE_DEPTS = ['Key Parts', 'Schedule', 'Lamination', 'Finishing', 'Assemb
 // Display names for areas — stored values stay the backend keys ('Key Parts').
 const DEPT_LABEL = { 'Key Parts': 'Parts' };
 const deptLabel = (d) => DEPT_LABEL[d] || d;
+
+// Issue photos are stored as paths relative to the API server ('/uploads/issues/…').
+// Resolve them against the API host — relative src would hit the frontend origin (404).
+const photoUrl = (u) => /^https?:\/\//i.test(u) ? u : `${API_URL}${u}`;
 
 const catOf = (iss) => iss.kind === 'question' ? 'Questions' : (iss.source_tab || 'Questions');
 const catColor = (iss) => (ISSUE_CATS.find(c => c.key === catOf(iss)) || {}).color || '#BA7517';
@@ -380,7 +384,7 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
             {iss.photo_urls?.length > 0 && (
               <span className="ir-card-thumbs">
                 {iss.photo_urls.map((u, i) => (
-                  <a key={i} href={u} target="_blank" rel="noreferrer"><img src={u} alt="issue photo" /></a>
+                  <a key={i} href={photoUrl(u)} target="_blank" rel="noreferrer"><img src={photoUrl(u)} alt="issue photo" /></a>
                 ))}
               </span>
             )}

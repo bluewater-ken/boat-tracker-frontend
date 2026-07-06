@@ -4,7 +4,7 @@ body {
   -webkit-font-smoothing: antialiased;
   background-color: #EEF1F4;
 }
-.app { min-height: 100vh; padding: 16px; }
+.app { min-height: 100vh; padding: 16px; padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom)); }
 
 /* Demo-account banner — the account reads live data but never saves. */
 .demo-banner {
@@ -99,7 +99,11 @@ body {
   display: flex;
   gap: 3px;
   padding: 8px 12px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch; /* Smooth momentum scroll on iOS */
 }
+.tab-navigation::-webkit-scrollbar { display: none; } /* Hide scrollbar on webkit (Chrome, Safari, Edge) */
 .tab-button {
   font-size: 12px;
   padding: 8px 13px;
@@ -108,9 +112,23 @@ body {
   border-radius: 6px 6px 0 0;
   cursor: pointer;
   color: #5F6B73;
+  white-space: nowrap;
+  flex-shrink: 0; /* Prevent tab buttons from shrinking; let container scroll */
 }
 .tab-button:hover { background: #f4f6f8; }
 .tab-button.active { background: #2E92D6; color: #fff; font-weight: 700; }
+
+/* Phone: smaller tabs, more compact layout */
+@media (max-width: 640px) {
+  .app { padding: 8px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  .app-header { padding: 10px 12px; flex-direction: column; gap: 10px; }
+  .app-header-left { gap: 10px; }
+  .app-header-user { width: 100%; flex-wrap: wrap; justify-content: space-between; font-size: 11px; }
+  .btn-ask, .btn-logout { padding: 5px 10px; font-size: 11px; }
+  .app-header-name { display: none; } /* Hide role label on phone to save space */
+  .tab-navigation { padding: 6px 8px 0; }
+  .tab-button { font-size: 11px; padding: 6px 10px; }
+}
 
 .app-content {
   background: #fff;

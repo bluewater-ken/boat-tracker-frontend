@@ -32,14 +32,18 @@ const effFlags = (row) => ({
 
 // Date label: order date once Ordered, plus expected (Ordered) or actual (Received).
 // e.g. "ord 7/6 · exp 7/15"  or  "ord 7/6 · 7/20".
-// Read the order date from the new order_date field, falling back to the
-// original schema's ordered_at (a timestamp) if that's what the backend stores.
+// Order date: order_date if present, else the original schema's ordered_at timestamp.
 const orderDateOf = (row) => row.order_date || row.ordered_at || null;
+// Received date: the editable actual_delivery, else the received_at timestamp.
+const receivedDateOf = (row) => row.actual_delivery || row.received_at || null;
 const dateLabel = (row) => {
   const st = row.status || 'Not Ordered';
   const ord = fmtDate(orderDateOf(row));
   const ordPart = ord ? `ord ${ord}` : '';
-  if (st === 'Received') return [ordPart, fmtDate(row.actual_delivery)].filter(Boolean).join(' · ');
+  if (st === 'Received') {
+    const rec = fmtDate(receivedDateOf(row));
+    return [ordPart, rec ? `rec ${rec}` : ''].filter(Boolean).join(' · ');
+  }
   if (st === 'Ordered') return [ordPart, `exp ${fmtDate(row.expected_delivery) || '—'}`].filter(Boolean).join(' · ');
   return '';
 };
@@ -246,8 +250,8 @@ function KeyPartsTracker() {
       )}
       {menuStatus === 'Received' && (
         <>
-          <MenuLabel>Actual delivery</MenuLabel>
-          <input type="date" className="am-date-input" value={menuRow.actual_delivery ? menuRow.actual_delivery.slice(0, 10) : ''} onChange={e => setDate(menu.boatId, menu.partName, menu.isCustom, 'actual_delivery', e.target.value)} />
+          <MenuLabel>Received date</MenuLabel>
+          <input type="date" className="am-date-input" value={receivedDateOf(menuRow) ? receivedDateOf(menuRow).slice(0, 10) : ''} onChange={e => setDate(menu.boatId, menu.partName, menu.isCustom, 'actual_delivery', e.target.value)} />
         </>
       )}
       <MenuLabel>Flags</MenuLabel>
@@ -469,7 +473,7 @@ function Legend() {
           <span key={f.key} className="kpt-legend-item"><FlagIcons flags={{ [f.key]: true }} defs={[f]} size={14} />{f.label}</span>
         ))}
       </div>
-      <div className="kpt-legend-note">Dates: “ord” = order date (set when Ordered), “exp” = expected delivery, plain = actual received. Late auto-flags once past the expected date. Ops-only editing.</div>
+      <div className="kpt-legend-note">Dates: “ord” = order date (set when Ordered), “exp” = expected delivery, “rec” = received date. Late auto-flags once past the expected date. Ops-only editing.</div>
     </div>
   );
 }

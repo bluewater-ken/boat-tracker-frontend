@@ -15,7 +15,7 @@ const DISPLAY_SEGS = [
   { key: 'Backlog', label: 'Backlog', stage: true },
   { key: 'Pre-Production', label: 'Pre', stage: true },
   { key: 'Glass Shop', label: 'Glass', stage: true },
-  { key: 'Back Line', label: 'BackL', stage: true },
+  { key: 'Back Line', label: 'Backline', stage: true },
   { key: 'Consoles', label: 'Console', stage: false },
   { key: 'Front Line', label: 'Front', stage: true },
   { key: 'QC', label: 'QC', stage: true },

@@ -129,6 +129,14 @@ body {
   .app-content { flex: 1; min-height: 0; }
 }
 
+/* Laptop (641–1280px): tighten the chrome so the content gets the room. */
+@media (min-width: 641px) and (max-width: 1280px) {
+  .app { padding: 10px; padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  .app-header { padding: 9px 14px; }
+  .btn-ask, .btn-report, .btn-logout { padding: 5px 10px; font-size: 11px; }
+  .tab-button { font-size: 11px; padding: 7px 10px; }
+}
+
 /* Phone: smaller tabs, more compact layout */
 @media (max-width: 640px) {
   .app { padding: 8px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }

@@ -98,6 +98,17 @@
 
 .loading { display: flex; align-items: center; justify-content: center; min-height: 400px; font-size: 16px; color: #5F6B73; }
 
+/* Laptop (641–1280px): slim the fixed columns so the stage bar keeps its room. */
+@media (min-width: 641px) and (max-width: 1280px) {
+  .sched { padding: 12px; }
+  .sched-row { gap: 8px; padding: 9px 10px; }
+  .sched-boat { flex: 0 0 135px; }
+  .sched-id { font-size: 13px; }
+  .sched-back { flex: 0 0 112px; font-size: 11px; }
+  .sched-adv { flex: 0 0 120px; font-size: 11px; }
+  .sched-seg-label { font-size: 10px; }
+}
+
 @media (max-width: 760px) {
   .sched-segs { display: none; }
   .sched-boat { flex: 1; }

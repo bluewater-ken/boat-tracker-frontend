@@ -37,8 +37,30 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
   const fetchBoats = async () => {
     try {
       setLoading(true);
-      const res = await apiFetch('/api/boats');
-      setBoats(await res.json());
+      let boatsData;
+      if (isMobile) {
+        // Mobile: fetch from timeline to get per-stage fill_pct data.
+        const tlRes = await apiFetch('/api/timeline');
+        const tlData = await tlRes.json();
+        // Map timeline groups back to boat format, keeping timeline segment data.
+        boatsData = (tlData.groups || [])
+          .filter(g => g.kind === 'boat')
+          .map(g => ({
+            boat_id: g.key,
+            customer_name: g.customer_name,
+            boat_model: g.title.split(' · ')[1] || '',
+            hull_color: g.hull_color,
+            global_status: g.status,
+            sequence_number: g.queue_pos,
+            segments: g.segments, // Timeline segments with fill_pct
+            ...g,
+          }));
+      } else {
+        // Desktop: use production schedule (lighter payload).
+        const res = await apiFetch('/api/boats');
+        boatsData = await res.json();
+      }
+      setBoats(boatsData);
     } catch (e) { alert('Failed to load boats. Check backend connection.'); }
     finally { setLoading(false); }
   };
@@ -166,16 +188,26 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
                 </div>
                 <div className="sched-progress-wrap">
                   <div className="sched-progress-bar">
-                    {STATUSES.map((s, i) => (
-                      <div key={s} className="sched-progress-stage" style={{ flex: 1 }}>
-                        <div className="sched-progress-fill" style={{
-                          background: i <= stageIdx ? greenGradient[i] : '#E6E9EC',
-                          height: '36px',
-                          borderRadius: i === 0 ? '4px 0 0 4px' : i === STATUSES.length - 1 ? '0 4px 4px 0' : '0',
-                        }} />
-                        <div className="sched-stage-label">{stageLabels[s]}</div>
-                      </div>
-                    ))}
+                    {STATUSES.map((s, i) => {
+                      // Find segment for this stage from timeline data.
+                      const segment = boat.segments?.find(seg => seg.name === s);
+                      const fillPct = segment?.fill_pct ?? null;
+                      const isComplete = i < stageIdx;
+                      const isCurrent = i === stageIdx;
+                      return (
+                        <div key={s} className="sched-progress-stage" style={{ flex: 1 }}>
+                          <div className="sched-progress-fill" style={{
+                            background: isComplete ? greenGradient[i] : isCurrent ? greenGradient[i] : '#E6E9EC',
+                            height: '36px',
+                            borderRadius: i === 0 ? '4px 0 0 4px' : i === STATUSES.length - 1 ? '0 4px 4px 0' : '0',
+                          }} />
+                          <div className="sched-stage-label">
+                            {stageLabels[s]}
+                            {fillPct !== null && <div className="sched-stage-pct">{fillPct}%</div>}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                   <div className="sched-progress-info">
                     <span className="sched-progress-detail">

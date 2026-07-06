@@ -126,7 +126,10 @@
   .sched-progress-fill { transition: background 0.2s ease; }
   .sched-stage-label {
     font-size: 10px; font-weight: 700; color: #1B5E20; text-align: center;
-    padding-top: 4px; line-height: 1;
+    padding-top: 4px; line-height: 1; display: flex; flex-direction: column; align-items: center;
+  }
+  .sched-stage-pct {
+    font-size: 9px; font-weight: 700; color: #2E7D32; margin-top: 1px;
   }
 
   .sched-progress-info {

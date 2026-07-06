@@ -68,6 +68,7 @@ function App() {
           </div>
           <div className="app-header-user">
             <button className="btn-ask" onClick={() => setAskOpen(true)}>💬 Ask the B.O.S.S</button>
+            <button className="btn-report" onClick={() => setActiveTab('feed')}>📋 Report Issue</button>
             <span className="app-header-name">{user?.display_name || user?.username}{roleLabel ? ` · ${roleLabel}` : ''}</span>
             <button className="btn-logout" onClick={signOut}>Log Out</button>
           </div>

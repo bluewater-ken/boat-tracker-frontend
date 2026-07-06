@@ -68,6 +68,13 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
     persist(boat.boat_id, { global_status: prev });
   };
 
+  // Calculate % complete and get stage index for a boat.
+  const getStageProgress = (boat) => {
+    const idx = STATUSES.indexOf(boat.global_status);
+    const pct = Math.round((idx / (STATUSES.length - 1)) * 100);
+    return { idx, pct };
+  };
+
   const toggleFlag = (boat, key) => {
     const next = !boat[key];
     setBoats(bs => bs.map(b => b.boat_id === boat.boat_id ? { ...b, [key]: next } : b));
@@ -127,6 +134,41 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
         {rows.map((boat, idx) => {
           const st = SCHED[boat.global_status] || SCHED['Backlog'];
           const stageIdx = STATUSES.indexOf(boat.global_status);
+          const { pct } = getStageProgress(boat);
+
+          if (isMobile) {
+            // Mobile: progress bar layout with all stages visible.
+            return (
+              <div key={boat.boat_id} className="sched-row-mobile"
+                onClick={(e) => setMenu({ boatId: boat.boat_id, x: e.clientX, y: e.clientY })}>
+                <div className="sched-boat">
+                  <div className="sched-id">{boat.boat_id} · {boat.customer_name}</div>
+                  <div className="sched-sub">{boat.boat_model} · {boat.hull_color}</div>
+                </div>
+                <div className="sched-progress-wrap">
+                  <div className="sched-progress-bar">
+                    {STATUSES.map((s, i) => (
+                      <div key={s} className="sched-progress-stage" style={{ flex: 1 }}>
+                        <div className="sched-progress-fill" style={{
+                          background: i <= stageIdx ? st.tv : '#E6E9EC',
+                          height: '24px',
+                          borderRadius: i === 0 ? '4px 0 0 4px' : i === STATUSES.length - 1 ? '0 4px 4px 0' : '0',
+                        }} />
+                        <div className="sched-stage-label">{s.split(' ')[0]}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="sched-progress-info">
+                    <span className="sched-current-stage">{boat.global_status}</span>
+                    <span className="sched-progress-pct">{pct}%</span>
+                  </div>
+                </div>
+                <FlagTags flags={boat} defs={SCHEDULE_FLAGS} />
+              </div>
+            );
+          }
+
+          // Desktop: original layout with action buttons.
           return (
             <div key={boat.boat_id} className="sched-row"
               onDragOver={(e) => e.preventDefault()}

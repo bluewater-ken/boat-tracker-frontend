@@ -94,16 +94,38 @@
   .sched-boat { flex: 1; }
 }
 
-/* ---------- Phone: stacked card — boat + stage on top, progress line, big Advance/Back ---------- */
+/* ---------- Phone: progress bar layout — light-to-dark fill showing % complete ---------- */
 @media (max-width: 640px) {
   .sched-intro { font-size: 12px; }
-  .sched-row { flex-wrap: wrap; row-gap: 11px; padding: 13px 14px; }
-  .sched-boat { flex: 1 1 auto; min-width: 0; }
+
+  /* Mobile card layout */
+  .sched-row-mobile {
+    background: #fff; border: 1px solid #E2E6EA; border-radius: 10px;
+    padding: 13px 14px; margin-bottom: 12px; cursor: pointer;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .sched-row-mobile:active { background: #f8fafb; }
+
+  .sched-boat { flex: 1; }
   .sched-id { font-size: 15px; }
   .sched-sub { font-size: 12px; }
-  .sched-stat { flex: 0 0 auto; text-align: right; }
-  .sched-pipswrap { flex: 1 1 100%; order: 3; }
-  .sched-pips { display: flex; }
-  .sched-acts { flex: 1 1 100%; order: 4; gap: 8px; }
-  .sched-back, .sched-adv { flex: 1; padding: 13px 8px; font-size: 14px; }
+
+  /* Progress bar: all stages visible, light-to-dark fill */
+  .sched-progress-wrap { display: flex; flex-direction: column; gap: 8px; }
+  .sched-progress-bar {
+    display: flex; gap: 2px; height: 24px; border-radius: 4px; overflow: hidden;
+  }
+  .sched-progress-stage { flex: 1; position: relative; display: flex; flex-direction: column; justify-content: space-between; }
+  .sched-progress-fill { transition: background 0.2s ease; }
+  .sched-stage-label {
+    font-size: 9px; font-weight: 700; color: #5F6B73; text-align: center;
+    padding-top: 3px; line-height: 1;
+  }
+
+  .sched-progress-info {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: #5F6B73;
+  }
+  .sched-current-stage { font-weight: 700; color: #173A5E; }
+  .sched-progress-pct { font-weight: 700; color: #2E92D6; }
 }

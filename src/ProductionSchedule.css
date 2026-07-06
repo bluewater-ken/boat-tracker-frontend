@@ -51,8 +51,10 @@
 .sched-pipswrap .flag-tags { align-self: center; flex-wrap: wrap; justify-content: center; }
 
 .sched-pipswrap { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
-.sched-pips { display: flex; gap: 3px; align-items: center; }
-.sched-pip { flex: 1; height: 7px; border-radius: 3px; }
+.sched-pips { display: flex; gap: 2px; align-items: flex-end; }
+.sched-pip-wrapper { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.sched-pip { display: block; width: 100%; height: 7px; border-radius: 3px; }
+.sched-pip-label { font-size: 9px; font-weight: 700; color: #2E7D32; text-align: center; }
 
 .sched-stat { flex: 0 0 150px; text-align: center; }
 .sched-pill { display: inline-block; font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 14px; }

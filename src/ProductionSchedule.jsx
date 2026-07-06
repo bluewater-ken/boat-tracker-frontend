@@ -243,7 +243,20 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
               </div>
               <div className="sched-pipswrap">
                 <div className="sched-pips">
-                  {STATUSES.map((s, i) => <span key={s} className="sched-pip" title={s} style={{ background: i <= stageIdx ? st.tv : '#E6E9EC' }} />)}
+                  {(() => {
+                    const greenGradient = ['#C8E6C9', '#A5D6A7', '#81C784', '#66BB6A', '#43A047', '#388E3C', '#2E7D32'];
+                    return STATUSES.map((s, i) => {
+                      const segment = boat.segments?.find(seg => seg.name === s);
+                      const fillPct = segment?.fill_pct;
+                      const isComplete = i < stageIdx;
+                      return (
+                        <div key={s} className="sched-pip-wrapper" title={s}>
+                          <span className="sched-pip" style={{ background: isComplete ? greenGradient[i] : '#E6E9EC' }} />
+                          {fillPct !== undefined && <div className="sched-pip-label">{fillPct}%</div>}
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
                 <FlagTags flags={boat} defs={SCHEDULE_FLAGS} />
               </div>

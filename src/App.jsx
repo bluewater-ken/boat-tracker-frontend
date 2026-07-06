@@ -84,7 +84,7 @@ function App() {
             <button key={t.key} className={`tab-button ${activeTab === t.key ? 'active' : ''}`} onClick={() => setActiveTab(t.key)}>{t.label}</button>
           ))}
         </nav>
-        <main className="app-content">
+        <main className={`app-content ${activeTab === 'gantt' ? 'app-content-full' : ''}`}>
           <Suspense fallback={<div className="loading">Loading…</div>}>
             {activeTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onManageBoats={() => setManageBoats(true)} />}
             {activeTab === 'parts' && <KeyPartsTracker />}

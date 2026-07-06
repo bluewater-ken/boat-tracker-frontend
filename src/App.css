@@ -145,7 +145,14 @@ body {
   background: #fff;
   border: 1px solid #E2E6EA;
   border-radius: 0 0 10px 10px;
-  overflow-y: scroll;
-  overflow-x: auto;
+  overflow: auto;
+  /* Reserve the scrollbar gutter so switching between short and tall tabs
+     doesn't shift the content width (no more shrink-then-widen jank). */
+  scrollbar-gutter: stable;
+}
+/* Timeline owns its own scroll (one internal vertical bar + horizontal for the
+   wide chart). Hand it the full box so app-content doesn't add a second bar. */
+@media (min-width: 641px) {
+  .app-content-full { overflow: hidden; scrollbar-gutter: auto; }
 }
 .loading { display: flex; align-items: center; justify-content: center; min-height: 400px; font-size: 16px; color: #5F6B73; }

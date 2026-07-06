@@ -137,21 +137,29 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
           const { pct } = getStageProgress(boat);
 
           if (isMobile) {
-            // Mobile: progress bar layout with all stages visible.
+            // Mobile: progress bar layout with green gradient (light to dark).
+            // Green colors from left (incomplete) to right (complete):
+            const greenGradient = [
+              '#C8E6C9', '#A5D6A7', '#81C784', '#66BB6A',
+              '#43A047', '#388E3C', '#2E7D32',
+            ];
             return (
               <div key={boat.boat_id} className="sched-row-mobile"
                 onClick={(e) => setMenu({ boatId: boat.boat_id, x: e.clientX, y: e.clientY })}>
-                <div className="sched-boat">
-                  <div className="sched-id">{boat.boat_id} · {boat.customer_name}</div>
-                  <div className="sched-sub">{boat.boat_model} · {boat.hull_color}</div>
+                <div className="sched-mobile-header">
+                  <div className="sched-mobile-boat">
+                    <div className="sched-id">{boat.sequence_number || idx + 1}. {boat.boat_id} · {boat.customer_name}</div>
+                    <div className="sched-sub">{boat.boat_model} · {boat.hull_color}</div>
+                  </div>
+                  <div className="sched-stage-tag">{boat.global_status}</div>
                 </div>
                 <div className="sched-progress-wrap">
                   <div className="sched-progress-bar">
                     {STATUSES.map((s, i) => (
                       <div key={s} className="sched-progress-stage" style={{ flex: 1 }}>
                         <div className="sched-progress-fill" style={{
-                          background: i <= stageIdx ? st.tv : '#E6E9EC',
-                          height: '24px',
+                          background: i <= stageIdx ? greenGradient[i] : '#E6E9EC',
+                          height: '36px',
                           borderRadius: i === 0 ? '4px 0 0 4px' : i === STATUSES.length - 1 ? '0 4px 4px 0' : '0',
                         }} />
                         <div className="sched-stage-label">{s.split(' ')[0]}</div>
@@ -159,8 +167,9 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
                     ))}
                   </div>
                   <div className="sched-progress-info">
-                    <span className="sched-current-stage">{boat.global_status}</span>
-                    <span className="sched-progress-pct">{pct}%</span>
+                    <span className="sched-progress-detail">
+                      <strong>{pct}%</strong> complete through all 7 stages
+                    </span>
                   </div>
                 </div>
                 <FlagTags flags={boat} defs={SCHEDULE_FLAGS} />

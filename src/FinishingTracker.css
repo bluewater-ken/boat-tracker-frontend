@@ -68,7 +68,7 @@
   .fin { grid-template-columns: 1fr; }
 }
 
-@media (min-width: 1025px) {
+@media (min-width: 641px) {
   .fin-tablewrap, .fin { height: 100%; }
   .fin-scroll { max-height: none; flex: 1; min-height: 0; }
   .fin-list-panel, .fin-detail { max-height: none; }

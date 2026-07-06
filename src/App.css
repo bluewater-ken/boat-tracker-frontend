@@ -150,8 +150,9 @@ body {
      doesn't shift the content width (no more shrink-then-widen jank). */
   scrollbar-gutter: stable;
 }
-/* Timeline owns its own scroll (one internal vertical bar + horizontal for the
-   wide chart). Hand it the full box so app-content doesn't add a second bar. */
+/* Self-scrolling tabs (Timeline, Key Parts, Lamination, Finishing, Assembly)
+   fill the content box and scroll internally — hand them the full box so
+   app-content doesn't wrap them in a duplicate scrollbar. */
 @media (min-width: 641px) {
   .app-content-full { overflow: hidden; scrollbar-gutter: auto; }
 }

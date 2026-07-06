@@ -8,15 +8,28 @@ import useIsMobile from './useIsMobile';
 import './ProductionSchedule.css';
 
 const STATUSES = ['Backlog', 'Pre-Production', 'Glass Shop', 'Back Line', 'Front Line', 'QC', 'Delivered'];
-// Stage bar fill colors, light → dark green by position.
-const GREEN_GRADIENT = ['#C8E6C9', '#A5D6A7', '#81C784', '#66BB6A', '#43A047', '#388E3C', '#2E7D32'];
+// What the bar displays: the 7 real stages plus display-only trackers that are
+// NOT statuses — Advance/Step back skip them and they're never "current".
+// Consoles shows the Assembly tab's Console checklist % between BackL and Front.
+const DISPLAY_SEGS = [
+  { key: 'Backlog', label: 'Backlog', stage: true },
+  { key: 'Pre-Production', label: 'Pre', stage: true },
+  { key: 'Glass Shop', label: 'Glass', stage: true },
+  { key: 'Back Line', label: 'BackL', stage: true },
+  { key: 'Consoles', label: 'Console', stage: false },
+  { key: 'Front Line', label: 'Front', stage: true },
+  { key: 'QC', label: 'QC', stage: true },
+  { key: 'Delivered', label: 'Done', stage: true },
+];
+// Stage bar fill colors, light → dark green by display position.
+const GREEN_GRADIENT = ['#C8E6C9', '#A5D6A7', '#81C784', '#66BB6A', '#4CAF50', '#43A047', '#388E3C', '#2E7D32'];
 // Per-stage completion for the segmented bar. Real timeline fill_pct when the
 // stage has a tracked source (Lamination / CompanyCam); otherwise stages before
 // the current one count as done and later ones as not started.
-const stagePct = (boat, stageIdx, i, stageName) => {
+const stagePct = (boat, stageIdx, stageName) => {
   const seg = boat.segments?.find(sg => sg.name === stageName);
   if (seg && seg.fill_pct != null) return { pct: seg.fill_pct, real: true };
-  return { pct: i < stageIdx ? 100 : 0, real: false };
+  return { pct: STATUSES.indexOf(stageName) < stageIdx ? 100 : 0, real: false };
 };
 
 function ProductionSchedule({ refreshTrigger, onManageBoats }) {
@@ -27,6 +40,9 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
   // view + advance/step-back/flag tool. `canReorder` also gates the drag handle + Move up/down.
   const canReorder = isOps && !isMobile;
   const [boats, setBoats] = useState([]);
+  // Per-boat display-only percentages: { console: %, parts: % } — Consoles pip
+  // (Assembly Console checklist) and Pre-Production pip (Key Parts received).
+  const [extras, setExtras] = useState({});
   const [loading, setLoading] = useState(true);
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [showDelivered, setShowDelivered] = useState(false);
@@ -37,6 +53,13 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
   const fetchBoats = async () => {
     try {
       setLoading(true);
+      // Display-only extras load in parallel and never block the boat list:
+      // any failure just leaves that pip on its fallback (empty / stage logic).
+      const extrasReq = Promise.all([
+        apiFetch('/api/assembly').then(r => r.ok ? r.json() : null).catch(() => null),
+        apiFetch('/api/parts').then(r => r.ok ? r.json() : null).catch(() => null),
+        apiFetch('/api/parts/standard').then(r => r.ok ? r.json() : null).catch(() => null),
+      ]);
       let boatsData;
       if (isMobile) {
         // Mobile: fetch from timeline to get per-stage fill_pct data.
@@ -75,6 +98,30 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
         }
       }
       setBoats(boatsData);
+      const [asm, partRows, stdParts] = await extrasReq;
+      const ex = {};
+      // Consoles pip: the Assembly work center whose name matches /console/.
+      const wc = asm?.work_centers?.find(w => /console/i.test(w.name || ''));
+      if (wc) {
+        for (const r of asm.rows || []) {
+          if (r.work_center_id === wc.id && r.total_items) {
+            (ex[r.boat_id] ||= {}).console = Math.round(100 * r.completed_items / r.total_items);
+          }
+        }
+      }
+      // Pre-Production pip: % of Key Parts received. Denominator matches the
+      // Key Parts grid: every standard part (no row = Not Ordered) + the boat's
+      // custom parts.
+      if (Array.isArray(partRows) && Array.isArray(stdParts) && stdParts.length) {
+        const byBoat = {};
+        for (const p of partRows) (byBoat[p.boat_id] ||= []).push(p);
+        for (const bid in byBoat) {
+          const rws = byBoat[bid];
+          const denom = stdParts.length + rws.filter(p => p.is_custom).length;
+          if (denom) (ex[bid] ||= {}).parts = Math.round(100 * rws.filter(p => p.status === 'Received').length / denom);
+        }
+      }
+      setExtras(ex);
     } catch (e) { alert('Failed to load boats. Check backend connection.'); }
     finally { setLoading(false); }
   };
@@ -111,15 +158,14 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
     return { idx, pct };
   };
 
-  // Short stage labels for mobile (won't wrap).
-  const stageLabels = {
-    'Backlog': 'Back',
-    'Pre-Production': 'Pre',
-    'Glass Shop': 'Glass',
-    'Back Line': 'BackL',
-    'Front Line': 'Front',
-    'QC': 'QC',
-    'Delivered': 'Done',
+  // Resolve one display segment's % for a boat. Consoles reads the Assembly
+  // checklist; Pre-Production prefers the Key Parts received %; real stages
+  // use timeline fill_pct with the position fallback.
+  const segInfo = (boat, stageIdx, seg) => {
+    const ex = extras[boat.boat_id] || {};
+    if (!seg.stage) return ex.console == null ? { pct: 0, real: false } : { pct: ex.console, real: true };
+    if (seg.key === 'Pre-Production' && ex.parts != null) return { pct: ex.parts, real: true };
+    return stagePct(boat, stageIdx, seg.key);
   };
 
   const toggleFlag = (boat, key) => {
@@ -195,19 +241,19 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
                 </div>
                 <div className="sched-progress-wrap">
                   <div className="sched-progress-bar">
-                    {STATUSES.map((s, i) => {
-                      const { pct: segPct, real } = stagePct(boat, stageIdx, i, s);
-                      const isCurrent = i === stageIdx;
+                    {DISPLAY_SEGS.map((seg, i) => {
+                      const { pct: segPct, real } = segInfo(boat, stageIdx, seg);
+                      const isCurrent = seg.stage && seg.key === boat.global_status;
                       // % text only where it says something: partially-done stages,
                       // or the current stage when it has real tracked progress.
                       const showPct = (segPct > 0 && segPct < 100) || (isCurrent && real);
                       return (
-                        <div key={s} className="sched-progress-stage" style={{ flex: 1 }} title={`${s} — ${segPct}%`}>
+                        <div key={seg.key} className="sched-progress-stage" style={{ flex: 1 }} title={`${seg.key} — ${segPct}%`}>
                           <div className={`sched-progress-track ${isCurrent ? 'current' : ''}`}>
                             <div className="sched-progress-fill" style={{ width: `${segPct}%`, background: GREEN_GRADIENT[i] }} />
                           </div>
                           <div className={`sched-stage-label ${isCurrent ? 'current' : ''}`}>
-                            {stageLabels[s]}
+                            {seg.label}
                             {showPct && <div className="sched-stage-pct">{segPct}%</div>}
                           </div>
                         </div>
@@ -246,19 +292,19 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
               </div>
               <div className="sched-pipswrap">
                 <div className="sched-segs">
-                  {STATUSES.map((s, i) => {
-                    const { pct: segPct, real } = stagePct(boat, stageIdx, i, s);
-                    const isCurrent = i === stageIdx;
+                  {DISPLAY_SEGS.map((seg, i) => {
+                    const { pct: segPct, real } = segInfo(boat, stageIdx, seg);
+                    const isCurrent = seg.stage && seg.key === boat.global_status;
                     // % text only where it says something: partially-done stages,
                     // or the current stage when it has real tracked progress.
                     const showPct = (segPct > 0 && segPct < 100) || (isCurrent && real);
                     return (
-                      <div key={s} className="sched-seg" title={`${s} — ${segPct}%`}>
+                      <div key={seg.key} className="sched-seg" title={`${seg.key} — ${segPct}%`}>
                         <div className={`sched-seg-track ${isCurrent ? 'current' : ''}`}>
                           <div className="sched-seg-fill" style={{ width: `${segPct}%`, background: GREEN_GRADIENT[i] }} />
                         </div>
-                        <div className={`sched-seg-label ${isCurrent ? 'current' : i > stageIdx && segPct === 0 ? 'future' : ''}`}>
-                          {stageLabels[s]}{showPct ? ` ${segPct}%` : ''}
+                        <div className={`sched-seg-label ${isCurrent ? 'current' : segPct === 0 && !isCurrent ? 'future' : ''}`}>
+                          {seg.label}{showPct ? ` ${segPct}%` : ''}
                         </div>
                       </div>
                     );

@@ -19,12 +19,12 @@ const AskBoss = lazy(() => import('./AskBoss'));
 
 const BASE_TABS = [
   { key: 'schedule', label: 'Production Schedule' },
-  { key: 'gantt', label: 'Timeline' },
-  { key: 'parts', label: 'Key Parts' },
   { key: 'lamination', label: 'Lamination' },
   { key: 'finishing', label: 'Finishing' },
   { key: 'assembly', label: 'Assembly' },
+  { key: 'parts', label: 'Key Parts' },
   { key: 'feed', label: 'Shop Feed' },
+  { key: 'gantt', label: 'Timeline' },
 ];
 // Tabs whose component fills the content box and scrolls internally — for these,
 // app-content must not add its own scrollbar (see .app-content-full).

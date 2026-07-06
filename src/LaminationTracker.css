@@ -88,6 +88,12 @@
   .lam { grid-template-columns: 1fr; }
 }
 
+@media (min-width: 1025px) {
+  .lam-tablewrap, .lam { height: 100%; }
+  .lam-scroll { max-height: none; flex: 1; min-height: 0; }
+  .lam-list-panel, .lam-detail { max-height: none; }
+}
+
 /* ---------- Phone: single column, big tap targets, master→detail ---------- */
 @media (max-width: 640px) {
   .lam { grid-template-columns: 1fr; gap: 0; padding: 10px; }

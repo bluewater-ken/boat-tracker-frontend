@@ -1,5 +1,10 @@
 .gantt { display: flex; flex-direction: column; }
 
+@media (min-width: 641px) {
+  .gantt { height: 100%; }
+  .gantt-scroll { max-height: none; flex: 1; min-height: 0; }
+}
+
 .gantt-toolbar { display: flex; align-items: center; gap: 14px; padding: 12px 16px 10px; flex-wrap: wrap; }
 .gantt-zoom { display: inline-flex; border: 1px solid #C7D2DB; border-radius: 8px; overflow: hidden; }
 .gantt-zoom button { padding: 7px 14px; font-size: 12px; font-weight: 600; color: #5F6B73; background: #fff; border: none; cursor: pointer; }

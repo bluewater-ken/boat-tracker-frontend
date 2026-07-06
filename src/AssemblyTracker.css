@@ -4,6 +4,11 @@
 
 .asm-scroll { overflow: auto; max-height: calc(100vh - 300px); margin-top: 12px; }
 
+@media (min-width: 641px) {
+  .asm-wrap { height: 100%; }
+  .asm-scroll { max-height: none; flex: 1; min-height: 0; }
+}
+
 /* ---------- Phone: one card per boat, work centers as tappable rows ---------- */
 .asm-cards { padding: 12px 10px; display: flex; flex-direction: column; gap: 12px; }
 .asm-card { background: #fff; border: 1px solid #E2E6EA; border-radius: 12px; overflow: hidden; }

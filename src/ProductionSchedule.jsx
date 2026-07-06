@@ -253,6 +253,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
                         <div key={s} className="sched-pip-wrapper" title={s}>
                           <span className="sched-pip" style={{ background: isComplete ? greenGradient[i] : '#E6E9EC' }} />
                           {fillPct !== undefined && <div className="sched-pip-label">{fillPct}%</div>}
+                          <div className="sched-pip-stage">{stageLabels[s]}</div>
                         </div>
                       );
                     });

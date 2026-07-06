@@ -32,9 +32,12 @@ const effFlags = (row) => ({
 
 // Date label: order date once Ordered, plus expected (Ordered) or actual (Received).
 // e.g. "ord 7/6 · exp 7/15"  or  "ord 7/6 · 7/20".
+// Read the order date from the new order_date field, falling back to the
+// original schema's ordered_at (a timestamp) if that's what the backend stores.
+const orderDateOf = (row) => row.order_date || row.ordered_at || null;
 const dateLabel = (row) => {
   const st = row.status || 'Not Ordered';
-  const ord = fmtDate(row.order_date);
+  const ord = fmtDate(orderDateOf(row));
   const ordPart = ord ? `ord ${ord}` : '';
   if (st === 'Received') return [ordPart, fmtDate(row.actual_delivery)].filter(Boolean).join(' · ');
   if (st === 'Ordered') return [ordPart, `exp ${fmtDate(row.expected_delivery) || '—'}`].filter(Boolean).join(' · ');
@@ -232,7 +235,7 @@ function KeyPartsTracker() {
       {(menuStatus === 'Ordered' || menuStatus === 'Received') && (
         <>
           <MenuLabel>Order date</MenuLabel>
-          <input type="date" className="am-date-input" value={menuRow.order_date ? menuRow.order_date.slice(0, 10) : ''} onChange={e => setDate(menu.boatId, menu.partName, menu.isCustom, 'order_date', e.target.value)} />
+          <input type="date" className="am-date-input" value={orderDateOf(menuRow) ? orderDateOf(menuRow).slice(0, 10) : ''} onChange={e => setDate(menu.boatId, menu.partName, menu.isCustom, 'order_date', e.target.value)} />
         </>
       )}
       {(menuStatus === 'Ordered' || menuStatus === 'Received') && (

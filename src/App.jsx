@@ -12,12 +12,14 @@ const KeyPartsTracker = lazy(() => import('./KeyPartsTracker'));
 const LaminationTracker = lazy(() => import('./LaminationTracker'));
 const FinishingTracker = lazy(() => import('./FinishingTracker'));
 const AssemblyTracker = lazy(() => import('./AssemblyTracker'));
+const GanttChart = lazy(() => import('./GanttChart'));
 const ShopFeed = lazy(() => import('./ShopFeed'));
 const AdminPanel = lazy(() => import('./AdminPanel'));
 const AskBoss = lazy(() => import('./AskBoss'));
 
 const BASE_TABS = [
   { key: 'schedule', label: 'Production Schedule' },
+  { key: 'gantt', label: 'Timeline' },
   { key: 'parts', label: 'Key Parts' },
   { key: 'lamination', label: 'Lamination' },
   { key: 'finishing', label: 'Finishing' },
@@ -82,6 +84,7 @@ function App() {
             {activeTab === 'lamination' && <LaminationTracker />}
             {activeTab === 'finishing' && <FinishingTracker />}
             {activeTab === 'assembly' && <AssemblyTracker />}
+            {activeTab === 'gantt' && <GanttChart />}
             {activeTab === 'feed' && <ShopFeed />}
             {activeTab === 'admin' && isOps && <AdminPanel />}
           </Suspense>

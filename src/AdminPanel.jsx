@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import UsersAdmin from './UsersAdmin';
 import RulesAdmin from './RulesAdmin';
+import TimelineAdmin from './TimelineAdmin';
 import './AdminPanel.css';
 
-// Ops-only Admin tab — home for management screens: Users, Issue Rules, and
+// Ops-only Admin tab — home for management screens: Users, Issue Rules, Timeline, and
 // whatever comes later (announcements, TV schedule, settings...).
 
 const SECTIONS = [
   { key: 'users', label: 'Users' },
   { key: 'rules', label: 'Issue Rules' },
+  { key: 'timeline', label: 'Timeline' },
 ];
 
 function AdminPanel() {
@@ -22,6 +24,7 @@ function AdminPanel() {
       </div>
       {section === 'users' && <UsersAdmin />}
       {section === 'rules' && <RulesAdmin />}
+      {section === 'timeline' && <TimelineAdmin />}
     </div>
   );
 }

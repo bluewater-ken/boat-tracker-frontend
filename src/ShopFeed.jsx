@@ -28,7 +28,9 @@ const RULE_ICON = {
   part_overdue: '🕓',
   parts_unordered: '🛒',
   backorder_stale: '⏳',
-  stage_stuck: '🐌',
+  stage_stuck: '🐌',       // legacy key (pre-Timeline)
+  stage_over_norm: '🐌',
+  behind_target: '🎯',
   flag_stale: '⚠️',
   lam_stalled: '🧊',
   ugly_part: '🙁',

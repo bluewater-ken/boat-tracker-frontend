@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
 import ActionMenu from './ActionMenu';
-import { applyDeliveredFilter, ShowDeliveredToggle } from './boatFilter';
+import { applyDeliveredFilter, ShowDeliveredToggle, inProduction } from './boatFilter';
+import useIsMobile from './useIsMobile';
 import './AssemblyTracker.css';
 
 // Assembly board (BRD "Mission Control") — read-only mirror of CompanyCam checklists.
@@ -58,6 +59,7 @@ const statusOf = (row) => {
 };
 
 function AssemblyTracker() {
+  const isMobile = useIsMobile();
   const [boats, setBoats] = useState([]);
   const [workCenters, setWorkCenters] = useState(PLACEHOLDER_WCS);
   const [rows, setRows] = useState({}); // boatId -> wcId -> row
@@ -121,6 +123,8 @@ function AssemblyTracker() {
   if (loading) return <div className="loading">Loading assembly board...</div>;
 
   const { visible, delivered } = applyDeliveredFilter(boats, showDelivered);
+  // Phone = only in-production boats (matches the other tabs' employee view).
+  const boardBoats = isMobile ? visible.filter(inProduction) : visible;
   const columns = [...APP_COLS, ...workCenters];
 
   const menuBoat = menu ? boats.find(b => b.boat_id === menu.boatId) : null;
@@ -146,6 +150,39 @@ function AssemblyTracker() {
         </span>
         <span style={{ marginLeft: 'auto' }}><ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} /></span>
       </div>
+      {isMobile ? (
+        <div className="asm-cards">
+          {boardBoats.map(boat => (
+            <div key={boat.boat_id} className="asm-card">
+              <div className="asm-card-head">
+                <span className="asm-bid">{boat.boat_id} · {boat.customer_name}</span>
+                <span className="asm-bmeta">{boat.boat_model} · <span className="asm-bhull">{boat.hull_color}</span></span>
+              </div>
+              {columns.map(w => {
+                const row = getRow(boat.boat_id, w.id);
+                const st = statusOf(row);
+                const c = CELL[st];
+                const pct = row?.total_items ? row.completed_items / row.total_items : 0;
+                return (
+                  <button key={w.id} className="asm-cardrow" disabled={!row}
+                    onClick={() => { if (row) { setCheckFilter('all'); setMenu({ boatId: boat.boat_id, wcId: w.id, x: 0, y: 0 }); } }}>
+                    <span className="asm-cardrow-name">{w.name}</span>
+                    {st === 'NONE' ? (
+                      <span className="asm-cardrow-none">—</span>
+                    ) : (
+                      <span className="asm-cardrow-right">
+                        <span className="asm-cardrow-count" style={{ color: c.fg }}>{row.completed_items}/{row.total_items}</span>
+                        <span className="asm-cardrow-bar"><span style={{ width: `${Math.round(pct * 100)}%`, background: c.fg }} /></span>
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+          {boardBoats.length === 0 && <div className="feed-quiet">No boats in production right now.</div>}
+        </div>
+      ) : (
       <div className="asm-scroll">
         <table className="asm-table">
           <thead>
@@ -155,7 +192,7 @@ function AssemblyTracker() {
             </tr>
           </thead>
           <tbody>
-            {visible.map(boat => (
+            {boardBoats.map(boat => (
               <tr key={boat.boat_id}>
                 <td className="asm-boatcell">
                   <div className="asm-bid">{boat.boat_id} · {boat.customer_name}</div>
@@ -185,6 +222,7 @@ function AssemblyTracker() {
           </tbody>
         </table>
       </div>
+      )}
       <div className="asm-legend">
         <span className="asm-legend-item"><i style={{ background: CELL.NOT_STARTED.bg }} />Not started</span>
         <span className="asm-legend-item"><i style={{ background: CELL.IN_PROGRESS.bg }} />In progress</span>

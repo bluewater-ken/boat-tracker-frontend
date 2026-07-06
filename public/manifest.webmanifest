@@ -1,0 +1,15 @@
+{
+  "name": "B.O.S.S — Bluewater Operations and Shop System",
+  "short_name": "B.O.S.S",
+  "description": "Bluewater boat-production tracker — schedule, parts, lamination, finishing, assembly, and shop feed.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#173A5E",
+  "theme_color": "#173A5E",
+  "icons": [
+    { "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

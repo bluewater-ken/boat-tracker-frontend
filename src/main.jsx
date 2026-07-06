@@ -11,3 +11,11 @@ createRoot(document.getElementById('root')).render(
     </AuthProvider>
   </StrictMode>,
 )
+
+// Register the service worker so B.O.S.S is installable ("add to home screen") and
+// keeps a basic offline shell. Ignored on browsers without support.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  })
+}

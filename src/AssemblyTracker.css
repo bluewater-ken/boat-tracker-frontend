@@ -3,6 +3,22 @@
 .asm-toolbar-note { font-size: 12px; color: #8A969E; }
 
 .asm-scroll { overflow: auto; max-height: calc(100vh - 300px); margin-top: 12px; }
+
+/* ---------- Phone: one card per boat, work centers as tappable rows ---------- */
+.asm-cards { padding: 12px 10px; display: flex; flex-direction: column; gap: 12px; }
+.asm-card { background: #fff; border: 1px solid #E2E6EA; border-radius: 12px; overflow: hidden; }
+.asm-card-head { padding: 12px 14px; background: #f5f8fa; border-bottom: 1px solid #E6E9EC; display: flex; flex-direction: column; gap: 2px; }
+.asm-card-head .asm-bid { font-size: 15px; font-weight: 700; color: #1c1c1c; }
+.asm-card-head .asm-bmeta { font-size: 12px; color: #5F6B73; }
+.asm-cardrow { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; background: none; border: none; border-top: 1px solid #F0F2F4; cursor: pointer; text-align: left; }
+.asm-cardrow:first-of-type { border-top: none; }
+.asm-cardrow:disabled { cursor: default; opacity: 0.6; }
+.asm-cardrow-name { font-size: 14px; font-weight: 600; color: #33424C; }
+.asm-cardrow-none { font-size: 15px; color: #B9C2C9; }
+.asm-cardrow-right { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.asm-cardrow-count { font-size: 13px; font-weight: 700; min-width: 42px; text-align: right; }
+.asm-cardrow-bar { width: 70px; height: 6px; background: #EEF0F2; border-radius: 3px; overflow: hidden; }
+.asm-cardrow-bar span { display: block; height: 100%; border-radius: 3px; }
 .asm-table { border-collapse: separate; border-spacing: 0; font-size: 12px; width: 100%; }
 .asm-table th {
   position: sticky; top: 0; z-index: 2;

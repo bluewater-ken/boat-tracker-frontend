@@ -4,8 +4,9 @@ import { useAuth } from './AuthContext';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { FlagIcons, KEYPARTS_FLAGS } from './flags';
 import { colorOptions } from './colors';
-import { applyDeliveredFilter, ShowDeliveredToggle } from './boatFilter';
+import { applyDeliveredFilter, ShowDeliveredToggle, inProduction } from './boatFilter';
 import SmartInput from './SmartInput';
+import useIsMobile from './useIsMobile';
 import './KeyPartsTracker.css';
 
 const STATUSES = ['Not Ordered', 'Ordered', 'Received'];
@@ -51,12 +52,14 @@ const DUMMY_SPEC_OPTIONS = {
 function KeyPartsTracker() {
   const { user } = useAuth();
   const isOps = user?.role === 'ops';
+  const isMobile = useIsMobile();
 
   const [boats, setBoats] = useState([]);
   const [standardParts, setStandardParts] = useState([]);
   const [partData, setPartData] = useState({});
   const [customNames, setCustomNames] = useState([]);
-  const [view, setView] = useState('table'); // table (default) | boat
+  const [view, setView] = useState(() => isMobile ? 'boat' : 'table'); // table (default) | boat
+  const [mobileView, setMobileView] = useState('list'); // phone master→detail: list | detail
   const [selectedBoat, setSelectedBoat] = useState(null);
   const [search, setSearch] = useState('');
   const [showDelivered, setShowDelivered] = useState(false);
@@ -192,10 +195,12 @@ function KeyPartsTracker() {
   };
 
   const { visible, delivered } = applyDeliveredFilter(boats, showDelivered);
+  // On the phone (employee view) only show boats actually in production (Glass Shop onward).
   const filteredBoats = visible.filter(b =>
+    (!isMobile || inProduction(b)) && (
     b.boat_id?.toLowerCase().includes(search.toLowerCase()) ||
     b.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
-    b.boat_model?.toLowerCase().includes(search.toLowerCase()));
+    b.boat_model?.toLowerCase().includes(search.toLowerCase())));
 
   if (loading) return <div className="loading">Loading parts...</div>;
 
@@ -317,21 +322,30 @@ function KeyPartsTracker() {
     );
   }
 
+  // On phones, show either the boat list or the selected boat's parts (not both).
+  const pickBoat = (boat) => { setSelectedBoat(boat); if (isMobile) setMobileView('detail'); };
+  const showList = !isMobile || mobileView === 'list';
+  const showDetail = !isMobile || mobileView === 'detail';
+
   return (
-    <div className="kpt">
+    <div className={`kpt ${isMobile ? 'kpt-mobile' : ''}`}>
+      {showList && (
       <div className="kpt-list-panel">
-        <button className="kpt-toggle" onClick={() => setView('table')}>← Part grid</button>
+        {!isMobile && <button className="kpt-toggle" onClick={() => setView('table')}>← Part grid</button>}
         <input className="kpt-search" placeholder="Search by ID, customer, or model..." value={search} onChange={e => setSearch(e.target.value)} />
         <div className="kpt-boats">
           {filteredBoats.map(boat => (
-            <div key={boat.boat_id} className={`kpt-boat-row ${selectedBoat?.boat_id === boat.boat_id ? 'selected' : ''}`} onClick={() => setSelectedBoat(boat)}>
+            <div key={boat.boat_id} className={`kpt-boat-row ${selectedBoat?.boat_id === boat.boat_id ? 'selected' : ''}`} onClick={() => pickBoat(boat)}>
               <div className="kpt-bid">{boat.boat_id} - {boat.customer_name}</div>
               <div className="kpt-bhull">{boat.hull_color} {boat.boat_model}</div>
             </div>
           ))}
         </div>
       </div>
+      )}
+      {showDetail && (
       <div className="kpt-detail">
+        {isMobile && <button className="kpt-back" onClick={() => setMobileView('list')}>← Boats</button>}
         {selectedBoat ? (
           <>
             <h2>{selectedBoat.boat_id} - {selectedBoat.customer_name}</h2>
@@ -362,7 +376,7 @@ function KeyPartsTracker() {
               );
             })}
             <h3 style={{ marginTop: 20 }}>Custom Parts (Extras)</h3>
-            {isOps ? (
+            {isOps && !isMobile ? (
               <div className="kpt-transfer">
                 <div className="kpt-tbox">
                   <div className="kpt-tbox-title">All custom parts</div>
@@ -421,6 +435,7 @@ function KeyPartsTracker() {
           </>
         ) : <p>Select a boat</p>}
       </div>
+      )}
       {actionMenu}
     </div>
   );

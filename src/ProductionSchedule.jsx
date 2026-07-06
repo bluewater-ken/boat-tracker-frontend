@@ -3,7 +3,8 @@ import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
 import { FlagTags, SCHEDULE_FLAGS } from './flags';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
-import { applyDeliveredFilter, isDelivered, ShowDeliveredToggle } from './boatFilter';
+import { applyDeliveredFilter, isDelivered, ShowDeliveredToggle, inProduction } from './boatFilter';
+import useIsMobile from './useIsMobile';
 import './ProductionSchedule.css';
 
 const STATUSES = ['Backlog', 'Pre-Production', 'Glass Shop', 'Back Line', 'Front Line', 'QC', 'Delivered'];
@@ -20,7 +21,11 @@ const SCHED = {
 
 function ProductionSchedule({ refreshTrigger, onManageBoats }) {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const isOps = user?.role === 'ops';
+  // On the phone (employee view) reordering and adding boats stay desktop-only — it's a
+  // view + advance/step-back/flag tool. `canReorder` also gates the drag handle + Move up/down.
+  const canReorder = isOps && !isMobile;
   const [boats, setBoats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draggedIndex, setDraggedIndex] = useState(null);
@@ -102,6 +107,8 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
   if (loading) return <div className="loading">Loading production schedule...</div>;
 
   const { visible, delivered } = applyDeliveredFilter(boats, showDelivered);
+  // Phone shows only in-production boats (matches the other tabs' employee view).
+  const rows = isMobile ? visible.filter(inProduction) : visible;
   const menuBoat = menu ? boats.find(b => b.boat_id === menu.boatId) : null;
   const atStart = menuBoat && STATUSES.indexOf(menuBoat.global_status) <= 0;
   const atEnd = menuBoat && STATUSES.indexOf(menuBoat.global_status) >= STATUSES.length - 1;
@@ -110,14 +117,14 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
     <div className="sched">
       <div className="sched-intro">
         Build order, top to bottom. Each boat shows its current production stage — Advance moves it forward.
-        {isOps ? ' Grab the ⠿ handle to drag-reorder, or tap a boat and use Move up / Move down.' : ''} Tap a boat for more actions.
+        {canReorder ? ' Grab the ⠿ handle to drag-reorder, or tap a boat and use Move up / Move down.' : ''} Tap a boat for more actions.
       </div>
       <div className="sched-toolbar">
-        {isOps && onManageBoats && <button className="sched-manage" onClick={onManageBoats}>⚙ Manage Boats</button>}
+        {isOps && !isMobile && onManageBoats && <button className="sched-manage" onClick={onManageBoats}>⚙ Manage Boats</button>}
         <ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} />
       </div>
       <div className="sched-list">
-        {visible.map((boat, idx) => {
+        {rows.map((boat, idx) => {
           const st = SCHED[boat.global_status] || SCHED['Backlog'];
           const stageIdx = STATUSES.indexOf(boat.global_status);
           return (
@@ -127,7 +134,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
               style={{ opacity: draggedIndex === idx ? 0.6 : 1 }}
               onClick={(e) => setMenu({ boatId: boat.boat_id, x: e.clientX, y: e.clientY })}>
               {/* The grip is the ONE drag zone — the rest of the row stays click-for-menu. */}
-              {isOps && (
+              {canReorder && (
                 <div className="sched-grip" title="Drag to reorder" draggable
                   onDragStart={() => setDraggedIndex(idx)}
                   onDragEnd={() => setDraggedIndex(null)}
@@ -160,7 +167,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
         <ActionMenu anchor={{ x: menu.x, y: menu.y }} title={menuBoat.boat_id} subtitle={`${menuBoat.customer_name} · ${menuBoat.global_status}`} onClose={() => setMenu(null)}>
           <MenuBtn label={atEnd ? 'Delivered' : `Advance to ${STATUSES[STATUSES.indexOf(menuBoat.global_status) + 1]} ›`} primary disabled={atEnd} onClick={() => { advance(menuBoat); setMenu(null); }} />
           <MenuBtn label={atStart ? '‹ Step back' : `‹ Back to ${STATUSES[STATUSES.indexOf(menuBoat.global_status) - 1]}`} disabled={atStart} onClick={() => { stepBack(menuBoat); setMenu(null); }} />
-          {isOps && (
+          {canReorder && (
             <>
               <MenuLabel>Build order</MenuLabel>
               <MenuBtn label="↑ Move up" disabled={visible.findIndex(b => b.boat_id === menuBoat.boat_id) <= 0} onClick={() => moveBoat(menuBoat, -1)} />

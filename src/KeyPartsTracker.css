@@ -195,3 +195,21 @@
   .kpt-transfer { grid-template-columns: 1fr; }
   .kpt-arrows { flex-direction: row; justify-content: center; }
 }
+
+/* ---------- Phone: single column, big tap targets, master→detail ---------- */
+@media (max-width: 640px) {
+  .kpt { grid-template-columns: 1fr; gap: 0; padding: 10px; }
+  .kpt-list-panel { max-height: none; border: none; padding: 2px 0; background: transparent; }
+  .kpt-search { font-size: 16px; padding: 12px 14px; margin: 2px 0 10px; }  /* 16px = no iOS zoom */
+  .kpt-boats { overflow: visible; }
+  .kpt-boat-row { padding: 15px 14px; border: 1px solid #E2E6EA; border-radius: 10px; margin-bottom: 8px; background: #fff; }
+  .kpt-boat-row .kpt-bid { font-size: 15px; }
+  .kpt-boat-row .kpt-bhull { font-size: 13px; }
+  .kpt-detail { max-height: none; border: none; padding: 2px 0; overflow: visible; }
+  .kpt-back { background: none; border: none; color: #2E92D6; font-size: 15px; font-weight: 600; padding: 4px 0 12px; cursor: pointer; }
+  .kpt-detail h2 { font-size: 19px; }
+  .kpt-part { padding: 15px 14px; margin-bottom: 10px; border: 1px solid #EceEF1; }
+  .kpt-part-name { font-size: 16px; font-weight: 600; }
+  .kpt-part-spec { font-size: 13px; }
+  .kpt-badge { font-size: 13px; padding: 6px 12px; }
+}

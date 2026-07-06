@@ -93,3 +93,17 @@
   .sched-pips { display: none; }
   .sched-boat { flex: 1; }
 }
+
+/* ---------- Phone: stacked card — boat + stage on top, progress line, big Advance/Back ---------- */
+@media (max-width: 640px) {
+  .sched-intro { font-size: 12px; }
+  .sched-row { flex-wrap: wrap; row-gap: 11px; padding: 13px 14px; }
+  .sched-boat { flex: 1 1 auto; min-width: 0; }
+  .sched-id { font-size: 15px; }
+  .sched-sub { font-size: 12px; }
+  .sched-stat { flex: 0 0 auto; text-align: right; }
+  .sched-pipswrap { flex: 1 1 100%; order: 3; }
+  .sched-pips { display: flex; }
+  .sched-acts { flex: 1 1 100%; order: 4; gap: 8px; }
+  .sched-back, .sched-adv { flex: 1; padding: 13px 8px; font-size: 14px; }
+}

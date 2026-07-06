@@ -14,15 +14,15 @@ _(nothing in progress)_
 _(nothing waiting)_
 
 ## 🖥 Needs a server session (Ken runs these on the droplet)
-- **Resolved-issues data** — run `BACKEND_ISSUES_RESOLVED_BRIEF.md` so the "Resolved" view fills in.
-- **Ask stays on-topic** — run `BACKEND_ASK_GUARDRAIL_BRIEF.md` (politely declines off-topic prompts).
-- **Ask for everyone** — run `BACKEND_ASK_ALLROLES_BRIEF.md` so Shop/mobile users (not just Ops) can
-  use Ask. Frontend already shows the button to all roles; server still rejects non-Ops until run.
 - **Ask emoji style** — one-line tweak to `ask.js` system prompt (decide: emojis on/off/light).
-- **Assembly full checklist** — run `BACKEND_ASSEMBLY_CHECKLIST_BRIEF.md` so CompanyCam columns send
-  every item (with done/not-done), making the popup's "All" / "Done" show completed item names.
-- **Issue reporting w/ photos** — run `BACKEND_ISSUE_REPORT_BRIEF.md` so reported issues store their
-  type/area and **photos** (file upload). Frontend form is built; photos won't persist until this runs.
+
+## ✅ Recently shipped (live front + back)
+- **Ask for everyone + on-topic guardrail** — all roles can use Ask; declines off-topic prompts.
+- **Resolved-issues view** — Shop Feed "Resolved" list populates.
+- **Assembly full checklist** — CompanyCam columns send every item; popup All/To-do/Done all work.
+  _(Hit CompanyCam "Sync" once to populate the new checklist items immediately.)_
+- **Issue reporting w/ type, area & photos** — full report form; photos upload + store server-side.
+- **Mobile shop view** — Lamination/Finishing phone-first, bottom-sheet menus, in-production filter.
 
 ## ⏸ Parked (built or half-built, waiting on your go)
 - **Boats command center** — built on branch `boat-command-center`, not merged yet. Per-boat overview

@@ -158,11 +158,17 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
         };
       }
       const r = await apiFetch('/api/issues', opts);
-      if (!r.ok) throw new Error();
+      if (!r.ok) {
+        // Surface the real failure — 413 = photos too large for the server's
+        // upload limit, which is the usual cause when text-only posts work.
+        const detail = await r.text().catch(() => '');
+        if (r.status === 413) throw new Error('Photos are too large for the server upload limit (413). Try fewer/smaller photos, or raise the Nginx client_max_body_size on the server.');
+        throw new Error(`Server rejected the post (HTTP ${r.status}${detail ? ` — ${detail.slice(0, 120)}` : ''}).`);
+      }
       qPhotos.forEach(p => URL.revokeObjectURL(p.url));
       setQText(''); setQBoat(''); setQDept(''); setQKind(''); setQPhotos([]); setPosting(false);
       init(true);
-    } catch (e) { alert('Failed to post — is the issues backend set up?'); }
+    } catch (e) { alert(`Failed to post. ${e.message || 'Is the issues backend set up?'}`); }
   };
 
   const resolve = async (id) => {

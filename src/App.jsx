@@ -69,7 +69,7 @@ function App() {
             <Logo size={19} />
             <span className="app-header-boss">
               <span className="boss-name">B.O.S.S</span>
-              <span className="boss-sub">Bluewater Operations and Shop System</span>
+              <span className="boss-sub">Bluewater Operations<br />and Shop System</span>
             </span>
           </div>
           <div className="app-header-user">

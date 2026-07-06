@@ -53,8 +53,11 @@ const ISSUE_CATS = [
   { key: 'Questions', color: '#2E92D6' },
 ];
 // Reported-issue pickers: what kind of problem, and which area (area reuses the colors above).
-const ISSUE_KINDS = ['Damage', 'Missing / Short', 'Rework', 'Safety', 'Other'];
+const ISSUE_KINDS = ['Question', 'Damage', 'Missing / Short', 'Rework', 'Safety', 'Other'];
 const ISSUE_DEPTS = ['Key Parts', 'Schedule', 'Lamination', 'Finishing', 'Assembly'];
+// Display names for areas — stored values stay the backend keys ('Key Parts').
+const DEPT_LABEL = { 'Key Parts': 'Parts' };
+const deptLabel = (d) => DEPT_LABEL[d] || d;
 
 const catOf = (iss) => iss.kind === 'question' ? 'Questions' : (iss.source_tab || 'Questions');
 const catColor = (iss) => (ISSUE_CATS.find(c => c.key === catOf(iss)) || {}).color || '#BA7517';
@@ -271,7 +274,7 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
                 <span className="issue-title">{iss.title}</span>
                 <span className="issue-sub">
                   {iss.boat_id ? `${iss.boat_id}${iss.customer_name ? ' · ' + iss.customer_name : ''} · ` : ''}
-                  {iss.source_tab ? `${iss.source_tab} · ` : ''}
+                  {iss.source_tab ? `${deptLabel(iss.source_tab)} · ` : ''}
                   resolved {ageLabel(iss.resolved_at)}{iss.resolved_by ? ` by ${iss.resolved_by}` : ''}
                 </span>
                 {iss.detail && <span className="issue-detail">{iss.detail}</span>}
@@ -302,7 +305,7 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
               return (
                 <button key={d} className={`ir-chip ${qDept === d ? 'on' : ''}`}
                   style={qDept === d ? { background: col, borderColor: col, color: '#fff' } : { color: col, borderColor: col + '55' }}
-                  onClick={() => setQDept(qDept === d ? '' : d)}>{d}</button>
+                  onClick={() => setQDept(qDept === d ? '' : d)}>{deptLabel(d)}</button>
               );
             })}
           </div>
@@ -343,7 +346,7 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
             <button key={c.key} className={`issue-cat ${catFilter === c.key ? 'on' : ''}`}
               style={catFilter === c.key ? { background: c.color, borderColor: c.color, color: '#fff' } : { color: c.color, borderColor: c.color + '55' }}
               onClick={() => setCatFilter(catFilter === c.key ? 'all' : c.key)}>
-              {c.key} ({catCounts[c.key]})
+              {deptLabel(c.key)} ({catCounts[c.key]})
             </button>
           ))}
         </div>
@@ -362,7 +365,7 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
             <span className="issue-title">{iss.title}</span>
             <span className="issue-sub">
               {iss.boat_id ? `${iss.boat_id}${iss.customer_name ? ' · ' + iss.customer_name : ''} · ` : ''}
-              {iss.source_tab ? `${iss.source_tab} · ` : ''}
+              {iss.source_tab ? `${deptLabel(iss.source_tab)} · ` : ''}
               open {ageLabel(iss.created_at)}
               {iss.actor_name ? ` — asked by ${iss.actor_name}` : ''}
             </span>

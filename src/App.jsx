@@ -33,6 +33,7 @@ function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [manageBoats, setManageBoats] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
+  const [reportIssueOpen, setReportIssueOpen] = useState(false);
   const handleRefresh = () => setRefreshTrigger(p => p + 1);
 
   // Close the Manage Boats drawer with Esc.
@@ -42,6 +43,11 @@ function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [manageBoats]);
+
+  // Reset reportIssueOpen when leaving the feed tab (so it doesn't stay open on return).
+  useEffect(() => {
+    if (activeTab !== 'feed') setReportIssueOpen(false);
+  }, [activeTab]);
 
   // Gate the whole app behind login.
   if (status === 'loading') return <div className="loading">Loading…</div>;
@@ -68,7 +74,7 @@ function App() {
           </div>
           <div className="app-header-user">
             <button className="btn-ask" onClick={() => setAskOpen(true)}>💬 Ask the B.O.S.S</button>
-            <button className="btn-report" onClick={() => setActiveTab('feed')}>📋 Report Issue</button>
+            <button className="btn-report" onClick={() => { setActiveTab('feed'); setReportIssueOpen(true); }}>📋 Report Issue</button>
             <span className="app-header-name">{user?.display_name || user?.username}{roleLabel ? ` · ${roleLabel}` : ''}</span>
             <button className="btn-logout" onClick={signOut}>Log Out</button>
           </div>
@@ -86,7 +92,7 @@ function App() {
             {activeTab === 'finishing' && <FinishingTracker />}
             {activeTab === 'assembly' && <AssemblyTracker />}
             {activeTab === 'gantt' && <GanttChart />}
-            {activeTab === 'feed' && <ShopFeed />}
+            {activeTab === 'feed' && <ShopFeed initialView="issues" initialPostingOpen={reportIssueOpen} />}
             {activeTab === 'admin' && isOps && <AdminPanel />}
           </Suspense>
         </main>

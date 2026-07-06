@@ -79,16 +79,16 @@ const ageLabel = (iso) => {
   return `${days} days`;
 };
 
-function ShopFeed() {
+function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
   const { user } = useAuth();
   const isOps = user?.role === 'ops';
 
-  const [view, setView] = useState('activity'); // which column shows on NARROW screens
+  const [view, setView] = useState(initialView); // which column shows on NARROW screens
   const [items, setItems] = useState([]);
   const [issues, setIssues] = useState(null); // null = issues backend not connected
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [posting, setPosting] = useState(false);
+  const [posting, setPosting] = useState(initialPostingOpen);
   const [catFilter, setCatFilter] = useState('all');
   const [issueTab, setIssueTab] = useState('open'); // open | resolved
   const [resolved, setResolved] = useState(null); // loaded on demand

@@ -191,9 +191,11 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
                     {STATUSES.map((s, i) => {
                       // Find segment for this stage from timeline data.
                       const segment = boat.segments?.find(seg => seg.name === s);
-                      const fillPct = segment?.fill_pct ?? null;
+                      const fillPct = segment?.fill_pct;
                       const isComplete = i < stageIdx;
                       const isCurrent = i === stageIdx;
+                      // Show progress if: segment exists (has work tracked) or stage is active.
+                      const hasData = segment || isCurrent;
                       return (
                         <div key={s} className="sched-progress-stage" style={{ flex: 1 }}>
                           <div className="sched-progress-fill" style={{
@@ -203,7 +205,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
                           }} />
                           <div className="sched-stage-label">
                             {stageLabels[s]}
-                            {fillPct !== null && <div className="sched-stage-pct">{fillPct}%</div>}
+                            {hasData && fillPct !== undefined && <div className="sched-stage-pct">{fillPct}%</div>}
                           </div>
                         </div>
                       );

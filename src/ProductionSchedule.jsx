@@ -75,6 +75,17 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
     return { idx, pct };
   };
 
+  // Short stage labels for mobile (won't wrap).
+  const stageLabels = {
+    'Backlog': 'Back',
+    'Pre-Production': 'Pre',
+    'Glass Shop': 'Glass',
+    'Back Line': 'BackL',
+    'Front Line': 'Front',
+    'QC': 'QC',
+    'Delivered': 'Done',
+  };
+
   const toggleFlag = (boat, key) => {
     const next = !boat[key];
     setBoats(bs => bs.map(b => b.boat_id === boat.boat_id ? { ...b, [key]: next } : b));
@@ -162,7 +173,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
                           height: '36px',
                           borderRadius: i === 0 ? '4px 0 0 4px' : i === STATUSES.length - 1 ? '0 4px 4px 0' : '0',
                         }} />
-                        <div className="sched-stage-label">{s.split(' ')[0]}</div>
+                        <div className="sched-stage-label">{stageLabels[s]}</div>
                       </div>
                     ))}
                   </div>

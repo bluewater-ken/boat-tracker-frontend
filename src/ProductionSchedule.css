@@ -55,10 +55,12 @@
    The current stage gets a navy outline + bold label (replaces the old status pill). */
 .sched-segs { display: flex; gap: 3px; align-items: flex-start; }
 .sched-seg { flex: 1; min-width: 0; }
-.sched-seg-track { height: 16px; background: #E6E9EC; overflow: hidden; }
+.sched-seg-track { position: relative; height: 16px; background: #E6E9EC; overflow: hidden; }
 .sched-seg:first-child .sched-seg-track { border-radius: 4px 0 0 4px; }
 .sched-seg:last-child .sched-seg-track { border-radius: 0 4px 4px 0; }
-.sched-seg-track.current { box-shadow: 0 0 0 2px #173A5E; border-radius: 2px; }
+/* Current-stage ring drawn as an overlay ABOVE the fill — a border/inset shadow
+   on the track gets painted under the fill div and shows only on the empty part. */
+.sched-seg-track.current::after { content: ''; position: absolute; inset: 0; border: 2px solid #173A5E; border-radius: inherit; pointer-events: none; }
 .sched-seg-fill { height: 100%; }
 .sched-seg-label { font-size: 11px; color: #8A969E; text-align: center; padding-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sched-seg-label.current { color: #173A5E; font-weight: 700; }
@@ -128,10 +130,11 @@
   .sched-progress-wrap { display: flex; flex-direction: column; gap: 10px; }
   .sched-progress-bar { display: flex; gap: 2px; }
   .sched-progress-stage { flex: 1; min-width: 0; }
-  .sched-progress-track { height: 36px; background: #E6E9EC; overflow: hidden; }
+  .sched-progress-track { position: relative; height: 36px; background: #E6E9EC; overflow: hidden; }
   .sched-progress-stage:first-child .sched-progress-track { border-radius: 4px 0 0 4px; }
   .sched-progress-stage:last-child .sched-progress-track { border-radius: 0 4px 4px 0; }
-  .sched-progress-track.current { box-shadow: inset 0 0 0 2px #173A5E; }
+  /* Ring drawn above the fill (a border/inset shadow gets covered by the fill div). */
+  .sched-progress-track.current::after { content: ''; position: absolute; inset: 0; border: 2px solid #173A5E; border-radius: inherit; pointer-events: none; }
   .sched-progress-fill { height: 100%; transition: width 0.2s ease; }
   .sched-stage-label {
     font-size: 10px; font-weight: 700; color: #5F6B73; text-align: center;

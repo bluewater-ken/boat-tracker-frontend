@@ -280,6 +280,13 @@ function GanttChart() {
           <button className={zoom === 'weeks' ? 'on' : ''} onClick={() => setZoom('weeks')}>Weeks</button>
           <button className={zoom === 'months' ? 'on' : ''} onClick={() => setZoom('months')}>Months</button>
         </div>
+        <button className="gantt-expandall"
+          onClick={() => {
+            const allOpen = groups.length > 0 && groups.every(g => open[g.key]);
+            setOpen(allOpen ? {} : Object.fromEntries(groups.map(g => [g.key, true])));
+          }}>
+          {groups.length > 0 && groups.every(g => open[g.key]) ? '⌃ Collapse all' : '⌄ Expand all'}
+        </button>
         {!draft && <span className="gantt-note">{isOps ? 'Drag ⠿ to test a new build order · click a bar to pin/hold · ◆ = target delivery.' : 'Solid = done, shaded = work complete, dashed = projected. ◆ = target.'}</span>}
         {draft && (
           <div className="gantt-draftbar">

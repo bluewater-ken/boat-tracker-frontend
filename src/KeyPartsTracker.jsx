@@ -30,11 +30,14 @@ const effFlags = (row) => ({
   flag_unsatisfactory: !!row.flag_unsatisfactory,
 });
 
-// Delivery-date label: expected when Ordered, actual when Received.
+// Date label: order date once Ordered, plus expected (Ordered) or actual (Received).
+// e.g. "ord 7/6 · exp 7/15"  or  "ord 7/6 · 7/20".
 const dateLabel = (row) => {
   const st = row.status || 'Not Ordered';
-  if (st === 'Received') return fmtDate(row.actual_delivery);
-  if (st === 'Ordered') return `exp ${fmtDate(row.expected_delivery) || '—'}`;
+  const ord = fmtDate(row.order_date);
+  const ordPart = ord ? `ord ${ord}` : '';
+  if (st === 'Received') return [ordPart, fmtDate(row.actual_delivery)].filter(Boolean).join(' · ');
+  if (st === 'Ordered') return [ordPart, `exp ${fmtDate(row.expected_delivery) || '—'}`].filter(Boolean).join(' · ');
   return '';
 };
 
@@ -127,6 +130,7 @@ function KeyPartsTracker() {
     if (i >= STATUSES.length - 1) return;
     const next = STATUSES[i + 1];
     const patch = { status: next };
+    if (next === 'Ordered' && !row.order_date) patch.order_date = todayStr();
     if (next === 'Received' && !row.actual_delivery) patch.actual_delivery = todayStr();
     save(boatId, partName, isCustom, patch);
   };
@@ -223,6 +227,12 @@ function KeyPartsTracker() {
           <MenuLabel>Description / spec</MenuLabel>
           <SmartInput className="am-spec-input" storeKey={`spec:${menu.partName}`} options={specOptions[menu.partName] || []} value={menuRow.description || ''} placeholder="e.g. Triple Suzuki 350" onChange={v => setDescription(menu.boatId, menu.partName, false, v)} />
           <div className="am-spec-hint">Pick a saved spec or type a new one (saved for next time). ✕ removes a suggestion.</div>
+        </>
+      )}
+      {(menuStatus === 'Ordered' || menuStatus === 'Received') && (
+        <>
+          <MenuLabel>Order date</MenuLabel>
+          <input type="date" className="am-date-input" value={menuRow.order_date ? menuRow.order_date.slice(0, 10) : ''} onChange={e => setDate(menu.boatId, menu.partName, menu.isCustom, 'order_date', e.target.value)} />
         </>
       )}
       {(menuStatus === 'Ordered' || menuStatus === 'Received') && (
@@ -456,7 +466,7 @@ function Legend() {
           <span key={f.key} className="kpt-legend-item"><FlagIcons flags={{ [f.key]: true }} defs={[f]} size={14} />{f.label}</span>
         ))}
       </div>
-      <div className="kpt-legend-note">Dates are delivery dates: “exp” = expected (set when Ordered), plain = actual received. Late auto-flags once past the expected date. Ops-only editing.</div>
+      <div className="kpt-legend-note">Dates: “ord” = order date (set when Ordered), “exp” = expected delivery, plain = actual received. Late auto-flags once past the expected date. Ops-only editing.</div>
     </div>
   );
 }

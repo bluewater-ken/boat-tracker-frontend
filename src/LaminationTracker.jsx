@@ -128,17 +128,22 @@ function LaminationTracker() {
     } catch (e) { alert('Failed to save'); init(); }
   };
 
-  // Advance/step-back move through LAM_ORDER; the backend stamps/restores the date (date memory).
+  // Dates are stamped by the status being entered: mold_open_date is tracked for
+  // reporting (not shown on the grid); the grid's start–end range runs
+  // In Progress → Complete/On Mold (Complete for Glass Kit). Pulled changes no dates.
+  const doneStatus = (order) => order.includes('Complete/On Mold') ? 'Complete/On Mold' : 'Complete';
   const advance = (boatId, task) => {
     const row = getRow(boatId, task);
     if (row.na) return;
     const order = orderFor(task);
     const i = order.indexOf(row.status || firstStatus(task));
     if (i >= order.length - 1) return; // stops at the final status
-    const patch = { status: order[i + 1] };
+    const next = order[i + 1];
+    const patch = { status: next };
     if (cfg(task).dates) {
-      if (i === 0 && !row.start_date) patch.start_date = todayStr(); // leaving the idle first state
-      if (i + 1 === order.length - 1) patch.end_date = todayStr(); // reaching the final state
+      if (next === 'Mold Open' && !row.mold_open_date) patch.mold_open_date = todayStr();
+      if (next === 'In Progress' && !row.start_date) patch.start_date = todayStr();
+      if (next === doneStatus(order) && !row.end_date) patch.end_date = todayStr();
     }
     // Finished work is no longer a rush — reaching the final state clears ASAP.
     if (i + 1 === order.length - 1 && row.asap) patch.asap = false;
@@ -148,12 +153,15 @@ function LaminationTracker() {
     const row = getRow(boatId, task);
     if (row.na) return;
     const order = orderFor(task);
-    const i = order.indexOf(row.status || firstStatus(task));
+    const cur = row.status || firstStatus(task);
+    const i = order.indexOf(cur);
     if (i <= 0) return;
     const patch = { status: order[i - 1] };
     if (cfg(task).dates) {
-      if (i === order.length - 1) patch.end_date = null; // stepping back off the final state
-      if (i - 1 === 0) patch.start_date = null; // back to the idle first state
+      // Undo exactly the stamp the current status set on the way in.
+      if (cur === doneStatus(order)) patch.end_date = null;
+      if (cur === 'In Progress') patch.start_date = null;
+      if (cur === 'Mold Open') patch.mold_open_date = null;
     }
     save(boatId, task, patch);
   };
@@ -382,7 +390,7 @@ function Legend() {
           <span key={f.key} className="lam-legend-item"><FlagIcons flags={{ [f.key]: true }} defs={[f]} size={14} />{f.label}</span>
         ))}
       </div>
-      <div className="lam-legend-note">Mold cycle stops at Pulled. Non-white part colors show under the status. N/A and color are Ops-only.</div>
+      <div className="lam-legend-note">Mold cycle stops at Pulled. Cell dates run In Progress → Complete/On Mold (mold-open date is tracked behind the scenes). Non-white part colors show under the status. N/A and color are Ops-only.</div>
     </div>
   );
 }

@@ -140,6 +140,8 @@ function LaminationTracker() {
       if (i === 0 && !row.start_date) patch.start_date = todayStr(); // leaving the idle first state
       if (i + 1 === order.length - 1) patch.end_date = todayStr(); // reaching the final state
     }
+    // Finished work is no longer a rush — reaching the final state clears ASAP.
+    if (i + 1 === order.length - 1 && row.asap) patch.asap = false;
     save(boatId, task, patch);
   };
   const stepBack = (boatId, task) => {
@@ -156,6 +158,7 @@ function LaminationTracker() {
     save(boatId, task, patch);
   };
   const toggleNA = (boatId, task) => save(boatId, task, { na: !getRow(boatId, task).na });
+  const toggleAsap = (boatId, task) => save(boatId, task, { asap: !getRow(boatId, task).asap });
   const setColor = (boatId, task, val) => save(boatId, task, { color: val || null });
   const setNotes = (boatId, task, val) => save(boatId, task, { notes: val || null });
   const toggleFlag = (boatId, task, key) => save(boatId, task, { [key]: !getRow(boatId, task)[key] });
@@ -223,6 +226,9 @@ function LaminationTracker() {
       )}
       {cfg(menu.task).dates && dateLabel(menuRow) && <div className="am-spec-hint">Dates (auto): {dateLabel(menuRow)}</div>}
       <MenuLabel>Flags</MenuLabel>
+      {menuOrder.length > 1 && (
+        <MenuToggle label="ASAP" color="#A32D2D" active={!!menuRow.asap} onClick={() => toggleAsap(menu.boatId, menu.task)} />
+      )}
       {STANDARD_FLAGS.map(f => (
         <MenuToggle key={f.key} label={f.label} color={f.color} active={!!menuRow[f.key]} onClick={() => toggleFlag(menu.boatId, menu.task, f.key)} />
       ))}
@@ -237,7 +243,8 @@ function LaminationTracker() {
     const dates = !info && !row.na && cfg(task).dates ? dateLabel(row) : '';
     const col = cfg(task).color ? shownColor(row, task, boat) : '';
     const notes = cfg(task).text ? (row.notes || '') : '';
-    return { st, c, dates, col, notes, info };
+    const asap = !info && !row.na && !!row.asap;
+    return { st, c, dates, col, notes, info, asap };
   };
 
   if (view === 'table') {
@@ -273,9 +280,10 @@ function LaminationTracker() {
                     </td>
                     {LAM_TASKS.map(t => {
                       const row = getRow(r.boat.boat_id, t);
-                      const { st, c, dates, col, notes, info } = cellContent(row, t, r.boat);
+                      const { st, c, dates, col, notes, info, asap } = cellContent(row, t, r.boat);
                       return (
                         <td key={t} className="lam-cell" style={{ background: c.bg, color: c.fg }} onClick={(e) => openMenu(e, r.boat.boat_id, t)}>
+                          {asap && <span className="lam-asapwrap"><span className="lam-asap">ASAP</span></span>}
                           <span className="lam-flagwrap"><FlagIcons flags={row} defs={STANDARD_FLAGS} size={11} /></span>
                           {info ? (
                             <div className="lam-cellinfo">{notes || <span className="lam-cellnone">— set —</span>}</div>
@@ -332,7 +340,7 @@ function LaminationTracker() {
             <h3>Lamination Tasks ({LAM_TASKS.length})</h3>
             {LAM_TASKS.map(t => {
               const row = getRow(selectedBoat.boat_id, t);
-              const { st, c, dates, col, notes, info } = cellContent(row, t, selectedBoat);
+              const { st, c, dates, col, notes, info, asap } = cellContent(row, t, selectedBoat);
               const detail = info ? '' : [col, notes].filter(Boolean).join(' · ');
               return (
                 <div key={t} className="lam-part" onClick={(e) => openMenu(e, selectedBoat.boat_id, t)}>
@@ -341,6 +349,7 @@ function LaminationTracker() {
                     {detail && <span className="lam-part-color">{detail}</span>}
                   </span>
                   <span className="lam-part-right">
+                    {asap && <span className="lam-asap">ASAP</span>}
                     <FlagIcons flags={row} defs={STANDARD_FLAGS} size={14} />
                     <span className="lam-badge" style={{ background: c.bg, color: c.fg }}>{info ? (notes || 'set type') : `${st}${dates ? ` • ${dates}` : ''}`}</span>
                   </span>
@@ -368,6 +377,7 @@ function Legend() {
       <div className="lam-legend-note" style={{ marginTop: 4 }}>Glass Kit uses Not Started → In Progress → Complete; all other tasks use the mold cycle.</div>
       <div className="lam-legend-title" style={{ marginTop: 11 }}>Flags</div>
       <div className="lam-legend-row">
+        <span className="lam-legend-item"><span className="lam-asap">ASAP</span> Priority — clears when the task reaches its final status</span>
         {STANDARD_FLAGS.map(f => (
           <span key={f.key} className="lam-legend-item"><FlagIcons flags={{ [f.key]: true }} defs={[f]} size={14} />{f.label}</span>
         ))}

@@ -51,6 +51,8 @@
   cursor: pointer; line-height: 1.15;
 }
 .lam-flagwrap { position: absolute; top: 2px; right: 3px; }
+.lam-asapwrap { position: absolute; top: 2px; left: 3px; }
+.lam-asap { font-size: 8px; font-weight: 800; letter-spacing: 0.3px; color: #fff; background: #A32D2D; border-radius: 3px; padding: 1px 3px; line-height: 1.3; }
 .lam-cellstatus { font-size: 10px; font-weight: 600; line-height: 1.2; }
 .lam-celldate { font-size: 9px; margin-top: 1px; }
 .lam-cellcolor { font-size: 9px; font-style: italic; margin-top: 1px; opacity: 0.9; }

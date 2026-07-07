@@ -263,6 +263,7 @@ function LaminationTracker() {
           <button className={`lam-groupbtn ${groupByModel ? 'on' : ''}`} onClick={() => setGroupByModel(g => !g)}>
             {groupByModel ? '✓ Grouped by model' : 'Group by model'}
           </button>
+          <button className="lam-groupbtn" title="Print this grid (tabloid landscape)" onClick={() => window.print()}>🖨 Print</button>
           <span className="lam-toolbar-note">{isOps ? 'Tap a cell to update.' : 'Tap a cell to advance, step back, or flag.'}</span>
           <span style={{ marginLeft: 'auto' }}><ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} /></span>
         </div>

@@ -113,3 +113,20 @@
   .lam-part-color { font-size: 13px; }
   .lam-badge { font-size: 13px; padding: 6px 12px; }
 }
+
+/* ---------- Print: the full grid on paper — tabloid landscape, colors kept ---------- */
+@media print {
+  @page { size: 17in 11in; margin: 9mm; } /* tabloid, landscape */
+  .lam-toolbar { display: none; }
+  .lam-tablewrap, .lam-scroll { height: auto !important; max-height: none !important; overflow: visible !important; }
+  .lam-scroll { margin-top: 0; border: none; }
+  /* Sticky headers/columns become plain cells on paper; thead repeats per page. */
+  .lam-table th, .lam-boatcell, .lam-grouphead td { position: static !important; }
+  thead { display: table-header-group; }
+  .lam-table tr { break-inside: avoid; page-break-inside: avoid; }
+  /* Browsers strip backgrounds by default — the status colors ARE the data. */
+  .lam-table th, .lam-table td, .lam-cell, .lam-grouphead td,
+  .lam-legend-sw, .lam-asap, .lam-seq {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+}

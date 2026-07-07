@@ -168,3 +168,16 @@ body {
   .app-content-full { overflow: hidden; scrollbar-gutter: auto; }
 }
 .loading { display: flex; align-items: center; justify-content: center; min-height: 400px; font-size: 16px; color: #5F6B73; }
+
+/* ---------- Print: strip the app chrome — the open tab's content IS the document.
+   (Per-tab print rules, e.g. Lamination's grid, live in that tab's stylesheet.) ---------- */
+@media print {
+  body { background: #fff; }
+  .app { height: auto !important; display: block !important; padding: 0 !important; }
+  .app-shell { display: block !important; max-width: none; }
+  .app-header, .tab-navigation, .demo-banner { display: none !important; }
+  .app-content {
+    overflow: visible !important; scrollbar-gutter: auto;
+    border: none; border-radius: 0;
+  }
+}

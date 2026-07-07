@@ -91,7 +91,11 @@ function FinishingTracker() {
     if (row.na) return;
     const i = FIN_ORDER.indexOf(row.status || firstStatus());
     if (i >= FIN_ORDER.length - 1) return; // stops at Complete
-    save(boatId, task, { status: FIN_ORDER[i + 1] });
+    const next = FIN_ORDER[i + 1];
+    const patch = { status: next };
+    // Finished work is no longer a rush — completing a task clears its ASAP tag.
+    if (next === 'Complete' && row.asap) patch.asap = false;
+    save(boatId, task, patch);
   };
   const stepBack = (boatId, task) => {
     const row = getRow(boatId, task);

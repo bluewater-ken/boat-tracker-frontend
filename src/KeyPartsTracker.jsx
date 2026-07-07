@@ -48,10 +48,9 @@ const dateLabel = (row) => {
   return '';
 };
 
-// DUMMY SEED DATA — placeholders so the feature is clickable before the real
-// lists exist. Ken will add the real parts/specs in production (they persist
-// via the backend, per API_CONTRACT.md). Safe to delete once real data flows.
-const DUMMY_CUSTOM_PARTS = ['Outriggers', 'Hardtop', 'Underwater Lights', 'Radar', 'Autopilot', 'Livewell Pump', 'Dive Door', 'Spotlight'];
+// DUMMY SEED DATA — placeholder spec suggestions until enough real specs are
+// saved. (The custom-parts name list is live backend data — no seeds, so
+// deleting a name sticks.)
 const DUMMY_SPEC_OPTIONS = {
   'Motors': ['Twin Yamaha 300', 'Triple Yamaha 300', 'Triple Suzuki 350', 'Quad Mercury 400'],
   'Gelcoat': ['White', 'Ice Blue', 'Matterhorn White'],
@@ -94,8 +93,7 @@ function KeyPartsTracker() {
       ]);
       setBoats(b);
       setStandardParts(sp);
-      // Merge backend custom-part names with the dummy seed list.
-      setCustomNames(Array.from(new Set([...cn, ...DUMMY_CUSTOM_PARTS])));
+      setCustomNames(cn);
       const map = {};
       const opts = { ...DUMMY_SPEC_OPTIONS };
       for (const row of all) {
@@ -196,6 +194,17 @@ function KeyPartsTracker() {
       const r = await apiFetch(`/api/parts/${boatId}/${encodeURIComponent(partName)}`, { method: 'DELETE' });
       if (!r.ok) throw new Error();
     } catch (e) { alert('Removing a part needs the backend delete endpoint (coming in the server update).'); init(); }
+  };
+  // Delete a name from the master custom-parts list (Ops). Boats that already
+  // have the part keep their rows — this only removes it from the addable list.
+  const deleteCustomName = async (name) => {
+    if (!window.confirm(`Delete "${name}" from the custom parts list?\nBoats that already have it keep it.`)) return;
+    setCustomSel(null);
+    setCustomNames(prev => prev.filter(n => n !== name));
+    try {
+      const r = await apiFetch(`/api/parts/custom-names/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error();
+    } catch (e) { alert('Deleting a name needs the backend endpoint (coming in the server update).'); init(); }
   };
   const addNewCustomName = () => {
     const name = newCustom.trim();
@@ -400,7 +409,10 @@ function KeyPartsTracker() {
                   <div className="kpt-tbox-list">
                     {availableForBoat(selectedBoat.boat_id).map(n => (
                       <div key={n} className={`kpt-titem ${customSel?.side === 'all' && customSel.name === n ? 'sel' : ''}`}
-                        onClick={() => setCustomSel({ side: 'all', name: n })} onDoubleClick={() => moveToBoat(n)}>{n}</div>
+                        onClick={() => setCustomSel({ side: 'all', name: n })} onDoubleClick={() => moveToBoat(n)}>
+                        <span className="kpt-titem-name">{n}</span>
+                        <button className="kpt-titem-del" title={`Delete "${n}" from the list`} onClick={(e) => { e.stopPropagation(); deleteCustomName(n); }}>✕</button>
+                      </div>
                     ))}
                     {availableForBoat(selectedBoat.boat_id).length === 0 && <div className="kpt-tempty">All added to this boat.</div>}
                   </div>

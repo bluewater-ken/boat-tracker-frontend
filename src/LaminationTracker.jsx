@@ -34,15 +34,17 @@ const groupRows = (boats, group) => {
   for (const m of keys) { rows.push({ header: m, count: groups[m].length }); for (const b of groups[m]) rows.push({ boat: b }); }
   return rows;
 };
-// Palette from BluewaterDemo.jsx (plus Not Started / Complete for the non-mold tasks).
 const CELL = {
   'Mold Unavailable': { bg: '#EEF0F2', fg: '#5F6B73' },
   'Mold Open': { bg: '#CFD8DE', fg: '#33424C' },
-  'In Progress': { bg: '#FCEBEB', fg: '#A32D2D' },
-  'Complete/On Mold': { bg: '#FAEEDA', fg: '#854F0B' },
-  'Pulled': { bg: '#EAF3DE', fg: '#3B6D11' },
+  // Work in progress → done reads as greens, light to dark.
+  'In Progress': { bg: '#E8F5E9', fg: '#2E7D32' },
+  'Complete/On Mold': { bg: '#A5D6A7', fg: '#1B5E20' },
+  'Pulled': { bg: '#43A047', fg: '#FFFFFF' },
   'Not Started': { bg: '#F1EFE8', fg: '#5F5E5A' },
-  'Complete': { bg: '#EAF3DE', fg: '#3B6D11' },
+  // Glass Kit / Transducer Type's final state — same "done" green as Pulled
+  // (not on the legend; the note explains Glass Kit's cycle).
+  'Complete': { bg: '#43A047', fg: '#FFFFFF' },
   'Not Applicable': { bg: '#E4E4E7', fg: '#9A9A9F' },
 };
 
@@ -359,7 +361,7 @@ function Legend() {
     <div className="lam-legend">
       <div className="lam-legend-title">Status</div>
       <div className="lam-legend-row">
-        {[...LAM_ORDER, 'Not Started', 'Complete', NA].map(s => (
+        {[...LAM_ORDER, 'Not Started', NA].map(s => (
           <span key={s} className="lam-legend-item"><i className="lam-legend-sw" style={{ background: CELL[s].bg }} />{s}</span>
         ))}
       </div>

@@ -46,6 +46,22 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
     } catch (e) { alert('Failed to save boat'); }
   };
 
+  // Permanent, cascading delete — guarded by retyping the boat ID.
+  const handleDelete = async () => {
+    const id = formData.boat_id;
+    if (!id) return;
+    const typed = window.prompt(`This permanently deletes boat ${id} and ALL its tracking data (schedule, key parts, lamination, finishing).\n\nType the boat ID to confirm:`);
+    if (typed === null) return;
+    if (typed.trim().toLowerCase() !== id.toLowerCase()) { alert('Boat ID did not match — nothing was deleted.'); return; }
+    try {
+      const r = await apiFetch(`/api/boats/${id}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error();
+      setBoats(bs => bs.filter(b => b.boat_id !== id));
+      setSelectedBoat(null); setFormData(EMPTY); setIsNewBoat(false);
+      fetchBoats(); onRefresh();
+    } catch (e) { alert('Failed to delete — the boat-delete endpoint may not be on the server yet.'); }
+  };
+
   const filtered = boats.filter(b =>
     b.boat_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     b.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -87,7 +103,12 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
             <SmartInput storeKey="colors" options={colorOptions(boats)} value={formData.hull_color} onChange={v => setFormData(p => ({ ...p, hull_color: v }))} placeholder="Pick a color or type a new one..." />
             <div className="form-hint">This is how boats are identified on the shop floor. The same color list is shared with Key Parts.</div>
           </div>
-          <button onClick={handleSave} className="btn-save">Save Boat</button>
+          <div className="form-actions">
+            <button onClick={handleSave} className="btn-save">Save Boat</button>
+            {!isNewBoat && formData.boat_id && (
+              <button onClick={handleDelete} className="btn-delete-boat">Delete Boat…</button>
+            )}
+          </div>
         </div>
       </div>
     </div>

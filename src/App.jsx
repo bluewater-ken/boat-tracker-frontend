@@ -59,7 +59,10 @@ function App() {
   const roleLabel = user?.role === 'ops' ? 'Ops' : user?.role === 'shop' ? 'Shop' : '';
   const isOps = user?.role === 'ops';
   const isDemo = isDemoUser(user);
-  const tabs = isOps ? [...BASE_TABS, { key: 'admin', label: 'Admin' }] : BASE_TABS;
+  // Timeline is Ken-only for now — hidden from every other account (incl. other Ops).
+  const isKen = (user?.username || '').toLowerCase() === 'ken';
+  const tabs = (isOps ? [...BASE_TABS, { key: 'admin', label: 'Admin' }] : BASE_TABS)
+    .filter(t => t.key !== 'gantt' || isKen);
 
   return (
     <div className="app">
@@ -94,7 +97,7 @@ function App() {
             {activeTab === 'lamination' && <LaminationTracker />}
             {activeTab === 'finishing' && <FinishingTracker />}
             {activeTab === 'assembly' && <AssemblyTracker />}
-            {activeTab === 'gantt' && <GanttChart />}
+            {activeTab === 'gantt' && isKen && <GanttChart />}
             {activeTab === 'feed' && <ShopFeed initialView="issues" initialPostingOpen={reportIssueOpen} />}
             {activeTab === 'admin' && isOps && <AdminPanel />}
           </Suspense>

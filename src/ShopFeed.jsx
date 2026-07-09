@@ -9,18 +9,30 @@ import './ShopFeed.css';
 // Activity | Issues toggle (the CSS media query decides — see ShopFeed.css).
 // Resolving an issue NEVER changes tracker data; fixing the data auto-clears the issue.
 
+// Feed icons signal WHERE an event came from at a glance.
 const TYPE_ICON = {
-  CHECKLIST_ITEM_COMPLETED: '✓',
-  CHECKLIST_COMPLETED: '✅',
-  CHECKLIST_CREATED: '＋',
-  PHOTO_ADDED: '📷',
-  COMMENT_ADDED: '💬',
-  APP_TASK_UPDATED: '✓',   // Lamination/Finishing status change
-  PART_RECEIVED: '📦',      // Key Parts: marked Received
-  PART_DELAYED: '🕓',       // Key Parts: expected delivery pushed
-  PART_FLAGGED: '⚠️',       // Key Parts: Late/Backordered/Unsatisfactory turned on
-  STAGE_CHANGED: '»',       // Production Schedule stage move
-  QUESTION_POSTED: '❓',    // someone posted an issue/question
+  CHECKLIST_ITEM_COMPLETED: '📸', // CompanyCam — crew checked an item off
+  CHECKLIST_COMPLETED: '📸',      // CompanyCam — whole checklist done
+  CHECKLIST_CREATED: '📸',        // CompanyCam
+  COMMENT_ADDED: '💬',            // CompanyCam comment
+  PART_RECEIVED: '📦',            // Key Parts: marked Received
+  PART_DELAYED: '🕓',             // Key Parts: expected delivery pushed
+  PART_FLAGGED: '⚠️',             // Key Parts: Late/Backordered/Unsatisfactory turned on
+  STAGE_CHANGED: '🚩',            // Production Schedule stage move
+  QUESTION_POSTED: '❓',          // someone posted an issue/question
+};
+// PHOTO_ADDED is intentionally absent — those events are filtered out of the feed
+// (CompanyCam fires one per photo with no task/checkoff context — pure noise).
+
+// APP_TASK_UPDATED covers both trackers; pick the icon by which shop it came from.
+const iconFor = (it) => {
+  if (it.type === 'APP_TASK_UPDATED') {
+    const wc = (it.work_center_name || '').toLowerCase();
+    if (wc.includes('lamination')) return '🧴'; // Lamination shop (gelcoat/mold)
+    if (wc.includes('finishing')) return '🎨';  // Finishing shop
+    return '🛠️';
+  }
+  return TYPE_ICON[it.type] || '•';
 };
 
 // Issue rule -> icon (fallback ⚠️). Keys match the backend rule_key values.
@@ -209,8 +221,11 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
   );
 
   // ---------- Activity column ----------
+  // Drop CompanyCam photo events — one fires per photo with no task/checkoff
+  // context, and they swamp the feed (~half of all events).
+  const feedItems = items.filter(it => it.type !== 'PHOTO_ADDED');
   const groups = [];
-  for (const it of items) {
+  for (const it of feedItems) {
     const k = dayKey(it.created_at);
     const last = groups[groups.length - 1];
     if (last && last.key === k) last.items.push(it);
@@ -235,7 +250,7 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
               {g.items.map(it => (
                 <div key={it.id} className="feed-row">
                   <span className="feed-time">{fmtTime(it.created_at)}</span>
-                  <span className="feed-icon">{TYPE_ICON[it.type] || '•'}</span>
+                  <span className="feed-icon">{iconFor(it)}</span>
                   {/* "Who" only shows when the event carries a real user: app events do;
                       CompanyCam events don't (the shop shares one CC login). */}
                   <span className="feed-main">

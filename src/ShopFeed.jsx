@@ -28,8 +28,8 @@ const TYPE_ICON = {
 const iconFor = (it) => {
   if (it.type === 'APP_TASK_UPDATED') {
     const wc = (it.work_center_name || '').toLowerCase();
-    if (wc.includes('lamination')) return '🧴'; // Lamination shop (gelcoat/mold)
-    if (wc.includes('finishing')) return '🎨';  // Finishing shop
+    if (wc.includes('lamination')) return '🛢️'; // Lamination shop (resin drum)
+    if (wc.includes('finishing')) return '🪞';  // Finishing shop (mirror finish)
     return '🛠️';
   }
   return TYPE_ICON[it.type] || '•';

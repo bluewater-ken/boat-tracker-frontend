@@ -175,9 +175,9 @@
 .kpt-customcell { text-align: center; border-right: 1px solid #E6E9EC; border-bottom: 1px solid #E6E9EC; background: #f7fafc; cursor: pointer; }
 .kpt-customcell.readonly { cursor: default; }
 .kpt-chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 11px; }
-.chip-part { background: #FAEEDA; color: #854F0B; }
-.chip-done { background: #EAF3DE; color: #3B6D11; }
-.chip-none { background: #F1EFE8; color: #5F5E5A; }
+.chip-part { background: #FAC775; color: #633806; }
+.chip-done { background: #9CCB62; color: #1F3D07; }
+.chip-none { background: #F4F3EE; color: #9B998F; }
 
 /* ---------- Drill-down popup rows (custom parts on a boat) ---------- */
 .kpt-cprow { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 7px; cursor: pointer; background: #fff; border: none; text-align: left; margin-bottom: 2px; }

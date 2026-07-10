@@ -43,11 +43,11 @@ const APP_COLS = [
   { id: '_fin', name: 'Finishing', app: true },
 ];
 
-// Status colors follow the house palette (gray / amber / green).
+// App-wide status language: neutral = untouched, amber = working, green = done.
 const CELL = {
-  NOT_STARTED: { bg: '#EEF0F2', fg: '#5F6B73' },
-  IN_PROGRESS: { bg: '#FAEEDA', fg: '#854F0B' },
-  COMPLETE: { bg: '#EAF3DE', fg: '#3B6D11' },
+  NOT_STARTED: { bg: '#F4F3EE', fg: '#9B998F' },
+  IN_PROGRESS: { bg: '#FAC775', fg: '#633806' },
+  COMPLETE: { bg: '#9CCB62', fg: '#1F3D07' },
   NONE: { bg: '#FFFFFF', fg: '#B9C2C9' }, // no checklist on this boat/work center
 };
 

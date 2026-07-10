@@ -35,13 +35,13 @@ const groupRows = (boats, group) => {
   return rows;
 };
 const CELL = {
-  'Mold Unavailable': { bg: '#EEF0F2', fg: '#5F6B73' },
+  'Mold Unavailable': { bg: '#E7EBEF', fg: '#5F6B73' }, // cool gray — blocked (matches Finishing's Not Available)
   'Mold Open': { bg: '#CFD8DE', fg: '#33424C' },
-  // Work in progress → done reads as greens, light to dark.
+  // Work in progress → done reads as greens, light to dark (Ken's ramp).
   'In Progress': { bg: '#E8F5E9', fg: '#2E7D32' },
   'Complete/On Mold': { bg: '#A5D6A7', fg: '#1B5E20' },
   'Pulled': { bg: '#43A047', fg: '#FFFFFF' },
-  'Not Started': { bg: '#F1EFE8', fg: '#5F5E5A' },
+  'Not Started': { bg: '#F4F3EE', fg: '#9B998F' }, // warm neutral — untouched (app-wide)
   // Glass Kit / Transducer Type's final state — same "done" green as Pulled
   // (not on the legend; the note explains Glass Kit's cycle).
   'Complete': { bg: '#43A047', fg: '#FFFFFF' },

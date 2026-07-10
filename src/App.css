@@ -8,7 +8,7 @@ body {
 
 /* Demo-account banner — the account reads live data but never saves. */
 .demo-banner {
-  max-width: 2200px; margin: 0 auto 10px;
+  margin: 0 0 10px;
   background: #FBF3D6; color: #7A6310; border: 1px solid #E8D48A;
   border-radius: 8px; padding: 8px 14px;
   font-size: 12px; font-weight: 700; text-align: center;
@@ -38,9 +38,8 @@ body {
 }
 .drawer-close:hover { background: #2680bd; }
 .drawer-body { flex: 1; overflow: auto; }
-/* Fluid: fill the browser width (with a cap on ultra-wide screens) so wide grids
-   like Key Parts can show more columns instead of leaving big side margins. */
-.app-shell { max-width: 2200px; margin: 0 auto; }
+/* Full width — fill the browser edge to edge on every screen. */
+.app-shell { width: 100%; }
 
 .app-header {
   background: #173A5E;
@@ -126,7 +125,9 @@ body {
   .demo-banner { flex: 0 0 auto; }
   .app-shell { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .app-header, .tab-navigation { flex: 0 0 auto; }
-  .app-content { flex: 1; min-height: 0; }
+  /* Every tab fills this box and scrolls INSIDE itself, so the outer frame never
+     adds/removes a scrollbar — content width is identical on every tab. */
+  .app-content { flex: 1; min-height: 0; overflow: hidden; }
   /* Tabs share the bar's width evenly (labels stay intact — the longest one
      just gets a bit less slack) instead of leaving dead space on the right. */
   .tab-button { flex: 1 1 auto; text-align: center; }
@@ -156,16 +157,7 @@ body {
   background: #fff;
   border: 1px solid #E2E6EA;
   border-radius: 0 0 10px 10px;
-  overflow: auto;
-  /* Reserve the scrollbar gutter so switching between short and tall tabs
-     doesn't shift the content width (no more shrink-then-widen jank). */
-  scrollbar-gutter: stable;
-}
-/* Self-scrolling tabs (Timeline, Key Parts, Lamination, Finishing, Assembly)
-   fill the content box and scroll internally — hand them the full box so
-   app-content doesn't wrap them in a duplicate scrollbar. */
-@media (min-width: 641px) {
-  .app-content-full { overflow: hidden; scrollbar-gutter: auto; }
+  overflow: auto; /* mobile: natural page scroll; desktop overrides to hidden above */
 }
 .loading { display: flex; align-items: center; justify-content: center; min-height: 400px; font-size: 16px; color: #5F6B73; }
 

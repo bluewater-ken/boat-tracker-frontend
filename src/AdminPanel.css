@@ -1,5 +1,11 @@
 .admin { display: flex; flex-direction: column; }
 .admin-nav { display: flex; gap: 8px; padding: 14px 16px 0; }
+/* Desktop: nav pinned, body scrolls internally (consistent outer frame). */
+@media (min-width: 641px) {
+  .admin { height: 100%; }
+  .admin-nav { flex: 0 0 auto; }
+  .admin-body { flex: 1; min-height: 0; overflow-y: auto; }
+}
 .admin-nav-btn {
   padding: 8px 16px; font-size: 13px; font-weight: 600;
   color: #5F6B73; background: #fff; border: 1px solid #C7D2DB; border-radius: 8px;

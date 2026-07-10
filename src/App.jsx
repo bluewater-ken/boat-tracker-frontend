@@ -26,9 +26,6 @@ const BASE_TABS = [
   { key: 'feed', label: 'Shop Feed' },
   { key: 'gantt', label: 'Timeline' },
 ];
-// Tabs whose component fills the content box and scrolls internally — for these,
-// app-content must not add its own scrollbar (see .app-content-full).
-const SELF_SCROLL_TABS = ['gantt', 'parts', 'lamination', 'finishing', 'assembly'];
 
 function App() {
   const { user, status, signOut } = useAuth();
@@ -90,7 +87,7 @@ function App() {
             <button key={t.key} className={`tab-button ${activeTab === t.key ? 'active' : ''}`} onClick={() => setActiveTab(t.key)}>{t.label}</button>
           ))}
         </nav>
-        <main className={`app-content ${SELF_SCROLL_TABS.includes(activeTab) ? 'app-content-full' : ''}`}>
+        <main className="app-content">
           <Suspense fallback={<div className="loading">Loading…</div>}>
             {activeTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onManageBoats={() => setManageBoats(true)} />}
             {activeTab === 'parts' && <KeyPartsTracker />}

@@ -1,4 +1,8 @@
-.feed { padding: 16px; max-width: 760px; }
+.feed { padding: 16px; }
+/* Desktop: fill the content box and scroll internally so the scrollbar sits at
+   the screen edge like every other tab. Wide-screen two-column cap (feed-split,
+   ≥1280) is untouched. */
+@media (min-width: 641px) { .feed { height: 100%; overflow-y: auto; } }
 .feed-head { margin-bottom: 14px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .feed-note { font-size: 12px; color: #8A969E; }
 

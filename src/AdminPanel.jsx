@@ -22,9 +22,11 @@ function AdminPanel() {
           <button key={s.key} className={`admin-nav-btn ${section === s.key ? 'active' : ''}`} onClick={() => setSection(s.key)}>{s.label}</button>
         ))}
       </div>
-      {section === 'users' && <UsersAdmin />}
-      {section === 'rules' && <RulesAdmin />}
-      {section === 'timeline' && <TimelineAdmin />}
+      <div className="admin-body">
+        {section === 'users' && <UsersAdmin />}
+        {section === 'rules' && <RulesAdmin />}
+        {section === 'timeline' && <TimelineAdmin />}
+      </div>
     </div>
   );
 }

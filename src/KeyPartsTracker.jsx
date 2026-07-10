@@ -10,11 +10,12 @@ import useIsMobile from './useIsMobile';
 import './KeyPartsTracker.css';
 
 const STATUSES = ['Not Ordered', 'Ordered', 'Received'];
-// Cell palette matches BluewaterDemo.jsx.
+// Expressive palette: color alone carries the status on the grid (no status word).
+// Not Ordered recedes to near-white; Ordered = strong amber; Received = strong green.
 const CELL = {
-  'Not Ordered': { bg: '#F1EFE8', fg: '#5F5E5A' },
-  'Ordered': { bg: '#FAEEDA', fg: '#854F0B' },
-  'Received': { bg: '#EAF3DE', fg: '#3B6D11' },
+  'Not Ordered': { bg: '#F4F3EE', fg: '#9B998F' },
+  'Ordered': { bg: '#FAC775', fg: '#633806' },
+  'Received': { bg: '#9CCB62', fg: '#1F3D07' },
 };
 
 const fmtDate = (d) => { if (!d) return ''; const [, m, day] = d.slice(0, 10).split('-'); return `${+m}/${+day}`; };
@@ -323,12 +324,21 @@ function KeyPartsTracker() {
                     const row = getRow(boat.boat_id, p);
                     const st = row.status || 'Not Ordered';
                     const c = CELL[st];
+                    // One anchor fact per cell — color carries the status, the line
+                    // carries the date that matters: → incoming, ✓ landed, — untouched.
+                    const primary = st === 'Received' ? `✓ ${fmtDate(receivedDateOf(row)) || ''}`.trim()
+                      : st === 'Ordered' ? `→ exp ${fmtDate(row.expected_delivery) || '—'}`
+                      : '—';
+                    // Everything (incl. the ord date) stays one hover / one tap away.
+                    const tip = [`${p} — ${st}`,
+                      orderDateOf(row) && `ord ${fmtDate(orderDateOf(row))}`,
+                      row.expected_delivery && `exp ${fmtDate(row.expected_delivery)}`,
+                      st === 'Received' && receivedDateOf(row) && `rec ${fmtDate(receivedDateOf(row))}`,
+                      row.description].filter(Boolean).join(' · ');
                     return (
-                      <td key={p} className={`kpt-cell ${isOps ? '' : 'readonly'}`} style={{ background: c.bg, color: c.fg }} onClick={(e) => openMenu(e, boat.boat_id, p, false)}>
-                        <span className="kpt-flagwrap"><FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={12} /></span>
+                      <td key={p} title={tip} className={`kpt-cell ${isOps ? '' : 'readonly'}`} style={{ background: c.bg, color: c.fg }} onClick={(e) => openMenu(e, boat.boat_id, p, false)}>
                         {row.order_asap && st !== 'Received' && <div className="kpt-asap">ORDER ASAP</div>}
-                        <div className="kpt-cellstatus">{st}</div>
-                        {dateLabel(row) && <div className="kpt-celldate">{dateLabel(row)}</div>}
+                        <div className="kpt-cellprimary">{primary}<FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={11} /></div>
                         {row.description && <div className="kpt-cellspec">{row.description}</div>}
                       </td>
                     );
@@ -494,7 +504,7 @@ function Legend() {
           <span key={f.key} className="kpt-legend-item"><FlagIcons flags={{ [f.key]: true }} defs={[f]} size={14} />{f.label}</span>
         ))}
       </div>
-      <div className="kpt-legend-note">Dates: “ord” = order date (set when Ordered), “exp” = expected delivery, “rec” = received date. Late auto-flags once past the expected date. Ops-only editing.</div>
+      <div className="kpt-legend-note">Cell color = status. Cells read: “—” not ordered · “→ exp M/D” on order, expected date · “✓ M/D” received on that date. Hover (or tap) a cell for full detail incl. the order date. Late auto-flags once past the expected date. Ops-only editing.</div>
     </div>
   );
 }

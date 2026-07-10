@@ -60,15 +60,16 @@
 
 .kpt-cell {
   position: relative;
-  padding: 4px 4px;
-  text-align: center;
+  padding: 5px 8px;
+  text-align: left; /* one anchor line per cell — columns scan straight down */
+  vertical-align: top;
   border-right: 1px solid #E6E9EC;
   border-bottom: 1px solid #E6E9EC;
   cursor: pointer;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 .kpt-cell.readonly { cursor: default; }
-.kpt-flagwrap { position: absolute; top: 2px; right: 3px; }
+.kpt-cellprimary { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; white-space: nowrap; }
 /* ORDER ASAP priority tag — loud red so the ordering team can't miss it. */
 .kpt-asap {
   display: inline-block; font-size: 8px; font-weight: 800; letter-spacing: 0.3px;
@@ -76,8 +77,6 @@
   line-height: 1.35; margin-bottom: 2px; white-space: nowrap;
 }
 .kpt-part-right .kpt-asap, .kpt-cpname .kpt-asap { margin-bottom: 0; }
-.kpt-cellstatus { font-size: 10px; font-weight: 600; line-height: 1.2; }
-.kpt-celldate { font-size: 9px; margin-top: 1px; }
 .kpt-cellspec { font-size: 9px; font-style: italic; margin-top: 2px; opacity: 0.9; }
 
 .kpt-legend { position: sticky; left: 0; background: #fff; padding: 12px 16px; border-top: 1px solid #E6E9EC; }

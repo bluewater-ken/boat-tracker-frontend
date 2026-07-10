@@ -69,6 +69,13 @@
 }
 .kpt-cell.readonly { cursor: default; }
 .kpt-flagwrap { position: absolute; top: 2px; right: 3px; }
+/* ORDER ASAP priority tag — loud red so the ordering team can't miss it. */
+.kpt-asap {
+  display: inline-block; font-size: 8px; font-weight: 800; letter-spacing: 0.3px;
+  color: #fff; background: #A32D2D; border-radius: 3px; padding: 1px 4px;
+  line-height: 1.35; margin-bottom: 2px; white-space: nowrap;
+}
+.kpt-part-right .kpt-asap, .kpt-cpname .kpt-asap { margin-bottom: 0; }
 .kpt-cellstatus { font-size: 10px; font-weight: 600; line-height: 1.2; }
 .kpt-celldate { font-size: 9px; margin-top: 1px; }
 .kpt-cellspec { font-size: 9px; font-style: italic; margin-top: 2px; opacity: 0.9; }

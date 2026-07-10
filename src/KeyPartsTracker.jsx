@@ -136,6 +136,8 @@ function KeyPartsTracker() {
     const next = STATUSES[i + 1];
     const patch = { status: next };
     if (next === 'Ordered' && !orderDateOf(row)) patch.ordered_at = todayStr();
+    // Ordering it fulfills the "order ASAP" priority — clear the tag.
+    if (next === 'Ordered' && row.order_asap) patch.order_asap = false;
     if (next === 'Received' && !row.actual_delivery) patch.actual_delivery = todayStr();
     save(boatId, partName, isCustom, patch);
   };
@@ -233,6 +235,9 @@ function KeyPartsTracker() {
     <ActionMenu anchor={{ x: menu.x, y: menu.y }} title={menu.partName} subtitle={`${menu.boatId}${menuBoat ? ' · ' + menuBoat.customer_name : ''}`} onClose={() => setMenu(null)}>
       <MenuBtn label={menuIdx >= STATUSES.length - 1 ? 'Received' : `Advance to ${STATUSES[menuIdx + 1]} ›`} primary disabled={menuIdx >= STATUSES.length - 1} onClick={() => advance(menu.boatId, menu.partName, menu.isCustom)} />
       <MenuBtn label={menuIdx <= 0 ? '‹ Step back' : `‹ Back to ${STATUSES[menuIdx - 1]}`} disabled={menuIdx <= 0} onClick={() => stepBack(menu.boatId, menu.partName, menu.isCustom)} />
+      {menuStatus !== 'Received' && (
+        <MenuToggle label="🔴 Order ASAP" color="#A32D2D" active={!!menuRow.order_asap} onClick={() => toggleFlag(menu.boatId, menu.partName, menu.isCustom, 'order_asap')} />
+      )}
       {menu.isCustom ? (
         <>
           <MenuLabel>Notes</MenuLabel>
@@ -281,7 +286,7 @@ function KeyPartsTracker() {
         const c = CELL[st];
         return (
           <button key={row.part_name} className="kpt-cprow" onClick={(e) => { setCustomList(null); openMenu(e, customList.boatId, row.part_name, true); }}>
-            <span className="kpt-cpname"><FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={12} />{row.part_name}{row.description ? ' 📝' : ''}</span>
+            <span className="kpt-cpname">{row.order_asap && st !== 'Received' && <span className="kpt-asap">ASAP</span>}<FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={12} />{row.part_name}{row.description ? ' 📝' : ''}</span>
             <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
           </button>
         );
@@ -321,6 +326,7 @@ function KeyPartsTracker() {
                     return (
                       <td key={p} className={`kpt-cell ${isOps ? '' : 'readonly'}`} style={{ background: c.bg, color: c.fg }} onClick={(e) => openMenu(e, boat.boat_id, p, false)}>
                         <span className="kpt-flagwrap"><FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={12} /></span>
+                        {row.order_asap && st !== 'Received' && <div className="kpt-asap">ORDER ASAP</div>}
                         <div className="kpt-cellstatus">{st}</div>
                         {dateLabel(row) && <div className="kpt-celldate">{dateLabel(row)}</div>}
                         {row.description && <div className="kpt-cellspec">{row.description}</div>}
@@ -395,6 +401,7 @@ function KeyPartsTracker() {
                     {row.description && <span className="kpt-part-spec">{row.description}</span>}
                   </span>
                   <span className="kpt-part-right">
+                    {row.order_asap && st !== 'Received' && <span className="kpt-asap">ORDER ASAP</span>}
                     <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={14} />
                     <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
                   </span>
@@ -454,6 +461,7 @@ function KeyPartsTracker() {
                   <div key={row.part_name} className="kpt-part readonly">
                     <span className="kpt-part-main"><span className="kpt-part-name">{row.part_name}</span>{row.description && <span className="kpt-part-spec">{row.description}</span>}</span>
                     <span className="kpt-part-right">
+                      {row.order_asap && st !== 'Received' && <span className="kpt-asap">ORDER ASAP</span>}
                       <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={14} />
                       <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
                     </span>
@@ -481,6 +489,7 @@ function Legend() {
       </div>
       <div className="kpt-legend-title" style={{ marginTop: 11 }}>Flags</div>
       <div className="kpt-legend-row">
+        <span className="kpt-legend-item"><span className="kpt-asap">ORDER ASAP</span> Priority to order — set it, clears once Ordered</span>
         {KEYPARTS_FLAGS.map(f => (
           <span key={f.key} className="kpt-legend-item"><FlagIcons flags={{ [f.key]: true }} defs={[f]} size={14} />{f.label}</span>
         ))}

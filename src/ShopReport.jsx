@@ -219,7 +219,8 @@ function buildReport(boats, lam, fin, asm, parts, std) {
       if (left > 0) {
         // Show WHAT's missing (the item names), capped so the report stays tight;
         // fall back to a count if the backend didn't send item names.
-        const names = Array.isArray(row.remaining) ? row.remaining : [];
+        // CompanyCam item names sometimes carry literal **markdown** — strip it.
+        const names = (Array.isArray(row.remaining) ? row.remaining : []).map(n => String(n).replace(/\*\*|__/g, '').trim());
         asyRemaining.push(names.length
           ? `${w.name}: ${names.slice(0, 5).join(', ')}${names.length > 5 ? `, +${names.length - 5} more` : ''}`
           : `${w.name}: ${left} left`);

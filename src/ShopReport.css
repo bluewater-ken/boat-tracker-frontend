@@ -17,10 +17,11 @@
 .report-close { background: transparent; color: #fff; border: 1px solid #2E92D6; }
 .report-close:hover { background: #2E92D6; }
 
-/* The document — sized like a letter page on screen, edge-to-edge in print. */
+/* The document — sized like a landscape letter page on screen, edge-to-edge in print.
+   Landscape gives the 4-column boat-detail grid room so long assembly items don't tower. */
 .report-doc {
-  width: 8.5in; max-width: 100%; min-height: 11in;
-  background: #fff; margin: 16px; padding: 0.5in 0.55in;
+  width: 11in; max-width: 100%; min-height: 8.5in;
+  background: #fff; margin: 16px; padding: 0.45in 0.5in;
   box-shadow: 0 4px 24px rgba(0,0,0,0.15);
   color: #1c1c1c; font-family: Arial, Helvetica, sans-serif;
 }
@@ -80,7 +81,7 @@
 .report-foot { margin-top: 16px; padding-top: 8px; border-top: 1px solid #E6E9EC; font-size: 9px; color: #8A969E; text-align: center; }
 
 @media print {
-  @page { size: letter portrait; margin: 0.5in; }
+  @page { size: letter landscape; margin: 0.45in; }
   body.report-open .app { display: none !important; } /* print only the report */
   .report-overlay { position: static; background: #fff; display: block; overflow: visible; }
   .no-print { display: none !important; }

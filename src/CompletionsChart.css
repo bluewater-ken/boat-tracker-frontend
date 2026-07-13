@@ -1,0 +1,19 @@
+.cc { padding: 4px 2px; }
+.cc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.cc-title { font-size: 15px; font-weight: 800; color: #173A5E; }
+.cc-sub { font-size: 11px; color: #8A969E; margin-top: 2px; max-width: 560px; line-height: 1.4; }
+.cc-ranges { display: inline-flex; border: 1px solid #C7D2DB; border-radius: 8px; overflow: hidden; flex: 0 0 auto; }
+.cc-range { padding: 6px 12px; font-size: 12px; font-weight: 600; color: #5F6B73; background: #fff; border: none; cursor: pointer; }
+.cc-range.on { background: #2E92D6; color: #fff; }
+
+.cc-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 6px; font-size: 12px; color: #33424C; align-items: center; }
+.cc-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.cc-legend-item i { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
+.cc-legend-item b { color: #173A5E; }
+.cc-legend-total { margin-left: auto; color: #5F6B73; }
+.cc-legend-total b { color: #173A5E; font-size: 14px; }
+
+.cc-svg { width: 100%; height: auto; display: block; margin-top: 4px; }
+.cc-svg rect { transition: opacity 0.12s; }
+.cc-svg rect:hover { opacity: 0.8; }
+.cc-quiet { padding: 40px 16px; text-align: center; font-size: 13px; color: #8A969E; }

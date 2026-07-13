@@ -2,15 +2,17 @@ import { useState } from 'react';
 import UsersAdmin from './UsersAdmin';
 import RulesAdmin from './RulesAdmin';
 import TimelineAdmin from './TimelineAdmin';
+import CompletionsChart from './CompletionsChart';
 import './AdminPanel.css';
 
-// Ops-only Admin tab — home for management screens: Users, Issue Rules, Timeline, and
-// whatever comes later (announcements, TV schedule, settings...).
+// Ops-only Admin tab — home for management screens: Users, Issue Rules, Timeline,
+// Throughput, and whatever comes later (announcements, TV schedule, settings...).
 
 const SECTIONS = [
   { key: 'users', label: 'Users' },
   { key: 'rules', label: 'Issue Rules' },
   { key: 'timeline', label: 'Timeline' },
+  { key: 'throughput', label: 'Throughput' },
 ];
 
 function AdminPanel() {
@@ -26,6 +28,7 @@ function AdminPanel() {
         {section === 'users' && <UsersAdmin />}
         {section === 'rules' && <RulesAdmin />}
         {section === 'timeline' && <TimelineAdmin />}
+        {section === 'throughput' && <CompletionsChart />}
       </div>
     </div>
   );

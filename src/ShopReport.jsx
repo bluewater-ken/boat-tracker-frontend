@@ -11,7 +11,10 @@ import './ShopReport.css';
 const STAGES = ['Backlog', 'Pre-Production', 'Glass Shop', 'Back Line', 'Front Line', 'QC', 'Delivered'];
 // Lamination: Transducer Type excluded (info-only, never checks off — see AssemblyTracker).
 const LAM_TASKS = ['Glass Kit', 'Hull', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid', 'Other'];
-const LAM_FINAL = (t) => (t === 'Glass Kit' ? 'Complete' : 'Pulled');
+// A lamination task is "done" (glass-shop work complete) once it's on the mold or
+// pulled — pulling just frees the mold, it isn't more lamination work. Glass Kit
+// (non-mold) is done at Complete.
+const LAM_DONE = (t) => (t === 'Glass Kit' ? ['Complete'] : ['Complete/On Mold', 'Pulled']);
 const FIN_TASKS = ['Hull', 'Liner', 'Ring', 'Hard Top', 'Console', 'Console Face', 'Hatches', 'Leaning Post', 'Buckets', 'Other'];
 
 const fmtDate = (d) => { if (!d) return ''; const [, m, day] = d.slice(0, 10).split('-'); return `${+m}/${+day}`; };
@@ -26,13 +29,15 @@ const isPartLate = (r) =>
 
 // Roll a tracker's rows for one boat → { done, total, list[{name,done}] }, N/A excluded.
 // The full ordered list lets the report cross off completed tasks like a traveler.
-function rollup(rowsByTask, tasks, finalOf) {
+// doneOf(task) returns the status(es) that count as complete for that task.
+function rollup(rowsByTask, tasks, doneOf) {
   let done = 0, total = 0; const list = [];
   for (const t of tasks) {
     const row = rowsByTask?.[t] || {};
     if (row.na) continue;
     total++;
-    const isDone = (row.status || '') === finalOf(t);
+    const finals = doneOf(t);
+    const isDone = (Array.isArray(finals) ? finals : [finals]).includes(row.status || '');
     if (isDone) done++;
     list.push({ name: t, done: isDone });
   }
@@ -219,7 +224,7 @@ function buildReport(boats, lam, fin, asm, parts, std) {
   const punch = { asap: [], late: [], flags: [] };
 
   const rows = active.map((b, idx) => {
-    const lamR = rollup(lamMap[b.boat_id], LAM_TASKS, LAM_FINAL);
+    const lamR = rollup(lamMap[b.boat_id], LAM_TASKS, LAM_DONE);
     const finR = rollup(finMap[b.boat_id], FIN_TASKS, () => 'Complete');
     // Assembly rollup across this boat's work centers.
     let aDone = 0, aTotal = 0; const asyRemaining = [];

@@ -21,11 +21,15 @@ const PLACEHOLDER_WCS = [
 // Transducer Type is EXCLUDED: it's an info-only field (holds the transducer to
 // install), not a job that gets checked off — counting it capped boats at n-1/n.
 const LAM_TASKS = ['Glass Kit', 'Hull', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid', 'Other'];
-const LAM_FINAL = { 'Glass Kit': 'Complete' }; // others end at Pulled
+// Lamination "done" = glass-shop work complete: on the mold or pulled (pulling only
+// frees the mold, it's not more lamination). Glass Kit (non-mold) is done at Complete.
+const LAM_FINAL = { 'Glass Kit': ['Complete'] };
+const LAM_MOLD_DONE = ['Complete/On Mold', 'Pulled'];
 const LAM_DEFAULT = {};
 const FIN_TASKS = ['Hull', 'Liner', 'Ring', 'Hard Top', 'Console', 'Console Face', 'Hatches', 'Leaning Post', 'Buckets', 'Other'];
 
 // Roll a tracker's rows for one boat into {completed, total, remaining[]} — N/A tasks excluded.
+// finalOf(t) may return a single status or an array of statuses that count as done.
 const rollup = (rowsForBoat, tasks, finalOf, defaultOf) => {
   let completed = 0, total = 0; const remaining = []; const items = [];
   for (const t of tasks) {
@@ -33,7 +37,8 @@ const rollup = (rowsForBoat, tasks, finalOf, defaultOf) => {
     if (row.na) continue;
     total++;
     const status = row.status || defaultOf(t);
-    const done = status === finalOf(t);
+    const finals = finalOf(t);
+    const done = (Array.isArray(finals) ? finals : [finals]).includes(status);
     if (done) completed++; else remaining.push(t);
     items.push({ name: t, done }); // full checklist for the popup
   }
@@ -98,7 +103,7 @@ function AssemblyTracker() {
       const app = {};
       for (const boat of b) {
         app[boat.boat_id] = {
-          _lam: rollup(lamMap[boat.boat_id], LAM_TASKS, t => LAM_FINAL[t] || 'Pulled', t => LAM_DEFAULT[t] || ''),
+          _lam: rollup(lamMap[boat.boat_id], LAM_TASKS, t => LAM_FINAL[t] || LAM_MOLD_DONE, t => LAM_DEFAULT[t] || ''),
           _fin: rollup(finMap[boat.boat_id], FIN_TASKS, () => 'Complete', () => ''),
         };
       }

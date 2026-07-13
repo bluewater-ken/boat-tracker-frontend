@@ -60,9 +60,12 @@
 .rc-none { color: #B9C2C9; font-weight: 400; }
 
 /* Punch list */
-.report-punch-row { display: flex; gap: 10px; font-size: 11px; padding: 4px 0; border-bottom: 1px dotted #E6E9EC; }
-.report-punch-label { flex: 0 0 150px; font-weight: 700; }
+.report-punch-row { display: flex; gap: 12px; font-size: 11px; padding: 7px 0; border-bottom: 1px solid #EEF1F4; align-items: baseline; }
+.report-punch-label { flex: 0 0 145px; font-weight: 700; }
 .report-punch-items { flex: 1; line-height: 1.5; }
+.report-punch-list { flex: 1; margin: 0; padding-left: 16px; line-height: 1.6; }
+.report-punch-list li { margin-bottom: 2px; }
+.report-punch-list b { color: #173A5E; font-weight: 700; }
 
 /* Per-boat detail */
 .report-boat { border: 1px solid #E2E6EA; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }

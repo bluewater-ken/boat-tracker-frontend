@@ -165,10 +165,18 @@ function ShopReport({ onClose }) {
 }
 
 function PunchRow({ label, color, items, empty }) {
+  // Group by boat so each boat is one readable line, not a run-on list.
+  const groups = []; const idx = {};
+  for (const it of items) {
+    if (idx[it.boat] == null) { idx[it.boat] = groups.length; groups.push({ boat: it.boat, texts: [] }); }
+    groups[idx[it.boat]].texts.push(it.text);
+  }
   return (
     <div className="report-punch-row">
-      <div className="report-punch-label" style={{ color }}>{label}</div>
-      <div className="report-punch-items">{items.length ? items.join(' · ') : <span className="report-quiet">{empty}</span>}</div>
+      <div className="report-punch-label" style={{ color }}>{label}{items.length ? ` (${items.length})` : ''}</div>
+      {groups.length
+        ? <ul className="report-punch-list">{groups.map((g, i) => <li key={i}><b>{g.boat}</b> — {g.texts.join(', ')}</li>)}</ul>
+        : <div className="report-punch-items"><span className="report-quiet">{empty}</span></div>}
     </div>
   );
 }
@@ -222,13 +230,14 @@ function buildReport(boats, lam, fin, asm, parts, std) {
     }
     for (const p of prows.filter(p => p.is_custom && p.status !== 'Received')) partsOutstanding.push(partLabel(p.part_name, p));
 
-    // Punch-list contributions.
+    // Punch-list contributions — {boat, text} so the report can group by boat.
+    const boatLabel = `${b.boat_id} ${b.customer_name}`;
     for (const p of prows) {
-      if (p.status !== 'Received' && p.order_asap) punch.asap.push(`${b.boat_id} ${b.customer_name} — ${p.part_name}`);
-      if (isPartLate(p)) punch.late.push(`${b.boat_id} ${b.customer_name} — ${p.part_name}${p.expected_delivery ? ` (exp ${fmtDate(p.expected_delivery)})` : ''}`);
+      if (p.status !== 'Received' && p.order_asap) punch.asap.push({ boat: boatLabel, text: p.part_name });
+      if (isPartLate(p)) punch.late.push({ boat: boatLabel, text: `${p.part_name}${p.expected_delivery ? ` (exp ${fmtDate(p.expected_delivery)})` : ''}` });
     }
     const flagsOn = BOAT_FLAGS.filter(([k]) => b[k]).map(([, label]) => label);
-    if (flagsOn.length) punch.flags.push(`${b.boat_id} ${b.customer_name} — ${flagsOn.join(', ')}`);
+    if (flagsOn.length) punch.flags.push({ boat: boatLabel, text: flagsOn.join(', ') });
 
     // Per-boat attention shorthand for the summary table.
     const attention = [];

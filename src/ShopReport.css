@@ -76,7 +76,9 @@
 .report-detail-col { min-width: 0; }
 .report-detail-title { font-size: 11px; font-weight: 700; color: #33424C; border-bottom: 1px solid #eef1f4; padding-bottom: 3px; margin-bottom: 5px; }
 .report-detail-done { font-size: 11px; color: #3B6D11; font-weight: 600; }
-.report-detail-list { margin: 0; padding-left: 16px; font-size: 10.5px; color: #33424C; line-height: 1.45; }
+.report-detail-list { margin: 0; padding-left: 16px; font-size: 10.5px; color: #33424C; line-height: 1.5; }
+/* Completed checklist tasks (lam/fin) crossed off, like a boat traveler. */
+.report-detail-list li.done { text-decoration: line-through; color: #A6B79A; }
 
 .report-foot { margin-top: 16px; padding-top: 8px; border-top: 1px solid #E6E9EC; font-size: 9px; color: #8A969E; text-align: center; }
 

@@ -24,16 +24,19 @@ const isPartLate = (r) =>
   r.status !== 'Received' && (!!r.flag_late ||
     (!!r.expected_delivery && r.expected_delivery.slice(0, 10) < todayStr()));
 
-// Roll a tracker's rows for one boat → { done, total, remaining[] }, N/A excluded.
+// Roll a tracker's rows for one boat → { done, total, list[{name,done}] }, N/A excluded.
+// The full ordered list lets the report cross off completed tasks like a traveler.
 function rollup(rowsByTask, tasks, finalOf) {
-  let done = 0, total = 0; const remaining = [];
+  let done = 0, total = 0; const list = [];
   for (const t of tasks) {
     const row = rowsByTask?.[t] || {};
     if (row.na) continue;
     total++;
-    if ((row.status || '') === finalOf(t)) done++; else remaining.push(t);
+    const isDone = (row.status || '') === finalOf(t);
+    if (isDone) done++;
+    list.push({ name: t, done: isDone });
   }
-  return { done, total, remaining };
+  return { done, total, list };
 }
 
 const BOAT_FLAGS = [
@@ -149,8 +152,8 @@ function ShopReport({ onClose }) {
             <div key={b.boat_id} className="report-boat">
               <div className="report-boat-head">{b.seq}. {b.boat_id} · {b.customer_name} <span className="rc-meta">{b.boat_model} · {b.hull_color} · {b.stage}</span></div>
               <div className="report-boat-grid">
-                <DetailCol title={`Lamination ${b.lam == null ? '' : b.lam + '%'}`} done={b.lam === 100} items={b.lamRemaining} allLabel="All laminated." noneLabel="No lamination tracked." />
-                <DetailCol title={`Finishing ${b.fin == null ? '' : b.fin + '%'}`} done={b.fin === 100} items={b.finRemaining} allLabel="All finished." noneLabel="Not in finishing yet." />
+                <DetailCol title={`Lamination ${b.lam == null ? '' : b.lam + '%'}`} done={b.lam === 100} items={b.lamTasks} checklist allLabel="All laminated." noneLabel="No lamination tracked." />
+                <DetailCol title={`Finishing ${b.fin == null ? '' : b.fin + '%'}`} done={b.fin === 100} items={b.finTasks} checklist allLabel="All finished." noneLabel="Not in finishing yet." />
                 <DetailCol title={`Assembly ${b.asy == null ? '' : b.asy + '%'}`} done={b.asy === 100} items={b.asyRemaining} allLabel="All assembled." noneLabel="No checklists yet." />
                 <DetailCol title={`Key parts ${b.partsReceived}/${b.partsTotal}`} done={b.partsOutstanding.length === 0} items={b.partsOutstanding} allLabel="All parts received." noneLabel="No parts." />
               </div>
@@ -181,13 +184,19 @@ function PunchRow({ label, color, items, empty }) {
   );
 }
 
-function DetailCol({ title, done, items, allLabel, noneLabel }) {
+function DetailCol({ title, done, items, checklist, allLabel, noneLabel }) {
+  // `checklist` columns (lam/fin) get the full task list with done items struck through;
+  // at 100% they collapse to a single "✓ All …" line so the report stays tight.
   return (
     <div className="report-detail-col">
       <div className="report-detail-title">{title}</div>
       {items === null ? <div className="report-quiet">{noneLabel}</div>
-        : items.length === 0 ? <div className="report-detail-done">✓ {allLabel}</div>
-        : <ul className="report-detail-list">{items.map((t, i) => <li key={i}>{t}</li>)}</ul>}
+        : done || items.length === 0 ? <div className="report-detail-done">✓ {allLabel}</div>
+        : <ul className="report-detail-list">{items.map((it, i) =>
+            checklist
+              ? <li key={i} className={it.done ? 'done' : ''}>{it.name}</li>
+              : <li key={i}>{it}</li>
+          )}</ul>}
     </div>
   );
 }
@@ -264,8 +273,9 @@ function buildReport(boats, lam, fin, asm, parts, std) {
       lam: lamR.total ? pct(lamR.done, lamR.total) : null,
       fin: finR.total ? pct(finR.done, finR.total) : null,
       asy: aTotal ? pct(aDone, aTotal) : null,
-      lamRemaining: lamR.total ? lamR.remaining : (inLam ? [] : null),
-      finRemaining: finR.total ? finR.remaining : (inFin ? [] : null),
+      // Full checklists for lam/fin (crossed off when done); assembly stays "what's missing".
+      lamTasks: lamR.total ? lamR.list : (inLam ? [] : null),
+      finTasks: finR.total ? finR.list : (inFin ? [] : null),
       asyRemaining: aTotal ? asyRemaining : null,
       partsTotal, partsReceived: received, partsOutstanding,
       attention,

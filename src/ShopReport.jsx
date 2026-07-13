@@ -185,13 +185,16 @@ function PunchRow({ label, color, items, empty }) {
 }
 
 function DetailCol({ title, done, items, checklist, allLabel, noneLabel }) {
-  // `checklist` columns (lam/fin) get the full task list with done items struck through;
-  // at 100% they collapse to a single "✓ All …" line so the report stays tight.
+  // `checklist` columns (lam/fin) always show the full task list with completed
+  // tasks struck through — a visible record of what's been done, even at 100%.
+  // Non-checklist columns (assembly/parts) collapse to "✓ All …" when complete.
+  const collapse = !checklist && (done || items?.length === 0);
+  const emptyChecklist = checklist && items && items.length === 0;
   return (
     <div className="report-detail-col">
       <div className="report-detail-title">{title}</div>
       {items === null ? <div className="report-quiet">{noneLabel}</div>
-        : done || items.length === 0 ? <div className="report-detail-done">✓ {allLabel}</div>
+        : collapse || emptyChecklist ? <div className="report-detail-done">✓ {allLabel}</div>
         : <ul className="report-detail-list">{items.map((it, i) =>
             checklist
               ? <li key={i} className={it.done ? 'done' : ''}>{it.name}</li>

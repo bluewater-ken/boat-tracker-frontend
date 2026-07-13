@@ -18,9 +18,11 @@ const PLACEHOLDER_WCS = [
 
 // ---- App-sourced columns: Lamination + Finishing progress from our own trackers ----
 // (Mirrors the task/status rules in LaminationTracker.jsx / FinishingTracker.jsx.)
-const LAM_TASKS = ['Glass Kit', 'Hull', 'Transducer Type', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid', 'Other'];
-const LAM_FINAL = { 'Glass Kit': 'Complete', 'Transducer Type': 'Complete' }; // others end at Pulled
-const LAM_DEFAULT = { 'Transducer Type': 'Complete' }; // its only status
+// Transducer Type is EXCLUDED: it's an info-only field (holds the transducer to
+// install), not a job that gets checked off — counting it capped boats at n-1/n.
+const LAM_TASKS = ['Glass Kit', 'Hull', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid', 'Other'];
+const LAM_FINAL = { 'Glass Kit': 'Complete' }; // others end at Pulled
+const LAM_DEFAULT = {};
 const FIN_TASKS = ['Hull', 'Liner', 'Ring', 'Hard Top', 'Console', 'Console Face', 'Hatches', 'Leaning Post', 'Buckets', 'Other'];
 
 // Roll a tracker's rows for one boat into {completed, total, remaining[]} — N/A tasks excluded.

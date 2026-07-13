@@ -142,10 +142,10 @@ function ShopReport({ onClose }) {
           <PunchRow label="⚠ Boat flags" color="#A32D2D" items={punch.flags} empty="No boat flags set." />
         </section>
 
-        {/* Per-boat detail */}
+        {/* Per-boat detail — Backlog boats omitted (no shop work started yet). */}
         <section className="report-detail-wrap">
-          <div className="report-section-title">Boat detail</div>
-          {rows.map(b => (
+          <div className="report-section-title">Boat detail <span className="report-detail-hint">(in production — Backlog boats not shown)</span></div>
+          {rows.filter(b => b.stage !== 'Backlog').map(b => (
             <div key={b.boat_id} className="report-boat">
               <div className="report-boat-head">{b.seq}. {b.boat_id} · {b.customer_name} <span className="rc-meta">{b.boat_model} · {b.hull_color} · {b.stage}</span></div>
               <div className="report-boat-grid">
@@ -216,7 +216,14 @@ function buildReport(boats, lam, fin, asm, parts, std) {
       if (!row || !row.total_items) continue;
       aDone += row.completed_items; aTotal += row.total_items;
       const left = (row.total_items - row.completed_items);
-      if (left > 0) asyRemaining.push(`${w.name}: ${left} left`);
+      if (left > 0) {
+        // Show WHAT's missing (the item names), capped so the report stays tight;
+        // fall back to a count if the backend didn't send item names.
+        const names = Array.isArray(row.remaining) ? row.remaining : [];
+        asyRemaining.push(names.length
+          ? `${w.name}: ${names.slice(0, 5).join(', ')}${names.length > 5 ? `, +${names.length - 5} more` : ''}`
+          : `${w.name}: ${left} left`);
+      }
     }
     // Key parts.
     const prows = partsByBoat[b.boat_id] || [];

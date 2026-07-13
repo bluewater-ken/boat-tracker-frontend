@@ -70,7 +70,7 @@ function AssemblyTracker() {
   const [showDelivered, setShowDelivered] = useState(false);
   const [loading, setLoading] = useState(true);
   const [menu, setMenu] = useState(null); // { boatId, wcId, x, y }
-  const [checkFilter, setCheckFilter] = useState('all'); // popup checklist filter: all | todo | done
+  const [checkFilter, setCheckFilter] = useState('todo'); // popup checklist filter: all | todo | done — opens on the actionable list
 
   useEffect(() => {
     init();
@@ -177,7 +177,7 @@ function AssemblyTracker() {
                 const pct = row?.total_items ? row.completed_items / row.total_items : 0;
                 return (
                   <button key={w.id} className="asm-cardrow" disabled={!row}
-                    onClick={() => { if (row) { setCheckFilter('all'); setMenu({ boatId: boat.boat_id, wcId: w.id, x: 0, y: 0 }); } }}>
+                    onClick={() => { if (row) { setCheckFilter('todo'); setMenu({ boatId: boat.boat_id, wcId: w.id, x: 0, y: 0 }); } }}>
                     <span className="asm-cardrow-name">{w.name}</span>
                     {st === 'NONE' ? (
                       <span className="asm-cardrow-none">—</span>
@@ -218,7 +218,7 @@ function AssemblyTracker() {
                   const pct = row?.total_items ? row.completed_items / row.total_items : 0;
                   return (
                     <td key={w.id} className="asm-cell" style={{ background: c.bg, color: c.fg }}
-                      onClick={(e) => { if (row) { setCheckFilter('all'); setMenu({ boatId: boat.boat_id, wcId: w.id, x: e.clientX, y: e.clientY }); } }}>
+                      onClick={(e) => { if (row) { setCheckFilter('todo'); setMenu({ boatId: boat.boat_id, wcId: w.id, x: e.clientX, y: e.clientY }); } }}>
                       {st === 'NONE' ? (
                         <div className="asm-count asm-none">—</div>
                       ) : (

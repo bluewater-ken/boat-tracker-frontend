@@ -16,6 +16,7 @@ const GanttChart = lazy(() => import('./GanttChart'));
 const ShopFeed = lazy(() => import('./ShopFeed'));
 const AdminPanel = lazy(() => import('./AdminPanel'));
 const AskBoss = lazy(() => import('./AskBoss'));
+const ShopReport = lazy(() => import('./ShopReport'));
 
 const BASE_TABS = [
   { key: 'schedule', label: 'Production Schedule' },
@@ -32,6 +33,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('schedule');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [manageBoats, setManageBoats] = useState(false);
+  const [shopReport, setShopReport] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
   const [reportIssueOpen, setReportIssueOpen] = useState(false);
   const handleRefresh = () => setRefreshTrigger(p => p + 1);
@@ -62,6 +64,7 @@ function App() {
     .filter(t => t.key !== 'gantt' || isKen);
 
   return (
+    <>
     <div className="app">
       {isDemo && (
         <div className="demo-banner">🔒 Demo mode — explore anything; your changes are shown but never saved.</div>
@@ -89,7 +92,7 @@ function App() {
         </nav>
         <main className="app-content">
           <Suspense fallback={<div className="loading">Loading…</div>}>
-            {activeTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onManageBoats={() => setManageBoats(true)} />}
+            {activeTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onManageBoats={() => setManageBoats(true)} onShopReport={() => setShopReport(true)} />}
             {activeTab === 'parts' && <KeyPartsTracker />}
             {activeTab === 'lamination' && <LaminationTracker />}
             {activeTab === 'finishing' && <FinishingTracker />}
@@ -121,6 +124,12 @@ function App() {
         </div>
       )}
     </div>
+
+    {/* Rendered OUTSIDE .app so print can hide the app and show only the report. */}
+    {isOps && shopReport && (
+      <Suspense fallback={null}><ShopReport onClose={() => setShopReport(false)} /></Suspense>
+    )}
+    </>
   );
 }
 

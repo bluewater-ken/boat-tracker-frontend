@@ -32,7 +32,7 @@ const stagePct = (boat, stageIdx, stageName) => {
   return { pct: STATUSES.indexOf(stageName) < stageIdx ? 100 : 0, real: false };
 };
 
-function ProductionSchedule({ refreshTrigger, onManageBoats }) {
+function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const isOps = user?.role === 'ops';
@@ -221,6 +221,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats }) {
       </div>
       <div className="sched-toolbar">
         {isOps && !isMobile && onManageBoats && <button className="sched-manage" onClick={onManageBoats}>⚙ Manage Boats</button>}
+        {isOps && !isMobile && onShopReport && <button className="sched-manage" onClick={onShopReport}>📄 Shop Report</button>}
         <ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} />
       </div>
       <div className="sched-list">

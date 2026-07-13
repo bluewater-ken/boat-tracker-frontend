@@ -15,10 +15,12 @@ const FIN_ORDER = ['Not Available', 'Not Started', 'In Progress', 'Complete'];
 const firstStatus = () => FIN_ORDER[0];
 const NA = 'Not Applicable';
 
-// App-wide status language: neutral = untouched, amber = working, green = done.
+// App-wide status language: amber = working, green = done, cool gray = blocked.
+// Not Started is the action state here — the part HAS arrived from the lam shop
+// and is sitting untouched — so it gets a red tint instead of the neutral.
 const CELL = {
   'Not Available': { bg: '#E7EBEF', fg: '#5F6B73' },  // cool gray — blocked upstream (lam shop)
-  'Not Started': { bg: '#F4F3EE', fg: '#9B998F' },    // warm neutral — here, untouched
+  'Not Started': { bg: '#FCEBEB', fg: '#A32D2D' },    // needs action — it's here, start it
   'In Progress': { bg: '#FAC775', fg: '#633806' },
   'Complete': { bg: '#9CCB62', fg: '#1F3D07' },
   'Not Applicable': { bg: '#E4E4E7', fg: '#9A9A9F' },

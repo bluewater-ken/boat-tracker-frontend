@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
 import { renderAnswer } from './markdown';
 import Logo from './Logo';
+import CompletionsChart from './CompletionsChart';
 import './ShopReport.css';
 
 // Shop Status Report — a printable, shop-wide summary across Production Schedule,
@@ -148,6 +149,12 @@ function ShopReport({ onClose }) {
           <PunchRow label="🔴 Order ASAP" color="#A32D2D" items={punch.asap} empty="No parts flagged Order ASAP." />
           <PunchRow label="🕓 Late / overdue parts" color="#854F0B" items={punch.late} empty="No overdue parts." />
           <PunchRow label="⚠ Boat flags" color="#A32D2D" items={punch.flags} empty="No boat flags set." />
+        </section>
+
+        {/* Throughput */}
+        <section className="report-chart">
+          <div className="report-section-title">Throughput — jobs completed per day (last 30 days)</div>
+          <CompletionsChart embedded days={30} />
         </section>
 
         {/* Per-boat detail — Backlog boats omitted (no shop work started yet). */}

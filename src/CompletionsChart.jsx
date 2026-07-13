@@ -47,8 +47,10 @@ function deriveFromFeed(events, days) {
 }
 const mmdd = (iso) => { const [, m, d] = iso.split('-'); return `${+m}/${+d}`; };
 
-function CompletionsChart() {
-  const [days, setDays] = useState(30);
+// `embedded` (e.g. in the Shop Report) hides the title + range toggle and uses a
+// fixed range — the host provides the heading.
+function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
+  const [days, setDays] = useState(fixedDays);
   const [data, setData] = useState(null);
   const [source, setSource] = useState(''); // 'metrics' | 'feed' | 'none'
 
@@ -79,12 +81,14 @@ function CompletionsChart() {
     <div className="cc">
       <div className="cc-head">
         <div>
-          <div className="cc-title">Jobs completed per day</div>
+          {!embedded && <div className="cc-title">Jobs completed per day</div>}
           <div className="cc-sub">Each item checked off across the shop, stacked by department{source === 'feed' ? ' · recent activity (connect the metrics endpoint for full history)' : ''}.</div>
         </div>
-        <div className="cc-ranges">
-          {RANGES.map(n => <button key={n} className={`cc-range ${days === n ? 'on' : ''}`} onClick={() => setDays(n)}>{n}d</button>)}
-        </div>
+        {!embedded && (
+          <div className="cc-ranges">
+            {RANGES.map(n => <button key={n} className={`cc-range ${days === n ? 'on' : ''}`} onClick={() => setDays(n)}>{n}d</button>)}
+          </div>
+        )}
       </div>
 
       <div className="cc-legend">

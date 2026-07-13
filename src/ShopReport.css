@@ -89,7 +89,11 @@
   .no-print { display: none !important; }
   .report-doc { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
   .report-commentary { background: #fff; }
-  .report-boat, .report-punch-row, .report-table tr { break-inside: avoid; page-break-inside: avoid; }
+  .report-boat, .report-punch-row, .report-table tr, .report-chart { break-inside: avoid; page-break-inside: avoid; }
+  /* keep the throughput chart's department colors on paper */
+  .cc-svg rect, .cc-legend-item i {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
   .report-detail-wrap .report-section-title { break-before: page; page-break-before: always; }
   /* keep the app's status colors on paper */
   .rc-done, .rc-work, .rc-todo, .report-table th {

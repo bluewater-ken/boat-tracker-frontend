@@ -17,6 +17,19 @@
 .cc-legend-total b { color: #173A5E; font-size: 14px; }
 
 .cc-svg { width: 100%; height: auto; max-height: 340px; display: block; margin-top: 4px; }
-.cc-svg rect { transition: opacity 0.12s; }
-.cc-svg rect:hover { opacity: 0.8; }
+.cc-svg .cc-bar { transition: opacity 0.12s; cursor: pointer; }
+.cc-svg .cc-bar:hover { opacity: 0.8; }
 .cc-quiet { padding: 40px 16px; text-align: center; font-size: 13px; color: #8A969E; }
+
+/* Drill-down: jobs for the clicked day/department. */
+.cc-detail { margin-top: 14px; border: 1px solid #E2E6EA; border-radius: 8px; overflow: hidden; max-width: 860px; }
+.cc-detail-head { display: flex; justify-content: space-between; align-items: center; background: #F7FAFC; padding: 8px 12px; font-size: 12px; font-weight: 700; color: #173A5E; border-bottom: 1px solid #E6E9EC; }
+.cc-detail-dot { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 7px; vertical-align: -1px; }
+.cc-detail-x { border: none; background: none; cursor: pointer; font-size: 13px; color: #8A969E; }
+.cc-detail-x:hover { color: #A32D2D; }
+.cc-detail-list { list-style: none; margin: 0; padding: 4px 0; max-height: 240px; overflow-y: auto; }
+.cc-detail-list li { display: flex; align-items: baseline; gap: 10px; padding: 5px 12px; font-size: 12px; border-bottom: 1px solid #F2F4F6; }
+.cc-detail-list li:last-child { border-bottom: none; }
+.cc-job-time { flex: 0 0 auto; color: #8A969E; font-size: 11px; width: 52px; }
+.cc-job-title { flex: 1; color: #1c1c1c; }
+.cc-job-boat { flex: 0 0 auto; color: #5F6B73; font-size: 11px; }

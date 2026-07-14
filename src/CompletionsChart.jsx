@@ -47,16 +47,24 @@ const mmdd = (iso) => { const [, m, d] = iso.split('-'); return `${+m}/${+d}`; }
 
 // `embedded` (e.g. in the Shop Report) hides the title + range toggle and uses a
 // fixed range — the host provides the heading.
+const fmtTime = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch { return ''; } };
+
 function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
   const [days, setDays] = useState(fixedDays);
   const [data, setData] = useState(null);
   const [source, setSource] = useState(''); // 'metrics' | 'feed' | 'none'
+  const [rawEvents, setRawEvents] = useState([]); // feed events, for the drill-down
+  const [pick, setPick] = useState(null); // { date, dept } clicked bar segment
 
   useEffect(() => {
     let alive = true;
     (async () => {
-      setData(null);
-      // 1) Proper endpoint (deep history, pre-aggregated).
+      setData(null); setPick(null);
+      // Always load feed events — powers the click-to-see-jobs drill-down, and the
+      // count fallback when the metrics endpoint isn't up.
+      const fev = await apiFetch('/api/assembly/feed?limit=1000').then(r => (r.ok ? r.json() : [])).catch(() => []);
+      if (alive) setRawEvents(fev);
+      // Prefer the metrics endpoint for deep-history counts.
       const r = await apiFetch(`/api/metrics/completions?days=${days}`).catch(() => null);
       if (r && r.ok) {
         const rows = await r.json();
@@ -64,13 +72,14 @@ function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
         if (alive) { setSource('metrics'); setData(lastNDates(days).map(date => ({ date, ...ZERO(), ...(byDate[date] || {}) }))); }
         return;
       }
-      // 2) Fallback: classify recent feed events client-side.
-      const fr = await apiFetch('/api/assembly/feed?limit=1000').catch(() => null);
-      if (fr && fr.ok) { const ev = await fr.json(); if (alive) { setSource('feed'); setData(deriveFromFeed(ev, days)); } return; }
+      if (fev.length) { if (alive) { setSource('feed'); setData(deriveFromFeed(fev, days)); } return; }
       if (alive) { setSource('none'); setData([]); }
     })();
     return () => { alive = false; };
   }, [days]);
+
+  // Jobs done on a given day for a given department (from the feed events).
+  const jobsFor = (date, dept) => rawEvents.filter(ev => (ev.created_at || '').slice(0, 10) === date && classify(ev) === dept);
 
   const totals = DEPTS.reduce((a, d) => ({ ...a, [d.key]: (data || []).reduce((s, x) => s + (x[d.key] || 0), 0) }), {});
   const grand = Object.values(totals).reduce((a, b) => a + b, 0);
@@ -100,12 +109,35 @@ function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
       {data === null ? <div className="cc-quiet">Loading…</div>
         : source === 'none' ? <div className="cc-quiet">No completion data available.</div>
         : grand === 0 ? <div className="cc-quiet">No completions recorded in this range yet.</div>
-        : <Chart data={data} />}
+        : <Chart data={data} pick={pick} onPick={(date, dept) => setPick(p => (p && p.date === date && p.dept === dept) ? null : { date, dept })} />}
+
+      {pick && (() => {
+        const jobs = jobsFor(pick.date, pick.dept);
+        const dep = DEPTS.find(d => d.key === pick.dept);
+        return (
+          <div className="cc-detail">
+            <div className="cc-detail-head">
+              <span><span className="cc-detail-dot" style={{ background: dep?.color }} />{dep?.label} · {mmdd(pick.date)} — {jobs.length} done</span>
+              <button className="cc-detail-x" onClick={() => setPick(null)} aria-label="Close">✕</button>
+            </div>
+            {jobs.length === 0 ? <div className="cc-quiet" style={{ padding: 12 }}>No detail for this day{source === 'metrics' ? ' in the recent feed (older days may be trimmed).' : '.'}</div>
+              : <ul className="cc-detail-list">
+                  {jobs.map(ev => (
+                    <li key={ev.id}>
+                      <span className="cc-job-time">{fmtTime(ev.created_at)}</span>
+                      <span className="cc-job-title">{ev.title}</span>
+                      {ev.boat_id && <span className="cc-job-boat">{ev.boat_id}{ev.customer_name ? ` · ${ev.customer_name}` : ''}</span>}
+                    </li>
+                  ))}
+                </ul>}
+          </div>
+        );
+      })()}
     </div>
   );
 }
 
-function Chart({ data }) {
+function Chart({ data, pick, onPick }) {
   const W = 720, H = 280, L = 34, R = 8, T = 16, B = 30;
   const plotW = W - L - R, plotH = H - T - B;
   const totalOf = (x) => DEPTS.reduce((s, d) => s + (x[d.key] || 0), 0);
@@ -139,7 +171,10 @@ function Chart({ data }) {
             {DEPTS.map(d => {
               const v = x[d.key] || 0; if (!v) return null;
               const h = (plotH * v) / niceMax; yTop -= h;
-              return <rect key={d.key} x={cx - bw / 2} y={yTop} width={bw} height={h} fill={d.color}><title>{`${mmdd(x.date)} — ${d.label}: ${v}`}</title></rect>;
+              const on = pick && pick.date === x.date && pick.dept === d.key;
+              return <rect key={d.key} className="cc-bar" x={cx - bw / 2} y={yTop} width={bw} height={h} fill={d.color}
+                stroke={on ? '#173A5E' : 'none'} strokeWidth={on ? 1.5 : 0}
+                onClick={() => onPick && onPick(x.date, d.key)}><title>{`${mmdd(x.date)} — ${d.label}: ${v} (click for jobs)`}</title></rect>;
             })}
             {showNums && totals[i] > 0 && <text x={cx} y={yTop - 3} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#5F6B73">{totals[i]}</text>}
             {i % step === 0 && <text x={cx} y={H - 10} textAnchor="middle" fontSize="8.5" fill="#8A969E">{mmdd(x.date)}</text>}

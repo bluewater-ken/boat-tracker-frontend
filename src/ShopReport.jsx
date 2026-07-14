@@ -81,7 +81,7 @@ function ShopReport({ onClose }) {
       try {
         const r = await apiFetch('/api/ask', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: 'Give me a full shop status — where every active boat stands, what needs attention, and anything notable. Keep it to a tight executive summary.' }),
+          body: JSON.stringify({ question: 'Give me a full shop status as a tight executive summary, organized by where each boat is in the build — most-advanced first. Use this order for the section groupings: QC, Front Line, Consoles, Back Line, Finishing, Lamination, then Pre-Production and Backlog; put each boat under the furthest-along stage it is actively in. Ignore any task or part marked Not Applicable. Call out what needs attention.' }),
         });
         const j = await r.json();
         setCommentary(r.ok && j.answer ? j.answer : '');

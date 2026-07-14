@@ -126,15 +126,40 @@ function AssemblyTracker() {
     finally { if (!quiet) setLoading(false); }
   };
 
-  const getRow = (boatId, wcId) =>
-    (wcId === '_lam' || wcId === '_fin') ? (appRows[boatId]?.[wcId] || null) : (rows[boatId]?.[wcId] || null);
+  // Spare / Refit / Service boats: their one CompanyCam checklist can be named
+  // anything, so route it into the QC column by boat TYPE rather than by name.
+  const spareSet = new Set(boats.filter(b => b.is_spare).map(b => b.boat_id));
+  // Aggregate all of a spare boat's CompanyCam rows into one (shown under QC).
+  const spareCcRow = (boatId) => {
+    const wcRows = Object.values(rows[boatId] || {});
+    if (!wcRows.length) return null;
+    let c = 0, t = 0; const remaining = [], items = [];
+    for (const r of wcRows) {
+      c += r.completed_items || 0; t += r.total_items || 0;
+      if (Array.isArray(r.remaining)) remaining.push(...r.remaining);
+      if (Array.isArray(r.items)) items.push(...r.items);
+    }
+    return { completed_items: c, total_items: t, remaining, items };
+  };
+  // A work center used ONLY by spare boats (e.g. a refit checklist) shouldn't add a
+  // column for the whole fleet — hide it; its progress rides in the QC column instead.
+  const isSpareOnly = (wcId) => {
+    const withRow = Object.keys(rows).filter(bid => rows[bid]?.[wcId]);
+    return withRow.length > 0 && withRow.every(bid => spareSet.has(bid));
+  };
+
+  const getRow = (boatId, wcId) => {
+    if (wcId === '_lam' || wcId === '_fin') return appRows[boatId]?.[wcId] || null;
+    if (wcId === 'quality-control' && spareSet.has(boatId)) return spareCcRow(boatId);
+    return rows[boatId]?.[wcId] || null;
+  };
 
   if (loading) return <div className="loading">Loading assembly board...</div>;
 
   const { visible, delivered } = applyDeliveredFilter(boats, showDelivered);
   // Phone = only in-production boats (matches the other tabs' employee view).
   const boardBoats = isMobile ? visible.filter(inProduction) : visible;
-  const columns = [...APP_COLS, ...workCenters];
+  const columns = [...APP_COLS, ...workCenters.filter(w => !isSpareOnly(w.id))];
 
   const menuBoat = menu ? boats.find(b => b.boat_id === menu.boatId) : null;
   const menuWc = menu ? columns.find(w => w.id === menu.wcId) : null;

@@ -7,6 +7,7 @@ import { colorOptions } from './colors';
 import { applyDeliveredFilter, ShowDeliveredToggle, inProduction } from './boatFilter';
 import SmartInput from './SmartInput';
 import useIsMobile from './useIsMobile';
+import useAsapBoats from './useAsapBoats';
 import './FinishingTracker.css';
 
 // BRD §9 — post-lamination finishing. 10 tasks, 4-status line that STOPS at Complete, plus N/A.
@@ -40,6 +41,7 @@ function FinishingTracker() {
   const isOps = user?.role === 'ops';
 
   const isMobile = useIsMobile();
+  const asapBoats = useAsapBoats(); // boats with an urgent part to order
   const [boats, setBoats] = useState([]);
   const [finData, setFinData] = useState({}); // boatId -> taskName -> row
   // Phones start in the boat view (the wide grid is desktop-only).
@@ -194,7 +196,7 @@ function FinishingTracker() {
               {visible.map(boat => (
                 <tr key={boat.boat_id}>
                   <td className="fin-boatcell">
-                    <div className="fin-bid">{boat.boat_id} · {boat.customer_name}</div>
+                    <div className="fin-bid">{boat.boat_id} · {boat.customer_name} {asapBoats.has(boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</div>
                     <div className="fin-bmeta">{boat.boat_model} · <span className="fin-bhull">{boat.hull_color}</span></div>
                   </td>
                   {FIN_TASKS.map(t => {
@@ -233,7 +235,7 @@ function FinishingTracker() {
         <div className="fin-boats">
           {filteredBoats.map(boat => (
             <div key={boat.boat_id} className={`fin-boat-row ${selectedBoat?.boat_id === boat.boat_id ? 'selected' : ''}`} onClick={() => pickBoat(boat)}>
-              <div className="fin-bid">{boat.boat_id} - {boat.customer_name}</div>
+              <div className="fin-bid">{boat.boat_id} - {boat.customer_name} {asapBoats.has(boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</div>
               <div className="fin-bhull">{boat.hull_color} {boat.boat_model}</div>
             </div>
           ))}

@@ -168,6 +168,13 @@ body {
   color: #fff; background: #6B5B95; border-radius: 3px; padding: 1px 6px;
   vertical-align: middle; white-space: nowrap;
 }
+/* Boat-level "urgent part to order" badge — surfaced on every tab so the whole
+   shop sees a boat has a key part flagged Order ASAP (see useAsapBoats). */
+.asap-boat {
+  display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: 0.3px;
+  color: #fff; background: #A32D2D; border-radius: 3px; padding: 1px 6px;
+  vertical-align: middle; white-space: nowrap;
+}
 
 /* ---------- Print: strip the app chrome — the open tab's content IS the document.
    (Per-tab print rules, e.g. Lamination's grid, live in that tab's stylesheet.) ---------- */

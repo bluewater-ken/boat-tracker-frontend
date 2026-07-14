@@ -3,6 +3,7 @@ import { apiFetch } from './api';
 import ActionMenu from './ActionMenu';
 import { applyDeliveredFilter, ShowDeliveredToggle, inProduction } from './boatFilter';
 import useIsMobile from './useIsMobile';
+import useAsapBoats from './useAsapBoats';
 import './AssemblyTracker.css';
 
 // Assembly board (BRD "Mission Control") — read-only mirror of CompanyCam checklists.
@@ -67,6 +68,7 @@ const statusOf = (row) => {
 
 function AssemblyTracker() {
   const isMobile = useIsMobile();
+  const asapBoats = useAsapBoats(); // boats with an urgent part to order
   const [boats, setBoats] = useState([]);
   const [workCenters, setWorkCenters] = useState(PLACEHOLDER_WCS);
   const [rows, setRows] = useState({}); // boatId -> wcId -> row
@@ -172,7 +174,7 @@ function AssemblyTracker() {
           {boardBoats.map(boat => (
             <div key={boat.boat_id} className="asm-card">
               <div className="asm-card-head">
-                <span className="asm-bid">{boat.boat_id} · {boat.customer_name}</span>
+                <span className="asm-bid">{boat.boat_id} · {boat.customer_name} {asapBoats.has(boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</span>
                 <span className="asm-bmeta">{boat.boat_model} · <span className="asm-bhull">{boat.hull_color}</span></span>
               </div>
               {columns.map(w => {
@@ -213,7 +215,7 @@ function AssemblyTracker() {
             {boardBoats.map(boat => (
               <tr key={boat.boat_id}>
                 <td className="asm-boatcell">
-                  <div className="asm-bid">{boat.boat_id} · {boat.customer_name}</div>
+                  <div className="asm-bid">{boat.boat_id} · {boat.customer_name} {asapBoats.has(boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</div>
                   <div className="asm-bmeta">{boat.boat_model} · <span className="asm-bhull">{boat.hull_color}</span></div>
                 </td>
                 {columns.map(w => {

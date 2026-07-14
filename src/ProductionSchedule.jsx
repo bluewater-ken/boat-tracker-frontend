@@ -109,16 +109,16 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
           }
         }
       }
-      // Pre-Production pip: % of Key Parts received. Denominator matches the
-      // Key Parts grid: every standard part (no row = Not Ordered) + the boat's
-      // custom parts.
+      // Pre-Production pip: % of Key Parts received. Denominator matches the Key
+      // Parts grid: standard parts + the boat's custom parts, EXCLUDING any marked N/A.
       if (Array.isArray(partRows) && Array.isArray(stdParts) && stdParts.length) {
         const byBoat = {};
         for (const p of partRows) (byBoat[p.boat_id] ||= []).push(p);
         for (const bid in byBoat) {
           const rws = byBoat[bid];
-          const denom = stdParts.length + rws.filter(p => p.is_custom).length;
-          if (denom) (ex[bid] ||= {}).parts = Math.round(100 * rws.filter(p => p.status === 'Received').length / denom);
+          const naStd = new Set(rws.filter(p => !p.is_custom && p.na).map(p => p.part_name));
+          const denom = (stdParts.length - naStd.size) + rws.filter(p => p.is_custom && !p.na).length;
+          if (denom) (ex[bid] ||= {}).parts = Math.round(100 * rws.filter(p => !p.na && p.status === 'Received').length / denom);
         }
       }
       setExtras(ex);

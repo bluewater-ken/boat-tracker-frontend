@@ -250,17 +250,19 @@ function buildReport(boats, lam, fin, asm, parts, std) {
           : `${w.name}: ${left} left`);
       }
     }
-    // Key parts.
+    // Key parts — N/A parts drop out of both count and outstanding list.
     const prows = partsByBoat[b.boat_id] || [];
-    const customCount = prows.filter(p => p.is_custom).length;
-    const partsTotal = std.length + customCount;
-    const received = prows.filter(p => p.status === 'Received').length;
+    const naStd = new Set(prows.filter(p => !p.is_custom && p.na).map(p => p.part_name));
+    const stdApplicable = std.filter(name => !naStd.has(name));
+    const customApplicable = prows.filter(p => p.is_custom && !p.na);
+    const partsTotal = stdApplicable.length + customApplicable.length;
+    const received = prows.filter(p => !p.na && p.status === 'Received').length;
     const partsOutstanding = [];
-    for (const name of std) {
+    for (const name of stdApplicable) {
       const r = prows.find(p => p.part_name === name && !p.is_custom) || {};
       if (r.status !== 'Received') partsOutstanding.push(partLabel(name, r));
     }
-    for (const p of prows.filter(p => p.is_custom && p.status !== 'Received')) partsOutstanding.push(partLabel(p.part_name, p));
+    for (const p of customApplicable.filter(p => p.status !== 'Received')) partsOutstanding.push(partLabel(p.part_name, p));
 
     // Punch-list contributions — {boat, text} so the report can group by boat.
     const boatLabel = `${b.boat_id} ${b.customer_name}`;

@@ -288,7 +288,7 @@ function LaminationTracker() {
                 ) : (
                   <tr key={r.boat.boat_id}>
                     <td className="lam-boatcell">
-                      <div className="lam-bid">{r.boat.sequence_number ? <span className="lam-seq" title="Production build order">{r.boat.sequence_number}</span> : null}{r.boat.boat_id} · {r.boat.customer_name} {asapBoats.has(r.boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</div>
+                      <div className="lam-bid">{r.boat.sequence_number ? <span className="lam-seq" title="Production build order">{r.boat.sequence_number}</span> : null}{r.boat.boat_id} · {r.boat.customer_name} {r.boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>} {asapBoats.has(r.boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</div>
                       <div className="lam-bmeta">{r.boat.boat_model} · <span className="lam-bhull">{r.boat.hull_color}</span></div>
                     </td>
                     {LAM_TASKS.map(t => {
@@ -337,7 +337,7 @@ function LaminationTracker() {
         <div className="lam-boats">
           {filteredBoats.map(boat => (
             <div key={boat.boat_id} className={`lam-boat-row ${selectedBoat?.boat_id === boat.boat_id ? 'selected' : ''}`} onClick={() => pickBoat(boat)}>
-              <div className="lam-bid">{boat.boat_id} - {boat.customer_name} {asapBoats.has(boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</div>
+              <div className="lam-bid">{boat.boat_id} - {boat.customer_name} {boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>} {asapBoats.has(boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</div>
               <div className="lam-bhull">{boat.hull_color} {boat.boat_model}</div>
             </div>
           ))}
@@ -349,7 +349,7 @@ function LaminationTracker() {
         {isMobile && <button className="lam-back" onClick={() => setMobileView('list')}>← Boats</button>}
         {selectedBoat ? (
           <>
-            <h2>{selectedBoat.boat_id} - {selectedBoat.customer_name}</h2>
+            <h2>{selectedBoat.boat_id} - {selectedBoat.customer_name} {selectedBoat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>}</h2>
             <h3>Lamination Tasks ({LAM_TASKS.length})</h3>
             {LAM_TASKS.map(t => {
               const row = getRow(selectedBoat.boat_id, t);

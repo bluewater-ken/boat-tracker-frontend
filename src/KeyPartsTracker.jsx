@@ -329,7 +329,7 @@ function KeyPartsTracker() {
               {visible.map(boat => (
                 <tr key={boat.boat_id}>
                   <td className="kpt-boatcell">
-                    <div className="kpt-bid">{boat.boat_id} · {boat.customer_name}</div>
+                    <div className="kpt-bid">{boat.boat_id} · {boat.customer_name} {boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>}</div>
                     <div className="kpt-bmeta">{boat.boat_model} · <span className="kpt-bhull">{boat.hull_color}</span></div>
                   </td>
                   {standardParts.map(p => {
@@ -391,7 +391,7 @@ function KeyPartsTracker() {
         <div className="kpt-boats">
           {filteredBoats.map(boat => (
             <div key={boat.boat_id} className={`kpt-boat-row ${selectedBoat?.boat_id === boat.boat_id ? 'selected' : ''}`} onClick={() => pickBoat(boat)}>
-              <div className="kpt-bid">{boat.boat_id} - {boat.customer_name}</div>
+              <div className="kpt-bid">{boat.boat_id} - {boat.customer_name} {boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>}</div>
               <div className="kpt-bhull">{boat.hull_color} {boat.boat_model}</div>
             </div>
           ))}
@@ -403,7 +403,7 @@ function KeyPartsTracker() {
         {isMobile && <button className="kpt-back" onClick={() => setMobileView('list')}>← Boats</button>}
         {selectedBoat ? (
           <>
-            <h2>{selectedBoat.boat_id} - {selectedBoat.customer_name}</h2>
+            <h2>{selectedBoat.boat_id} - {selectedBoat.customer_name} {selectedBoat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>}</h2>
             <div className="kpt-colorrow">
               <label>Hull color</label>
               {isOps ? (

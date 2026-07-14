@@ -113,6 +113,16 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
           }
         }
       }
+      // Spare/Refit/Service boats: aggregate their CompanyCam checklist(s) (any work
+      // center) into one %, shown in the QC pip — mirrors the Assembly board's routing,
+      // so their refit checklist shows real progress instead of a forced-green stage.
+      const asmAgg = {};
+      for (const r of asm?.rows || []) {
+        if (!r.total_items) continue;
+        (asmAgg[r.boat_id] ||= { done: 0, total: 0 });
+        asmAgg[r.boat_id].done += r.completed_items; asmAgg[r.boat_id].total += r.total_items;
+      }
+      for (const bid in asmAgg) { const a = asmAgg[bid]; if (a.total) (ex[bid] ||= {}).asmPct = Math.round(100 * a.done / a.total); }
       // Pre-Production pip: % of Key Parts received. Denominator matches the Key
       // Parts grid: standard parts + the boat's custom parts, EXCLUDING any marked N/A.
       if (Array.isArray(partRows) && Array.isArray(stdParts) && stdParts.length) {
@@ -172,6 +182,8 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
     // console work, treat as done (green) rather than empty. Normal boats stay empty.
     if (!seg.stage) return ex.console != null ? { pct: ex.console, real: true } : { pct: boat.is_spare ? 100 : 0, real: false };
     if (seg.key === 'Pre-Production' && ex.parts != null) return { pct: ex.parts, real: true };
+    // Spare/Refit/Service boat's checklist shows real progress in QC (matches Assembly board).
+    if (boat.is_spare && seg.key === 'QC' && ex.asmPct != null) return { pct: ex.asmPct, real: true };
     return stagePct(boat, stageIdx, seg.key);
   };
 

@@ -199,7 +199,7 @@ function AssemblyTracker() {
           {boardBoats.map(boat => (
             <div key={boat.boat_id} className="asm-card">
               <div className="asm-card-head">
-                <span className="asm-bid">{boat.boat_id} · {boat.customer_name} {asapBoats.has(boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</span>
+                <span className="asm-bid">{boat.boat_id} · {boat.customer_name} {boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>} {asapBoats.has(boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</span>
                 <span className="asm-bmeta">{boat.boat_model} · <span className="asm-bhull">{boat.hull_color}</span></span>
               </div>
               {columns.map(w => {
@@ -240,7 +240,7 @@ function AssemblyTracker() {
             {boardBoats.map(boat => (
               <tr key={boat.boat_id}>
                 <td className="asm-boatcell">
-                  <div className="asm-bid">{boat.boat_id} · {boat.customer_name} {asapBoats.has(boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</div>
+                  <div className="asm-bid">{boat.boat_id} · {boat.customer_name} {boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>} {asapBoats.has(boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</div>
                   <div className="asm-bmeta">{boat.boat_model} · <span className="asm-bhull">{boat.hull_color}</span></div>
                 </td>
                 {columns.map(w => {

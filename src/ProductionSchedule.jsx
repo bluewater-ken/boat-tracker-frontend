@@ -120,7 +120,8 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
           const rws = byBoat[bid];
           const naStd = new Set(rws.filter(p => !p.is_custom && p.na).map(p => p.part_name));
           const denom = (stdParts.length - naStd.size) + rws.filter(p => p.is_custom && !p.na).length;
-          if (denom) (ex[bid] ||= {}).parts = Math.round(100 * rws.filter(p => !p.na && p.status === 'Received').length / denom);
+          // No applicable parts (everything N/A) = nothing to order = done → green (100).
+          (ex[bid] ||= {}).parts = denom ? Math.round(100 * rws.filter(p => !p.na && p.status === 'Received').length / denom) : 100;
         }
       }
       setExtras(ex);

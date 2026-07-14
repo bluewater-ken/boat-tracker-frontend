@@ -130,7 +130,7 @@ function ShopReport({ onClose }) {
             <tbody>
               {rows.map(b => (
                 <tr key={b.boat_id}>
-                  <td className="rc-boat"><b>{b.seq}</b> · {b.boat_id} {b.customer_name} {b.is_spare && <span className="spare-tag">SPARE PARTS</span>} <span className="rc-meta">{b.boat_model}·{b.hull_color}</span></td>
+                  <td className="rc-boat"><b>{b.seq}</b> · {b.boat_id} {b.customer_name} {b.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>} <span className="rc-meta">{b.boat_model}·{b.hull_color}</span></td>
                   <td className="rc-ctr">{b.stage}</td>
                   <td className={`rc-ctr ${tintClass(b.lam)}`}>{b.lam == null ? '—' : `${b.lam}%`}</td>
                   <td className={`rc-ctr ${tintClass(b.fin)}`}>{b.fin == null ? '—' : `${b.fin}%`}</td>
@@ -162,7 +162,7 @@ function ShopReport({ onClose }) {
           <div className="report-section-title">Boat detail <span className="report-detail-hint">(in production — Backlog boats not shown)</span></div>
           {rows.filter(b => b.stage !== 'Backlog').map(b => (
             <div key={b.boat_id} className="report-boat">
-              <div className="report-boat-head">{b.seq}. {b.boat_id} · {b.customer_name} {b.is_spare && <span className="spare-tag">SPARE PARTS</span>} <span className="rc-meta">{b.boat_model} · {b.hull_color} · {b.stage}</span></div>
+              <div className="report-boat-head">{b.seq}. {b.boat_id} · {b.customer_name} {b.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>} <span className="rc-meta">{b.boat_model} · {b.hull_color} · {b.stage}</span></div>
               <div className="report-boat-grid">
                 <DetailCol title={`Lamination ${b.lam == null ? '' : b.lam + '%'}`} done={b.lam === 100} items={b.lamTasks} checklist allLabel="All laminated." noneLabel="No lamination tracked." />
                 <DetailCol title={`Finishing ${b.fin == null ? '' : b.fin + '%'}`} done={b.fin === 100} items={b.finTasks} checklist allLabel="All finished." noneLabel="Not in finishing yet." />

@@ -166,7 +166,9 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
   // use timeline fill_pct with the position fallback.
   const segInfo = (boat, stageIdx, seg) => {
     const ex = extras[boat.boat_id] || {};
-    if (!seg.stage) return ex.console == null ? { pct: 0, real: false } : { pct: ex.console, real: true };
+    // Consoles: real % when there's a checklist; for Spare/Refit/Service boats with no
+    // console work, treat as done (green) rather than empty. Normal boats stay empty.
+    if (!seg.stage) return ex.console != null ? { pct: ex.console, real: true } : { pct: boat.is_spare ? 100 : 0, real: false };
     if (seg.key === 'Pre-Production' && ex.parts != null) return { pct: ex.parts, real: true };
     return stagePct(boat, stageIdx, seg.key);
   };

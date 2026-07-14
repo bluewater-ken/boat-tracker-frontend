@@ -30,6 +30,8 @@ const GREEN_GRADIENT = ['#C8E6C9', '#A5D6A7', '#81C784', '#66BB6A', '#4CAF50', '
 const stagePct = (boat, stageIdx, stageName) => {
   const seg = boat.segments?.find(sg => sg.name === stageName);
   if (seg && seg.fill_pct != null) return { pct: seg.fill_pct, real: true };
+  // Spare/Refit/Service boat with no tracked work in this stage = nothing to do = done (green).
+  if (boat.is_spare) return { pct: 100, real: false };
   return { pct: STATUSES.indexOf(stageName) < stageIdx ? 100 : 0, real: false };
 };
 

@@ -104,6 +104,8 @@
   cursor: pointer;
 }
 .btn-save:hover { background: #2680bd; }
+.form-check label { display: flex; align-items: flex-start; gap: 8px; font-weight: normal; cursor: pointer; }
+.form-check input { margin-top: 2px; flex: 0 0 auto; }
 /* Destructive — quiet until hovered, and the click still demands typing the boat ID. */
 .btn-delete-boat {
   flex: 0 0 auto;

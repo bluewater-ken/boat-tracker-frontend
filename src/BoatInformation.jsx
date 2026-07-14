@@ -4,7 +4,7 @@ import { colorOptions } from './colors';
 import SmartInput from './SmartInput';
 import './BoatInformation.css';
 
-const EMPTY = { boat_id:'', customer_name:'', customer_phone:'', customer_email:'', customer_address:'', boat_model:'', engine_brand_1:'', engine_choice_1:'', engine_brand_2:'', engine_choice_2:'', engine_brand_3:'', engine_choice_3:'', hull_color:'' };
+const EMPTY = { boat_id:'', customer_name:'', customer_phone:'', customer_email:'', customer_address:'', boat_model:'', engine_brand_1:'', engine_choice_1:'', engine_brand_2:'', engine_choice_2:'', engine_brand_3:'', engine_choice_3:'', hull_color:'', is_spare:false };
 
 function BoatInformation({ refreshTrigger, onRefresh }) {
   const [boats, setBoats] = useState([]);
@@ -32,7 +32,12 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
   const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
 
   const handleSave = async () => {
-    if (!formData.boat_id || !formData.customer_name || !formData.boat_model || !formData.hull_color) { alert('Please fill in all required fields'); return; }
+    // Spare-parts orders don't need a model/hull color — just ID + customer.
+    const needsBoatFields = !formData.is_spare;
+    if (!formData.boat_id || !formData.customer_name || (needsBoatFields && (!formData.boat_model || !formData.hull_color))) {
+      alert(needsBoatFields ? 'Please fill in all required fields' : 'A spare-parts order still needs an ID and customer.');
+      return;
+    }
     try {
       if (isNewBoat) {
         const r = await apiFetch('/api/boats', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(formData) });
@@ -79,7 +84,7 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
         <div className="boats-list">
           {filtered.map(boat => (
             <div key={boat.boat_id} className={`boat-list-item ${selectedBoat?.boat_id === boat.boat_id ? 'selected' : ''}`} onClick={() => selectBoat(boat)}>
-              <div className="list-item-id">{boat.boat_id}</div>
+              <div className="list-item-id">{boat.boat_id} {boat.is_spare && <span className="spare-tag">SPARE PARTS</span>}</div>
               <div className="list-item-customer">{boat.customer_name}</div>
               <div className="list-item-details">{boat.boat_model} • {boat.hull_color}</div>
             </div>
@@ -102,6 +107,10 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
           <div className="form-group"><label>Hull Color *</label>
             <SmartInput storeKey="colors" options={colorOptions(boats)} value={formData.hull_color} onChange={v => setFormData(p => ({ ...p, hull_color: v }))} placeholder="Pick a color or type a new one..." />
             <div className="form-hint">This is how boats are identified on the shop floor. The same color list is shared with Key Parts.</div>
+          </div>
+          <div className="form-group form-check">
+            <label><input type="checkbox" name="is_spare" checked={!!formData.is_spare} onChange={e => setFormData(p => ({ ...p, is_spare: e.target.checked }))} /> This is a spare-parts order</label>
+            <div className="form-hint">Tags the record as a spare-parts order (a “SPARE PARTS” badge shows wherever it appears). It still flows through the shop tabs — mark the parts it doesn’t need as N/A.</div>
           </div>
           <div className="form-actions">
             <button onClick={handleSave} className="btn-save">Save Boat</button>

@@ -161,6 +161,14 @@ body {
 }
 .loading { display: flex; align-items: center; justify-content: center; min-height: 400px; font-size: 16px; color: #5F6B73; }
 
+/* Spare-parts order badge — violet so it reads as "not a real boat" and never
+   collides with the green/amber status palette. Used wherever a boat is named. */
+.spare-tag {
+  display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: 0.4px;
+  color: #fff; background: #6B5B95; border-radius: 3px; padding: 1px 6px;
+  vertical-align: middle; white-space: nowrap;
+}
+
 /* ---------- Print: strip the app chrome — the open tab's content IS the document.
    (Per-tab print rules, e.g. Lamination's grid, live in that tab's stylesheet.) ---------- */
 @media print {

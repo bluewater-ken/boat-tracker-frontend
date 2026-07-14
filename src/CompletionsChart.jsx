@@ -12,17 +12,15 @@ const DEPTS = [
   { key: 'glass', label: 'Glass Shop', color: '#2E7D8A' },
   { key: 'finishing', label: 'Finishing', color: '#A32D2D' },
   { key: 'assembly', label: 'Assembly', color: '#5C9A2E' },
-  { key: 'parts', label: 'Key Parts', color: '#BA7517' },
 ];
 const RANGES = [14, 30, 60, 90];
-const ZERO = () => ({ glass: 0, finishing: 0, assembly: 0, parts: 0 });
+const ZERO = () => ({ glass: 0, finishing: 0, assembly: 0 });
 
-// Feed-event → department (only completion-type events count).
+// Feed-event → department (only shop-build completion events count; parts excluded).
 const doneLam = (t) => /→\s*(Complete\/On Mold|Pulled|Complete)\s*$/.test(t || '');
 const doneFin = (t) => /→\s*Complete\s*$/.test(t || '');
 function classify(ev) {
   if (ev.type === 'CHECKLIST_ITEM_COMPLETED' || ev.type === 'CHECKLIST_COMPLETED') return 'assembly';
-  if (ev.type === 'PART_RECEIVED') return 'parts';
   if (ev.type === 'APP_TASK_UPDATED') {
     const wc = (ev.work_center_name || '').toLowerCase();
     if (wc.includes('lamination') && doneLam(ev.title)) return 'glass';
@@ -95,6 +93,7 @@ function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
         {DEPTS.map(d => (
           <span key={d.key} className="cc-legend-item"><i style={{ background: d.color }} />{d.label} <b>{totals[d.key]}</b></span>
         ))}
+        <span className="cc-legend-item"><span className="cc-legend-line" />7-day avg</span>
         <span className="cc-legend-total">Total <b>{grand}</b></span>
       </div>
 
@@ -107,20 +106,25 @@ function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
 }
 
 function Chart({ data }) {
-  const W = 720, H = 280, L = 34, R = 8, T = 10, B = 30;
+  const W = 720, H = 280, L = 34, R = 8, T = 16, B = 30;
   const plotW = W - L - R, plotH = H - T - B;
   const totalOf = (x) => DEPTS.reduce((s, d) => s + (x[d.key] || 0), 0);
-  const max = Math.max(1, ...data.map(totalOf));
+  const totals = data.map(totalOf);
+  const max = Math.max(1, ...totals);
   const niceMax = Math.ceil(max / 5) * 5 || 5;
   const y = (v) => T + plotH - (plotH * v) / niceMax;
   const slot = plotW / data.length;
   const bw = Math.max(2, Math.min(30, slot * 0.72));
-  // ~8 evenly spaced date labels.
-  const step = Math.ceil(data.length / 8);
-
+  const cxOf = (i) => L + slot * (i + 0.5);
+  const step = Math.ceil(data.length / 8);       // ~8 date labels
+  const showNums = bw >= 11;                       // per-bar totals only when there's room
   const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(niceMax * f));
+  // 7-day trailing average of the daily totals.
+  const avg = totals.map((_, i) => { const a = totals.slice(Math.max(0, i - 6), i + 1); return a.reduce((s, v) => s + v, 0) / a.length; });
+  const linePts = avg.map((v, i) => `${cxOf(i)},${y(v)}`).join(' ');
+
   return (
-    <svg className="cc-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Daily completions stacked by department">
+    <svg className="cc-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Daily completions stacked by department with 7-day average">
       {ticks.map((t, i) => (
         <g key={i}>
           <line x1={L} y1={y(t)} x2={W - R} y2={y(t)} stroke="#EEF1F4" />
@@ -128,7 +132,7 @@ function Chart({ data }) {
         </g>
       ))}
       {data.map((x, i) => {
-        const cx = L + slot * (i + 0.5);
+        const cx = cxOf(i);
         let yTop = y(0);
         return (
           <g key={x.date}>
@@ -137,10 +141,12 @@ function Chart({ data }) {
               const h = (plotH * v) / niceMax; yTop -= h;
               return <rect key={d.key} x={cx - bw / 2} y={yTop} width={bw} height={h} fill={d.color}><title>{`${mmdd(x.date)} — ${d.label}: ${v}`}</title></rect>;
             })}
+            {showNums && totals[i] > 0 && <text x={cx} y={yTop - 3} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#5F6B73">{totals[i]}</text>}
             {i % step === 0 && <text x={cx} y={H - 10} textAnchor="middle" fontSize="8.5" fill="#8A969E">{mmdd(x.date)}</text>}
           </g>
         );
       })}
+      {data.length > 1 && <polyline points={linePts} fill="none" stroke="#173A5E" strokeWidth="2" strokeLinejoin="round" />}
       <line x1={L} y1={y(0)} x2={W - R} y2={y(0)} stroke="#D6DBE0" />
     </svg>
   );

@@ -145,7 +145,7 @@ function ShopReport({ onClose }) {
 
         {/* Punch list */}
         <section className="report-punch">
-          <div className="report-section-title">Needs attention</div>
+          <div className="report-section-title">Part status</div>
           <PunchRow label="🔴 Order ASAP" color="#A32D2D" items={punch.asap} empty="No parts flagged Order ASAP." />
           <PunchRow label="🕓 Late / overdue parts" color="#854F0B" items={punch.late} empty="No overdue parts." />
           <PunchRow label="⚠ Boat flags" color="#A32D2D" items={punch.flags} empty="No boat flags set." />
@@ -166,7 +166,7 @@ function ShopReport({ onClose }) {
               <div className="report-boat-grid">
                 <DetailCol title={`Lamination ${b.lam == null ? '' : b.lam + '%'}`} done={b.lam === 100} items={b.lamTasks} checklist allLabel="All laminated." noneLabel="No lamination tracked." />
                 <DetailCol title={`Finishing ${b.fin == null ? '' : b.fin + '%'}`} done={b.fin === 100} items={b.finTasks} checklist allLabel="All finished." noneLabel="Not in finishing yet." />
-                <DetailCol title={`Assembly ${b.asy == null ? '' : b.asy + '%'}`} done={b.asy === 100} items={b.asyRemaining} allLabel="All assembled." noneLabel="No checklists yet." />
+                <DetailCol title={`Assembly To Do${b.asy == null ? '' : ` — ${b.asy}% complete`}`} done={b.asy === 100} items={b.asyRemaining} allLabel="All assembled." noneLabel="No checklists yet." />
                 <DetailCol title={`Key parts ${b.partsReceived}/${b.partsTotal}`} done={b.partsOutstanding.length === 0} items={b.partsOutstanding} allLabel="All parts received." noneLabel="No parts." />
               </div>
             </div>
@@ -210,10 +210,16 @@ function DetailCol({ title, done, items, checklist, allLabel, noneLabel }) {
         : <ul className="report-detail-list">{items.map((it, i) =>
             checklist
               ? <li key={i} className={it.done ? 'done' : ''}>{it.name}</li>
-              : <li key={i}>{it}</li>
+              : <li key={i}>{boldMore(it)}</li>
           )}</ul>}
     </div>
   );
+}
+
+// Bold a trailing "+N more" on an assembly item line.
+function boldMore(s) {
+  const m = /^(.*?)(,\s*\+\d+ more)$/.exec(s);
+  return m ? <>{m[1]}<b>{m[2]}</b></> : s;
 }
 
 // ---- Data assembly ----

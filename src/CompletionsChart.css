@@ -12,6 +12,7 @@
 .cc-legend-item { display: inline-flex; align-items: center; gap: 6px; }
 .cc-legend-item i { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
 .cc-legend-item b { color: #173A5E; }
+.cc-legend-line { display: inline-block; width: 16px; height: 0; border-top: 2px solid #173A5E; vertical-align: middle; }
 .cc-legend-total { margin-left: auto; color: #5F6B73; }
 .cc-legend-total b { color: #173A5E; font-size: 14px; }
 

@@ -35,6 +35,29 @@ const iconFor = (it) => {
   return TYPE_ICON[it.type] || '•';
 };
 
+// Department filter for the Activity feed.
+const FEED_DEPTS = [
+  { key: 'lamination', label: 'Lamination', icon: '🛢️' },
+  { key: 'finishing', label: 'Finishing', icon: '🪞' },
+  { key: 'assembly', label: 'Assembly', icon: '📸' },
+  { key: 'parts', label: 'Key Parts', icon: '📦' },
+  { key: 'schedule', label: 'Schedule', icon: '🚩' },
+  { key: 'question', label: 'Questions', icon: '❓' },
+];
+const deptOf = (it) => {
+  if (it.type === 'APP_TASK_UPDATED') {
+    const wc = (it.work_center_name || '').toLowerCase();
+    if (wc.includes('lamination')) return 'lamination';
+    if (wc.includes('finishing')) return 'finishing';
+    return 'assembly';
+  }
+  if (/^CHECKLIST|^COMMENT/.test(it.type)) return 'assembly';
+  if (/^PART_/.test(it.type)) return 'parts';
+  if (it.type === 'STAGE_CHANGED') return 'schedule';
+  if (it.type === 'QUESTION_POSTED') return 'question';
+  return 'other';
+};
+
 // Issue rule -> icon (fallback ⚠️). Keys match the backend rule_key values.
 const RULE_ICON = {
   part_overdue: '🕓',
@@ -109,6 +132,7 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(initialPostingOpen);
   const [catFilter, setCatFilter] = useState('all');
+  const [feedDept, setFeedDept] = useState('all'); // Activity department filter
   const [issueTab, setIssueTab] = useState('open'); // open | resolved
   const [resolved, setResolved] = useState(null); // loaded on demand
   const [qText, setQText] = useState('');
@@ -224,8 +248,11 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
   // Drop CompanyCam photo events — one fires per photo with no task/checkoff
   // context, and they swamp the feed (~half of all events).
   const feedItems = items.filter(it => it.type !== 'PHOTO_ADDED');
+  const deptCounts = {};
+  for (const it of feedItems) { const d = deptOf(it); deptCounts[d] = (deptCounts[d] || 0) + 1; }
+  const shownFeed = feedDept === 'all' ? feedItems : feedItems.filter(it => deptOf(it) === feedDept);
   const groups = [];
-  for (const it of feedItems) {
+  for (const it of shownFeed) {
     const k = dayKey(it.created_at);
     const last = groups[groups.length - 1];
     if (last && last.key === k) last.items.push(it);
@@ -238,6 +265,14 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
         {viewToggle}
         <span className="feed-col-title">Activity</span>
       </div>
+      {connected && feedItems.length > 0 && (
+        <div className="feed-depts">
+          <button className={`feed-dept ${feedDept === 'all' ? 'on' : ''}`} onClick={() => setFeedDept('all')}>All ({feedItems.length})</button>
+          {FEED_DEPTS.filter(d => deptCounts[d.key]).map(d => (
+            <button key={d.key} className={`feed-dept ${feedDept === d.key ? 'on' : ''}`} onClick={() => setFeedDept(feedDept === d.key ? 'all' : d.key)}>{d.icon} {d.label} ({deptCounts[d.key]})</button>
+          ))}
+        </div>
+      )}
       {!connected ? (
         <div className="feed-quiet">Not connected to CompanyCam yet. Once the backend link is set up, every checklist
         item your crews check off shows up here the moment it happens — newest first.</div>

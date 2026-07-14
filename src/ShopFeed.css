@@ -20,6 +20,10 @@
 }
 
 /* Activity | Issues view toggle */
+.feed-depts { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.feed-dept { padding: 5px 10px; font-size: 11px; font-weight: 600; color: #5F6B73; background: #fff; border: 1px solid #D6DBE0; border-radius: 14px; cursor: pointer; white-space: nowrap; }
+.feed-dept:hover { border-color: #2E92D6; color: #2E92D6; }
+.feed-dept.on { background: #173A5E; border-color: #173A5E; color: #fff; }
 .feed-views { display: inline-flex; border: 1px solid #C7D2DB; border-radius: 8px; overflow: hidden; }
 .feed-view-btn { padding: 8px 16px; font-size: 13px; font-weight: 600; color: #5F6B73; background: #fff; border: none; cursor: pointer; }
 .feed-view-btn.active { background: #2E92D6; color: #fff; }

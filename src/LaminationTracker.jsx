@@ -215,7 +215,9 @@ function LaminationTracker() {
       )}
       {isOps && (
         <>
-          {menuOrder.length > 1 && <MenuBtn label={menuNA ? 'Clear N/A' : 'Set Not Applicable'} onClick={() => toggleNA(menu.boatId, menu.task)} />}
+          {/* N/A available for every task, incl. single-status ones like Transducer Type
+              (a boat with no transducer). */}
+          <MenuBtn label={menuNA ? 'Clear N/A' : 'Set Not Applicable'} onClick={() => toggleNA(menu.boatId, menu.task)} />
           {cfg(menu.task).color && (
             <>
               <MenuLabel>Color</MenuLabel>
@@ -254,7 +256,7 @@ function LaminationTracker() {
     const col = cfg(task).color ? shownColor(row, task, boat) : '';
     const notes = cfg(task).text ? (row.notes || '') : '';
     const asap = !info && !row.na && !!row.asap;
-    return { st, c, dates, col, notes, info, asap };
+    return { st, c, dates, col, notes, info, asap, na: !!row.na };
   };
 
   if (view === 'table') {
@@ -291,13 +293,13 @@ function LaminationTracker() {
                     </td>
                     {LAM_TASKS.map(t => {
                       const row = getRow(r.boat.boat_id, t);
-                      const { st, c, dates, col, notes, info, asap } = cellContent(row, t, r.boat);
+                      const { st, c, dates, col, notes, info, asap, na } = cellContent(row, t, r.boat);
                       return (
                         <td key={t} className="lam-cell" style={{ background: c.bg, color: c.fg }} onClick={(e) => openMenu(e, r.boat.boat_id, t)}>
                           {asap && <span className="lam-asapwrap"><span className="lam-asap">ASAP</span></span>}
                           <span className="lam-flagwrap"><FlagIcons flags={row} defs={STANDARD_FLAGS} size={11} /></span>
                           {info ? (
-                            <div className="lam-cellinfo">{notes || <span className="lam-cellnone">— set —</span>}</div>
+                            <div className="lam-cellinfo">{na ? 'N/A' : (notes || <span className="lam-cellnone">— set —</span>)}</div>
                           ) : (
                             <>
                               {st && <div className="lam-cellstatus">{st}</div>}
@@ -351,7 +353,7 @@ function LaminationTracker() {
             <h3>Lamination Tasks ({LAM_TASKS.length})</h3>
             {LAM_TASKS.map(t => {
               const row = getRow(selectedBoat.boat_id, t);
-              const { st, c, dates, col, notes, info, asap } = cellContent(row, t, selectedBoat);
+              const { st, c, dates, col, notes, info, asap, na } = cellContent(row, t, selectedBoat);
               const detail = info ? '' : [col, notes].filter(Boolean).join(' · ');
               return (
                 <div key={t} className="lam-part" onClick={(e) => openMenu(e, selectedBoat.boat_id, t)}>
@@ -362,7 +364,7 @@ function LaminationTracker() {
                   <span className="lam-part-right">
                     {asap && <span className="lam-asap">ASAP</span>}
                     <FlagIcons flags={row} defs={STANDARD_FLAGS} size={14} />
-                    <span className="lam-badge" style={{ background: c.bg, color: c.fg }}>{info ? (notes || 'set type') : `${st}${dates ? ` • ${dates}` : ''}`}</span>
+                    <span className="lam-badge" style={{ background: c.bg, color: c.fg }}>{info ? (na ? 'N/A' : (notes || 'set type')) : `${st}${dates ? ` • ${dates}` : ''}`}</span>
                   </span>
                 </div>
               );

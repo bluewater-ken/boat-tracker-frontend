@@ -7,7 +7,6 @@ import { colorOptions } from './colors';
 import { applyDeliveredFilter, ShowDeliveredToggle, inProduction } from './boatFilter';
 import SmartInput from './SmartInput';
 import useIsMobile from './useIsMobile';
-import useAsapBoats from './useAsapBoats';
 import './LaminationTracker.css';
 
 // BRD §7 — 13 tasks, 5-status mold cycle that STOPS at Pulled, plus an N/A state.
@@ -80,7 +79,6 @@ function LaminationTracker() {
   const isOps = user?.role === 'ops';
 
   const isMobile = useIsMobile();
-  const asapBoats = useAsapBoats(); // boats with an urgent part to order
   const [boats, setBoats] = useState([]);
   const [lamData, setLamData] = useState({}); // boatId -> taskName -> row
   // Phones start in the boat view (the wide grid is desktop-only).
@@ -288,7 +286,7 @@ function LaminationTracker() {
                 ) : (
                   <tr key={r.boat.boat_id}>
                     <td className="lam-boatcell">
-                      <div className="lam-bid">{r.boat.sequence_number ? <span className="lam-seq" title="Production build order">{r.boat.sequence_number}</span> : null}{r.boat.boat_id} · {r.boat.customer_name} {r.boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>} {asapBoats.has(r.boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</div>
+                      <div className="lam-bid">{r.boat.sequence_number ? <span className="lam-seq" title="Production build order">{r.boat.sequence_number}</span> : null}{r.boat.boat_id} · {r.boat.customer_name} {r.boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>}</div>
                       <div className="lam-bmeta">{r.boat.boat_model} · <span className="lam-bhull">{r.boat.hull_color}</span></div>
                     </td>
                     {LAM_TASKS.map(t => {
@@ -337,7 +335,7 @@ function LaminationTracker() {
         <div className="lam-boats">
           {filteredBoats.map(boat => (
             <div key={boat.boat_id} className={`lam-boat-row ${selectedBoat?.boat_id === boat.boat_id ? 'selected' : ''}`} onClick={() => pickBoat(boat)}>
-              <div className="lam-bid">{boat.boat_id} - {boat.customer_name} {boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>} {asapBoats.has(boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</div>
+              <div className="lam-bid">{boat.boat_id} - {boat.customer_name} {boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>}</div>
               <div className="lam-bhull">{boat.hull_color} {boat.boat_model}</div>
             </div>
           ))}

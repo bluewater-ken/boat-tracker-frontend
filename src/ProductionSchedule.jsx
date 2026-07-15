@@ -5,7 +5,6 @@ import { FlagTags, SCHEDULE_FLAGS } from './flags';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { applyDeliveredFilter, isDelivered, ShowDeliveredToggle, inProduction } from './boatFilter';
 import useIsMobile from './useIsMobile';
-import useAsapBoats from './useAsapBoats';
 import './ProductionSchedule.css';
 
 const STATUSES = ['Backlog', 'Pre-Production', 'Glass Shop', 'Back Line', 'Front Line', 'QC', 'Delivered'];
@@ -50,7 +49,6 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [showDelivered, setShowDelivered] = useState(false);
   const [menu, setMenu] = useState(null); // { boatId, x, y }
-  const asapBoats = useAsapBoats(refreshTrigger); // boats with an urgent part to order
 
   useEffect(() => { fetchBoats(); }, [refreshTrigger]);
 
@@ -254,7 +252,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
                 onClick={(e) => setMenu({ boatId: boat.boat_id, x: e.clientX, y: e.clientY })}>
                 <div className="sched-mobile-header">
                   <div className="sched-mobile-boat">
-                    <div className="sched-id">{boat.sequence_number || idx + 1}. {boat.boat_id} · {boat.customer_name} {boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>} {asapBoats.has(boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</div>
+                    <div className="sched-id">{boat.sequence_number || idx + 1}. {boat.boat_id} · {boat.customer_name} {boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>}</div>
                     <div className="sched-sub">{boat.boat_model} · {boat.hull_color}</div>
                   </div>
                   <div className="sched-stage-tag">{boat.global_status}</div>
@@ -307,7 +305,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
               )}
               <div className="sched-num">{boat.sequence_number || idx + 1}</div>
               <div className="sched-boat">
-                <div className="sched-id">{boat.boat_id} · {boat.customer_name} {boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>} {asapBoats.has(boat.boat_id) && <span className="asap-boat">🔴 ORDER ASAP</span>}</div>
+                <div className="sched-id">{boat.boat_id} · {boat.customer_name} {boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>}</div>
                 <div className="sched-sub">{boat.boat_model} · {boat.hull_color}</div>
               </div>
               <div className="sched-pipswrap">

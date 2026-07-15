@@ -125,7 +125,7 @@ function ShopReport({ onClose }) {
           <div className="report-section-title">Every boat, at a glance</div>
           <table className="report-table">
             <thead><tr>
-              <th className="rc-boat">#  Boat · Customer</th><th>Stage</th><th>Lam</th><th>Finish</th><th>Assy</th><th>Key Parts</th><th className="rc-att">Attention</th>
+              <th className="rc-boat">#  Boat · Customer</th><th>Stage</th><th>Lam</th><th>Finish</th><th>Assy</th><th>Parts</th><th className="rc-att">Attention</th>
             </tr></thead>
             <tbody>
               {rows.map(b => (

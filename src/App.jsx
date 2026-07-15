@@ -23,7 +23,7 @@ const BASE_TABS = [
   { key: 'lamination', label: 'Lamination' },
   { key: 'finishing', label: 'Finishing' },
   { key: 'assembly', label: 'Assembly' },
-  { key: 'parts', label: 'Key Parts' },
+  { key: 'parts', label: 'Parts' },
   { key: 'feed', label: 'Shop Feed' },
   { key: 'gantt', label: 'Timeline' },
 ];

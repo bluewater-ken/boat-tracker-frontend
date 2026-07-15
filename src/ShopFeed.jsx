@@ -40,7 +40,7 @@ const FEED_DEPTS = [
   { key: 'lamination', label: 'Lamination', icon: '🛢️' },
   { key: 'finishing', label: 'Finishing', icon: '🪞' },
   { key: 'assembly', label: 'Assembly', icon: '📸' },
-  { key: 'parts', label: 'Key Parts', icon: '📦' },
+  { key: 'parts', label: 'Parts', icon: '📦' },
   { key: 'schedule', label: 'Schedule', icon: '🚩' },
   { key: 'question', label: 'Questions', icon: '❓' },
 ];

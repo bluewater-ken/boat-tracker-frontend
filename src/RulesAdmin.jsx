@@ -7,9 +7,9 @@ import './RulesAdmin.css';
 // reads these settings on every pass.
 
 const RULE_DEFS = [
-  { key: 'part_overdue', icon: '🕓', tab: 'Key Parts', before: 'Flag a part when it is', after: 'day(s) or more past its expected delivery and not Received.', def: 1 },
-  { key: 'parts_unordered', icon: '🛒', tab: 'Key Parts', text: 'While a boat is in Glass Shop, flag it if any standard key parts are still Not Ordered.' },
-  { key: 'backorder_stale', icon: '⏳', tab: 'Key Parts', before: 'Flag a backordered part after', after: 'day(s) with no new delivery date.', def: 7 },
+  { key: 'part_overdue', icon: '🕓', tab: 'Parts', before: 'Flag a part when it is', after: 'day(s) or more past its expected delivery and not Received.', def: 1 },
+  { key: 'parts_unordered', icon: '🛒', tab: 'Parts', text: 'While a boat is in Glass Shop, flag it if any standard key parts are still Not Ordered.' },
+  { key: 'backorder_stale', icon: '⏳', tab: 'Parts', before: 'Flag a backordered part after', after: 'day(s) with no new delivery date.', def: 7 },
   { key: 'stage_over_norm', icon: '🐌', tab: 'Schedule', before: 'Flag a boat running', after: "day(s) over its model's normal stage time (learned by the Timeline engine).", def: 3 },
   { key: 'behind_target', icon: '🎯', tab: 'Schedule', before: 'Flag a boat projected', after: 'day(s) or more past its target delivery date.', def: 5 },
   { key: 'flag_stale', icon: '⚠️', tab: 'Schedule', before: 'Remind about a boat flag left on for', after: 'day(s) without being cleared.', def: 7 },

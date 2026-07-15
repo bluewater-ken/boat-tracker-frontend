@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
-import { FlagIcons, KEYPARTS_FLAGS } from './flags';
+import { KEYPARTS_FLAGS } from './flags';
 import { colorOptions } from './colors';
 import { applyDeliveredFilter, ShowDeliveredToggle, inProduction } from './boatFilter';
 import SmartInput from './SmartInput';
@@ -35,6 +35,14 @@ const effFlags = (row) => ({
   flag_partial: !!row.flag_partial,
   flag_unsatisfactory: !!row.flag_unsatisfactory,
 });
+
+// Active flags as bold text chips (they wrap/stack) — the corner icons were too
+// small to notice.
+function FlagChips({ flags }) {
+  const on = KEYPARTS_FLAGS.filter(f => flags[f.key]);
+  if (!on.length) return null;
+  return <span className="kpt-flagchips">{on.map(f => <span key={f.key} className="kpt-flagchip" style={{ background: f.color }}>{f.label}</span>)}</span>;
+}
 
 // Date label: order date once Ordered, plus expected (Ordered) or actual (Received).
 // e.g. "ord 7/6 · exp 7/15"  or  "ord 7/6 · 7/20".
@@ -299,7 +307,7 @@ function KeyPartsTracker() {
         const c = CELL[st];
         return (
           <button key={row.part_name} className="kpt-cprow" onClick={(e) => { setCustomList(null); openMenu(e, customList.boatId, row.part_name, true); }}>
-            <span className="kpt-cpname">{!row.na && row.order_asap && st !== 'Received' && <span className="kpt-asap">ASAP</span>}{!row.na && <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={12} />}{row.part_name}{row.description ? ' 📝' : ''}</span>
+            <span className="kpt-cpname">{!row.na && row.order_asap && st !== 'Received' && <span className="kpt-asap">ASAP</span>}{!row.na && <FlagChips flags={effFlags(row)} />}{row.part_name}{row.description ? ' 📝' : ''}</span>
             <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
           </button>
         );
@@ -351,7 +359,8 @@ function KeyPartsTracker() {
                     return (
                       <td key={p} title={tip} className={`kpt-cell ${isOps ? '' : 'readonly'}`} style={{ background: c.bg, color: c.fg }} onClick={(e) => openMenu(e, boat.boat_id, p, false)}>
                         {!row.na && row.order_asap && st !== 'Received' && <div className="kpt-asap">ORDER ASAP</div>}
-                        <div className="kpt-cellprimary">{primary}{!row.na && <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={11} />}</div>
+                        <div className="kpt-cellprimary">{primary}</div>
+                        {!row.na && <FlagChips flags={effFlags(row)} />}
                         {row.description && <div className="kpt-cellspec">{row.description}</div>}
                       </td>
                     );
@@ -425,7 +434,7 @@ function KeyPartsTracker() {
                   </span>
                   <span className="kpt-part-right">
                     {!row.na && row.order_asap && st !== 'Received' && <span className="kpt-asap">ORDER ASAP</span>}
-                    {!row.na && <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={14} />}
+                    {!row.na && <FlagChips flags={effFlags(row)} />}
                     <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
                   </span>
                 </div>
@@ -465,7 +474,7 @@ function KeyPartsTracker() {
                         <div key={row.part_name} className={`kpt-titem ${customSel?.side === 'boat' && customSel.name === row.part_name ? 'sel' : ''}`} onClick={() => setCustomSel({ side: 'boat', name: row.part_name })}>
                           <span className="kpt-titem-name">{row.part_name}{row.description ? ' 📝' : ''}</span>
                           <span className="kpt-titem-right">
-                            {!row.na && <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={12} />}
+                            {!row.na && <FlagChips flags={effFlags(row)} />}
                             <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}</span>
                             <button className="kpt-titem-edit" onClick={(e) => { e.stopPropagation(); openMenu(e, selectedBoat.boat_id, row.part_name, true); }}>Edit</button>
                           </span>
@@ -485,7 +494,7 @@ function KeyPartsTracker() {
                     <span className="kpt-part-main"><span className="kpt-part-name">{row.part_name}</span>{row.description && <span className="kpt-part-spec">{row.description}</span>}</span>
                     <span className="kpt-part-right">
                       {!row.na && row.order_asap && st !== 'Received' && <span className="kpt-asap">ORDER ASAP</span>}
-                      {!row.na && <FlagIcons flags={effFlags(row)} defs={KEYPARTS_FLAGS} size={14} />}
+                      {!row.na && <FlagChips flags={effFlags(row)} />}
                       <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
                     </span>
                   </div>
@@ -514,7 +523,7 @@ function Legend() {
       <div className="kpt-legend-row">
         <span className="kpt-legend-item"><span className="kpt-asap">ORDER ASAP</span> Priority to order — set it, clears once Ordered</span>
         {KEYPARTS_FLAGS.map(f => (
-          <span key={f.key} className="kpt-legend-item"><FlagIcons flags={{ [f.key]: true }} defs={[f]} size={14} />{f.label}</span>
+          <span key={f.key} className="kpt-legend-item"><span className="kpt-flagchip" style={{ background: f.color }}>{f.label}</span>
         ))}
       </div>
       <div className="kpt-legend-note">Cell color = status. Cells read: “—” not ordered · “→ exp M/D” on order, expected date · “✓ M/D” received on that date · “N/A” not applicable (excluded from counts). Hover (or tap) a cell for full detail incl. the order date. Late auto-flags once past the expected date. Ops-only editing.</div>

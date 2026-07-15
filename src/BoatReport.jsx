@@ -25,6 +25,31 @@ const isPartLate = (r) =>
   r.status !== 'Received' && (!!r.flag_late ||
     (!!r.expected_delivery && r.expected_delivery.slice(0, 10) < todayStr()));
 
+// Department of a feed event (the /api/assembly/feed stream is shop-wide), with a
+// color from the app-wide department palette — used to tag each activity line.
+const DEPTS = {
+  lamination: { label: 'Lamination', color: '#2E7D8A' },
+  finishing: { label: 'Finishing', color: '#A32D2D' },
+  assembly: { label: 'Assembly', color: '#5C9A2E' },
+  parts: { label: 'Parts', color: '#BA7517' },
+  schedule: { label: 'Schedule', color: '#185FA5' },
+  question: { label: 'Question', color: '#2E92D6' },
+  other: { label: 'Activity', color: '#8A969E' },
+};
+function deptOf(it) {
+  if (it.type === 'APP_TASK_UPDATED') {
+    const wc = (it.work_center_name || '').toLowerCase();
+    if (wc.includes('lamination')) return 'lamination';
+    if (wc.includes('finishing')) return 'finishing';
+    return 'assembly';
+  }
+  if (/^CHECKLIST|^COMMENT|^PHOTO/.test(it.type)) return 'assembly';
+  if (/^PART_/.test(it.type)) return 'parts';
+  if (it.type === 'STAGE_CHANGED') return 'schedule';
+  if (it.type === 'QUESTION_POSTED') return 'question';
+  return 'other';
+}
+
 const BOAT_FLAGS = [
   ['flag_issue', 'Issue / Delay'], ['flag_rework', 'Required Rework'],
   ['flag_unsatisfactory', 'Unsatisfactory'], ['flag_missing_parts', 'Missing Parts'],
@@ -110,28 +135,36 @@ function buildBoat(b, tl, lamMap, finMap, wcs, asmByBoat, partsByBoat, std, feed
   for (const f of flagsOn) attention.push({ tone: 'red', text: `Flag — ${f}` });
   for (const s of stations) if (s.state === 'notstarted') attention.push({ tone: 'amber', text: `Assembly not started — ${s.name}` });
 
-  // Recent activity — real checklist checkoffs + photos, noise removed, latest first.
+  // Recent activity — noise removed, latest first, each tagged by department.
   const activity = (feedByBoat[b.boat_id] || [])
     .filter(e => e.type !== 'CHECKLIST_ITEM_COMPLETED' || cleanItem(e.title))
     .slice(0, 8)
-    .map(e => ({
-      date: fmtDate(e.created_at), type: e.type,
-      text: e.type === 'PHOTO_ADDED' ? 'Photo added'
-        : e.type === 'CHECKLIST_ITEM_COMPLETED' ? (cleanItem(e.title) || e.title)
-        : (e.title || e.type),
-    }));
+    .map(e => {
+      const dept = DEPTS[deptOf(e)] || DEPTS.other;
+      return {
+        date: fmtDate(e.created_at), dept: dept.label, color: dept.color,
+        text: e.type === 'PHOTO_ADDED' ? 'Photo added'
+          : e.type === 'CHECKLIST_ITEM_COMPLETED' ? (cleanItem(e.title) || e.title)
+          : (e.title || e.type),
+      };
+    });
   const lastAsmActivity = (feedByBoat[b.boat_id] || [])
     .find(e => e.type === 'CHECKLIST_ITEM_COMPLETED');
 
-  // Engines — collapse identical slots to "N× Brand Model".
-  const engines = [1, 2, 3].map(i => {
-    const brand = b[`engine_brand_${i}`], choice = b[`engine_choice_${i}`];
-    return brand || choice ? `${brand || ''} ${choice || ''}`.trim() : null;
-  }).filter(Boolean);
-  let engineStr = '—';
-  if (engines.length) {
-    const allSame = engines.every(e => e === engines[0]);
-    engineStr = allSame ? `${engines.length}× ${engines[0]}` : engines.join(' · ');
+  // Engines — the shop records these on the Parts page as the "Motors" part's
+  // description (e.g. "Twin Yamaha 200"). That's the source of truth; fall back to
+  // the boat_information engine slots only if no Motors description is set.
+  const motorsDesc = prows.find(p => p.part_name === 'Motors' && p.description)?.description?.trim();
+  let engineStr = motorsDesc || '';
+  if (!engineStr) {
+    const engines = [1, 2, 3].map(i => {
+      const brand = b[`engine_brand_${i}`], choice = b[`engine_choice_${i}`];
+      return brand || choice ? `${brand || ''} ${choice || ''}`.trim() : null;
+    }).filter(Boolean);
+    if (engines.length) {
+      const allSame = engines.every(e => e === engines[0]);
+      engineStr = allSame ? `${engines.length}× ${engines[0]}` : engines.join(' · ');
+    }
   }
 
   const stageIdx = STAGES.indexOf(b.global_status);
@@ -230,7 +263,7 @@ function BoatPage({ b, dateLabel, withAI }) {
         const r = await apiFetch('/api/ask', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            question: `Give me a tight status summary for boat ${b.boat_id} (${b.customer}). One short paragraph: where it is in the build, what is blocking it, and what needs attention next. Ignore anything marked Not Applicable. Do not restate the whole checklist.`,
+            question: `Give me a tight status summary for boat ${b.boat_id} (${b.customer}). Answer as 3 to 5 short bullet points in a markdown "- " list — no intro sentence, no paragraph. Cover where it is in the build, what is blocking it, and what needs attention next. Keep each bullet to one line. Ignore anything marked Not Applicable. Do not restate the whole checklist.`,
           }),
         });
         const j = await r.json();
@@ -249,16 +282,14 @@ function BoatPage({ b, dateLabel, withAI }) {
     <div className="br-page">
       <header className="br-head">
         <div className="br-head-left">
-          <Logo size={22} />
-          <div>
-            <div className="br-title">
-              {b.seq ? `${b.seq}. ` : ''}{b.boat_id} · {b.customer}
-              {b.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>}
-            </div>
-            <div className="br-sub">{b.model} · {b.hull} · {b.engines}</div>
+          <div className="br-title">
+            {b.seq ? `${b.seq}. ` : ''}{b.boat_id} · {b.customer}
+            {b.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>}
           </div>
+          <div className="br-sub">{[b.model, b.hull, b.engines].filter(Boolean).join(' · ')}</div>
         </div>
         <div className="br-head-right">
+          <Logo size={30} light={false} />
           <div className="br-week">Week of {dateLabel}</div>
           <div className="br-datesline">
             {b.target && <span>Target {fmtDate(b.target)}</span>}
@@ -306,7 +337,11 @@ function BoatPage({ b, dateLabel, withAI }) {
           <Panel title="Recent activity">
             {b.activity.length
               ? <ul className="br-activity">{b.activity.map((e, i) =>
-                  <li key={i}><span className="br-act-date">{e.date}</span> {e.text}</li>)}</ul>
+                  <li key={i}>
+                    <span className="br-act-date">{e.date}</span>
+                    <span className="br-act-dept" style={{ color: e.color, borderColor: e.color }}>{e.dept}</span>
+                    <span className="br-act-text">{e.text}</span>
+                  </li>)}</ul>
               : <div className="br-quiet">No recent activity.</div>}
           </Panel>
         </div>

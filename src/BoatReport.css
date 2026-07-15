@@ -31,10 +31,11 @@
 
 /* header */
 .br-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-.br-head-left { display: flex; align-items: center; gap: 12px; }
+.br-head-left { min-width: 0; }
 .br-title { font-size: 19px; font-weight: 700; color: #1B2B22; display: flex; align-items: center; gap: 8px; }
 .br-sub { font-size: 12.5px; color: #5F6B63; margin-top: 2px; }
-.br-head-right { text-align: right; }
+.br-head-right { display: flex; flex-direction: column; align-items: flex-end; flex: 0 0 auto; }
+.br-head-right img { margin-bottom: 6px; }
 .br-week { font-size: 13px; font-weight: 700; color: #1B2B22; }
 .br-datesline { font-size: 11px; color: #7A857D; margin-top: 2px; }
 .br-datesline span { margin-left: 4px; }
@@ -80,14 +81,23 @@
 
 .br-md { font-size: 11.5px; color: #33424C; }
 .br-md p { margin: 0 0 5px; }
+.br-md .ask-md-list { margin: 0; padding-left: 15px; }
+.br-md .ask-md-list li { margin: 0 0 2px; line-height: 1.45; }
+.br-md .ask-md-p { margin: 0 0 4px; }
 
 .br-activity { margin: 0; padding: 0; list-style: none; }
-.br-activity li { font-size: 11px; color: #33424C; padding: 1.5px 0; }
-.br-act-date { display: inline-block; min-width: 30px; color: #9B998F; font-weight: 600; }
+.br-activity li { font-size: 11px; color: #33424C; padding: 2px 0; display: flex; align-items: baseline; gap: 6px; }
+.br-act-date { flex: 0 0 auto; min-width: 28px; color: #9B998F; font-weight: 600; }
+.br-act-dept {
+  flex: 0 0 auto; font-size: 8.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.03em; padding: 0 5px; border: 1px solid; border-radius: 3px; line-height: 1.5;
+}
+.br-act-text { min-width: 0; }
 
 .br-checklist { margin: 0; padding-left: 16px; font-size: 11px; color: #33424C; line-height: 1.5; columns: 2; column-gap: 16px; }
 .br-checklist li.done { text-decoration: line-through; color: #A6B79A; }
-.br-parts { margin: 0; padding-left: 16px; font-size: 11px; color: #33424C; line-height: 1.55; }
+.br-parts { margin: 0; padding-left: 16px; font-size: 11px; color: #33424C; line-height: 1.5; columns: 2; column-gap: 16px; }
+.br-parts li { break-inside: avoid; }
 
 /* deep assembly */
 .br-assembly { border-top: 2px solid #5C9A2E; padding-top: 8px; }

@@ -86,6 +86,11 @@ function rollup(rowsByTask, tasks, doneOf) {
   return { done, total, list };
 }
 
+// The transducer "mold" is a reference, not build work. Strip any AI line that
+// mentions it so it can never render as outstanding work — a deterministic
+// backstop to the prompt instruction, which the model doesn't always honor.
+const stripTransducer = (text) => (text || '').split('\n').filter(l => !/transducer/i.test(l)).join('\n');
+
 function partLabel(name, r) {
   const st = r.status || 'Not Ordered';
   if (r.order_asap && st !== 'Received') return `${name} — ORDER ASAP`;
@@ -351,7 +356,7 @@ function BoatPage({ b, dateLabel, ai }) {
           <Panel title="Summary">
             {ai === null ? <div className="br-quiet">Generating…</div>
               : ai === '' ? <div className="br-quiet">AI summary unavailable.</div>
-              : <div className="br-md">{renderAnswer(ai)}</div>}
+              : <div className="br-md">{renderAnswer(stripTransducer(ai))}</div>}
           </Panel>
 
           <Panel title="Recent activity">

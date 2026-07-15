@@ -24,6 +24,10 @@ const pct = (done, total) => (total ? Math.round((100 * done) / total) : null);
 // Cell tint by %, matching the app's status language.
 const tintClass = (p) => (p == null ? 'rc-none' : p >= 100 ? 'rc-done' : p > 0 ? 'rc-work' : 'rc-todo');
 
+// The transducer "mold" is a reference, not build work — strip any AI line that
+// mentions it so it never renders as outstanding work (backstop to the prompt).
+const stripTransducer = (text) => (text || '').split('\n').filter(l => !/transducer/i.test(l)).join('\n');
+
 const isPartLate = (r) =>
   r.status !== 'Received' && (!!r.flag_late ||
     (!!r.expected_delivery && r.expected_delivery.slice(0, 10) < todayStr()));
@@ -117,7 +121,7 @@ function ShopReport({ onClose }) {
           <div className="report-section-title">Summary</div>
           {commentary === null ? <div className="report-quiet">Generating summary…</div>
             : commentary === '' ? <div className="report-quiet">AI summary unavailable — see the tables below.</div>
-            : <div className="report-md">{renderAnswer(commentary)}</div>}
+            : <div className="report-md">{renderAnswer(stripTransducer(commentary))}</div>}
         </section>
 
         {/* At-a-glance summary table */}

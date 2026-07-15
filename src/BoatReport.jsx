@@ -196,7 +196,7 @@ async function askSummary(b) {
     const r = await apiFetch('/api/ask', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        question: `Give me a tight status summary for boat ${b.boat_id} (${b.customer}). Answer as 3 to 5 short bullet points in a markdown "- " list — no intro sentence, no paragraph. Cover where it is in the build, what is blocking it, and what needs attention next. Keep each bullet to one line. Ignore anything marked Not Applicable. Do not restate the whole checklist.`,
+        question: `Give me a tight status summary for boat ${b.boat_id} (${b.customer}). Answer as 3 to 5 short bullet points in a markdown "- " list — no intro sentence, no paragraph. Cover where it is in the build, what is blocking it, and what needs attention next. Keep each bullet to one line. Ignore anything marked Not Applicable. Ignore the Lamination "Transducer" / transducer mold entirely — it only records which transducer mold this boat uses, it is never built or completed, so never treat it as outstanding work or mention it. Do not restate the whole checklist.`,
       }),
     });
     const j = await r.json();

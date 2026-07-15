@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { apiFetch } from './api';
 import { renderAnswer } from './markdown';
 import Logo from './Logo';
@@ -188,8 +189,24 @@ function buildBoat(b, tl, lamMap, finMap, wcs, asmByBoat, partsByBoat, std, feed
   };
 }
 
+// One boat's AI commentary — same engine as Ask the B.O.S.S. Returns '' when
+// unavailable so the page can render a graceful note instead of hanging.
+async function askSummary(b) {
+  try {
+    const r = await apiFetch('/api/ask', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: `Give me a tight status summary for boat ${b.boat_id} (${b.customer}). Answer as 3 to 5 short bullet points in a markdown "- " list — no intro sentence, no paragraph. Cover where it is in the build, what is blocking it, and what needs attention next. Keep each bullet to one line. Ignore anything marked Not Applicable. Do not restate the whole checklist.`,
+      }),
+    });
+    const j = await r.json();
+    return r.ok && j.answer ? j.answer : '';
+  } catch (e) { return ''; }
+}
+
 function BoatReport({ boatIds, onClose }) {
   const [boats, setBoats] = useState(null); // array of built models
+  const [summaries, setSummaries] = useState({}); // boat_id -> text ('' = unavailable); absent = still loading
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -198,6 +215,7 @@ function BoatReport({ boatIds, onClose }) {
   }, []);
 
   useEffect(() => {
+    let live = true;
     (async () => {
       try {
         const [all, lam, fin, asm, parts, std, timeline, feed] = await Promise.all([
@@ -222,22 +240,36 @@ function BoatReport({ boatIds, onClose }) {
         const built = boatIds.map(id => byId[id]).filter(Boolean)
           .map(b => buildBoat(b, tlByBoat[b.boat_id], lamMap, finMap, wcs, asmByBoat, partsByBoat, std, feedByBoat));
         setBoats(built);
-      } catch (e) { setError(true); }
+
+        // Fetch each boat's AI commentary with limited concurrency, so a batch of
+        // 20+ boats doesn't fire 20+ simultaneous /api/ask calls. Results stream in.
+        const CONC = 3;
+        let next = 0;
+        const worker = async () => {
+          while (next < built.length) {
+            const bd = built[next++];
+            const text = await askSummary(bd);
+            if (live) setSummaries(prev => ({ ...prev, [bd.boat_id]: text }));
+          }
+        };
+        await Promise.all(Array.from({ length: Math.min(CONC, built.length) }, worker));
+      } catch (e) { if (live) setError(true); }
     })();
+    return () => { live = false; };
   }, [boatIds]);
 
   const dateLabel = new Date().toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
 
-  if (error) return (
+  let content;
+  if (error) content = (
     <div className="br-overlay"><div className="br-toolbar no-print"><button className="br-close" onClick={onClose}>✕ Close</button></div>
       <div className="br-doc"><p style={{ padding: 24 }}>Couldn't load report data. Check the backend connection.</p></div></div>
   );
-  if (!boats) return (
+  else if (!boats) content = (
     <div className="br-overlay"><div className="br-toolbar no-print"><button className="br-close" onClick={onClose}>✕ Close</button></div>
       <div className="br-doc"><div className="br-loading">Building boat report…</div></div></div>
   );
-
-  return (
+  else content = (
     <div className="br-overlay">
       <div className="br-toolbar no-print">
         <span className="br-toolbar-label">{boats.length === 1 ? boats[0].boat_id : `${boats.length} boats`}</span>
@@ -247,33 +279,22 @@ function BoatReport({ boatIds, onClose }) {
       <div className="br-doc">
         {boats.length === 0
           ? <div className="br-loading">No matching boats.</div>
-          : boats.map(bd => <BoatPage key={bd.boat_id} b={bd} dateLabel={dateLabel} withAI={boats.length === 1} />)}
+          : boats.map(bd => (
+            <BoatPage key={bd.boat_id} b={bd} dateLabel={dateLabel}
+              ai={bd.boat_id in summaries ? summaries[bd.boat_id] : null} />
+          ))}
       </div>
     </div>
   );
+
+  // Portal to <body> so the print rule that hides .app doesn't also hide the
+  // report (the report is opened from inside .app's subtree).
+  return createPortal(content, document.body);
 }
 
-function BoatPage({ b, dateLabel, withAI }) {
-  const [ai, setAi] = useState(null); // null=loading, ''=unavailable, else text
-
-  useEffect(() => {
-    if (!withAI) return;
-    let live = true;
-    (async () => {
-      try {
-        const r = await apiFetch('/api/ask', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            question: `Give me a tight status summary for boat ${b.boat_id} (${b.customer}). Answer as 3 to 5 short bullet points in a markdown "- " list — no intro sentence, no paragraph. Cover where it is in the build, what is blocking it, and what needs attention next. Keep each bullet to one line. Ignore anything marked Not Applicable. Do not restate the whole checklist.`,
-          }),
-        });
-        const j = await r.json();
-        if (live) setAi(r.ok && j.answer ? j.answer : '');
-      } catch (e) { if (live) setAi(''); }
-    })();
-    return () => { live = false; };
-  }, [b.boat_id, b.customer, withAI]);
-
+function BoatPage({ b, dateLabel, ai }) {
+  // `ai`: null = still loading, '' = unavailable, string = commentary (fetched by
+  // the parent with limited concurrency so batch reports don't hammer /api/ask).
   const behind = b.behind;
   const schedTone = behind == null ? '' : behind > 0 ? 'br-sched-late' : 'br-sched-ok';
   const schedText = behind == null ? '—'
@@ -327,13 +348,11 @@ function BoatPage({ b, dateLabel, withAI }) {
               : <div className="br-ok">✓ Nothing flagged.</div>}
           </Panel>
 
-          {withAI && (
-            <Panel title="Summary">
-              {ai === null ? <div className="br-quiet">Generating…</div>
-                : ai === '' ? <div className="br-quiet">AI summary unavailable.</div>
-                : <div className="br-md">{renderAnswer(ai)}</div>}
-            </Panel>
-          )}
+          <Panel title="Summary">
+            {ai === null ? <div className="br-quiet">Generating…</div>
+              : ai === '' ? <div className="br-quiet">AI summary unavailable.</div>
+              : <div className="br-md">{renderAnswer(ai)}</div>}
+          </Panel>
 
           <Panel title="Recent activity">
             {b.activity.length

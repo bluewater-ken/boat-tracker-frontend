@@ -1,0 +1,24 @@
+.bra { max-width: 900px; }
+.bra-intro { font-size: 13px; color: #5F6B63; margin: 0 0 16px; line-height: 1.6; }
+
+.bra-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.bra-all { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #33424C; cursor: pointer; }
+.bra-buttons { display: flex; gap: 8px; }
+.bra-print, .bra-print-all {
+  padding: 9px 16px; font-size: 13px; font-weight: 600; border-radius: 7px; cursor: pointer;
+}
+.bra-print { background: #9CCB62; color: #1F3D07; border: none; }
+.bra-print:disabled { background: #E6E9EC; color: #9B998F; cursor: default; }
+.bra-print-all { background: #fff; color: #33424C; border: 1px solid #D6DBE0; }
+.bra-print-all:hover { background: #F4F3EE; }
+
+.bra-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.bra-boat {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border: 1px solid #E6E9EC; border-radius: 8px; cursor: pointer; background: #fff;
+}
+.bra-boat.on { border-color: #9CCB62; background: #F5FAEE; }
+.bra-boat input { flex: 0 0 auto; }
+.bra-boat-main { min-width: 0; }
+.bra-boat-id { font-size: 13px; font-weight: 700; color: #1B2B22; display: flex; align-items: center; gap: 6px; }
+.bra-boat-sub { font-size: 11.5px; color: #7A857D; margin-top: 1px; }

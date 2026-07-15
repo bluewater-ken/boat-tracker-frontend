@@ -3,6 +3,7 @@ import UsersAdmin from './UsersAdmin';
 import RulesAdmin from './RulesAdmin';
 import TimelineAdmin from './TimelineAdmin';
 import CompletionsChart from './CompletionsChart';
+import BoatReportsAdmin from './BoatReportsAdmin';
 import './AdminPanel.css';
 
 // Ops-only Admin tab — home for management screens: Users, Issue Rules, Timeline,
@@ -13,6 +14,7 @@ const SECTIONS = [
   { key: 'rules', label: 'Issue Rules' },
   { key: 'timeline', label: 'Timeline' },
   { key: 'throughput', label: 'Throughput' },
+  { key: 'reports', label: 'Boat Reports' },
 ];
 
 function AdminPanel() {
@@ -29,6 +31,7 @@ function AdminPanel() {
         {section === 'rules' && <RulesAdmin />}
         {section === 'timeline' && <TimelineAdmin />}
         {section === 'throughput' && <CompletionsChart />}
+        {section === 'reports' && <BoatReportsAdmin />}
       </div>
     </div>
   );

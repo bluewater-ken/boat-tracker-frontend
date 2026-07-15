@@ -106,6 +106,11 @@
 .btn-save:hover { background: #2680bd; }
 .form-check label { display: flex; align-items: flex-start; gap: 8px; font-weight: normal; cursor: pointer; }
 .form-check input { margin-top: 2px; flex: 0 0 auto; }
+.link-row { display: flex; gap: 8px; }
+.link-row select { flex: 1; min-width: 0; padding: 8px 10px; font-size: 13px; border: 1px solid #D6DBE0; border-radius: 7px; background: #fff; }
+.btn-link-cc { flex: 0 0 auto; padding: 8px 16px; font-size: 12px; font-weight: 600; color: #fff; background: #2E92D6; border: none; border-radius: 7px; cursor: pointer; }
+.btn-link-cc:hover:not(:disabled) { background: #2680bd; }
+.btn-link-cc:disabled { opacity: 0.45; cursor: default; }
 /* Destructive — quiet until hovered, and the click still demands typing the boat ID. */
 .btn-delete-boat {
   flex: 0 0 auto;
@@ -119,6 +124,18 @@
   cursor: pointer;
 }
 .btn-delete-boat:hover { background: #FCEBEB; }
+.btn-report {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1F3D07;
+  background: #EAF3DE;
+  border: 1px solid #C0DD97;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.btn-report:hover { background: #dcecc9; }
 @media (max-width: 1024px) {
   .boat-information { grid-template-columns: 1fr; height: auto; }
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
 import { colorOptions } from './colors';
 import SmartInput from './SmartInput';
+import BoatReport from './BoatReport';
 import './BoatInformation.css';
 
 const EMPTY = { boat_id:'', customer_name:'', customer_phone:'', customer_email:'', customer_address:'', boat_model:'', engine_brand_1:'', engine_choice_1:'', engine_brand_2:'', engine_choice_2:'', engine_brand_3:'', engine_choice_3:'', hull_color:'', is_spare:false };
@@ -13,8 +14,14 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isNewBoat, setIsNewBoat] = useState(false);
   const [formData, setFormData] = useState(EMPTY);
+  const [projects, setProjects] = useState([]); // CompanyCam projects, for manual linking
+  const [linkProj, setLinkProj] = useState('');
+  const [linking, setLinking] = useState(false);
+  const [reportIds, setReportIds] = useState(null); // boat status report, when open
 
   useEffect(() => { fetchBoats(); }, [refreshTrigger]);
+  // Load CompanyCam projects once, for the manual link picker.
+  useEffect(() => { apiFetch('/api/assembly/projects').then(r => (r.ok ? r.json() : [])).then(setProjects).catch(() => {}); }, []);
 
   const fetchBoats = async () => {
     try {
@@ -27,8 +34,23 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
     finally { setLoading(false); }
   };
 
-  const selectBoat = (boat) => { setSelectedBoat(boat); setFormData(boat); setIsNewBoat(false); };
-  const handleNewBoat = () => { setSelectedBoat(null); setFormData(EMPTY); setIsNewBoat(true); };
+  const selectBoat = (boat) => { setSelectedBoat(boat); setFormData(boat); setIsNewBoat(false); setLinkProj(''); };
+  const handleNewBoat = () => { setSelectedBoat(null); setFormData(EMPTY); setIsNewBoat(true); setLinkProj(''); };
+
+  // Manually link this boat to a CompanyCam project (for refit/service jobs whose
+  // project name doesn't contain the boat ID, so autoLink can't match them).
+  const handleLink = async () => {
+    if (!linkProj || !formData.boat_id) return;
+    setLinking(true);
+    try {
+      const r = await apiFetch('/api/assembly/link', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ boat_id: formData.boat_id, project_id: linkProj }) });
+      if (!r.ok) throw new Error();
+      const proj = projects.find(p => String(p.project_id) === String(linkProj));
+      alert(`Linked ${formData.boat_id} to CompanyCam project “${proj?.name || linkProj}”. Its checklists appear on the Assembly board shortly.`);
+      onRefresh && onRefresh();
+    } catch (e) { alert('Failed to link — the manual-link endpoint may not be enabled on the server yet.'); }
+    finally { setLinking(false); }
+  };
   const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
 
   const handleSave = async () => {
@@ -112,14 +134,31 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
             <label><input type="checkbox" name="is_spare" checked={!!formData.is_spare} onChange={e => setFormData(p => ({ ...p, is_spare: e.target.checked }))} /> Spare Parts / Refit / Service (non-production)</label>
             <div className="form-hint">Tags this as non-production work — a spare-parts order, refit, or service job — so it’s marked apart from normal boat builds. It still flows through the shop tabs; mark the parts/tasks it doesn’t need as N/A.</div>
           </div>
+          {!isNewBoat && formData.boat_id && (
+            <div className="form-group">
+              <label>CompanyCam project</label>
+              <div className="link-row">
+                <select value={linkProj} onChange={e => setLinkProj(e.target.value)}>
+                  <option value="">Select a CompanyCam project…</option>
+                  {projects.map(p => <option key={p.project_id} value={p.project_id}>{p.name}</option>)}
+                </select>
+                <button type="button" className="btn-link-cc" onClick={handleLink} disabled={!linkProj || linking}>{linking ? 'Linking…' : 'Link'}</button>
+              </div>
+              <div className="form-hint">Connects this boat to a CompanyCam project so its checklists and photos flow into Assembly and the Shop Feed. Use this when the project name doesn’t contain the boat ID — e.g. refit/service jobs like “Persek - Refit”.</div>
+            </div>
+          )}
           <div className="form-actions">
             <button onClick={handleSave} className="btn-save">Save Boat</button>
+            {!isNewBoat && formData.boat_id && (
+              <button onClick={() => setReportIds([formData.boat_id])} className="btn-report">📄 Status Report</button>
+            )}
             {!isNewBoat && formData.boat_id && (
               <button onClick={handleDelete} className="btn-delete-boat">Delete Boat…</button>
             )}
           </div>
         </div>
       </div>
+      {reportIds && <BoatReport boatIds={reportIds} onClose={() => setReportIds(null)} />}
     </div>
   );
 }

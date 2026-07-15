@@ -171,10 +171,17 @@ function Chart({ data, pick, onPick }) {
             {DEPTS.map(d => {
               const v = x[d.key] || 0; if (!v) return null;
               const h = (plotH * v) / niceMax; yTop -= h;
+              const segY = yTop;
               const on = pick && pick.date === x.date && pick.dept === d.key;
-              return <rect key={d.key} className="cc-bar" x={cx - bw / 2} y={yTop} width={bw} height={h} fill={d.color}
-                stroke={on ? '#173A5E' : 'none'} strokeWidth={on ? 1.5 : 0}
-                onClick={() => onPick && onPick(x.date, d.key)}><title>{`${mmdd(x.date)} — ${d.label}: ${v} (click for jobs)`}</title></rect>;
+              const fits = h >= 11 && bw >= 12; // room for the count inside the segment
+              return (
+                <g key={d.key}>
+                  <rect className="cc-bar" x={cx - bw / 2} y={segY} width={bw} height={h} fill={d.color}
+                    stroke={on ? '#173A5E' : 'none'} strokeWidth={on ? 1.5 : 0}
+                    onClick={() => onPick && onPick(x.date, d.key)}><title>{`${mmdd(x.date)} — ${d.label}: ${v} (click for jobs)`}</title></rect>
+                  {fits && <text x={cx} y={segY + h / 2 + 3} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#fff" pointerEvents="none">{v}</text>}
+                </g>
+              );
             })}
             {showNums && totals[i] > 0 && <text x={cx} y={yTop - 3} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#5F6B73">{totals[i]}</text>}
             {i % step === 0 && <text x={cx} y={H - 10} textAnchor="middle" fontSize="8.5" fill="#8A969E">{mmdd(x.date)}</text>}

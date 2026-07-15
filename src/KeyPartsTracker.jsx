@@ -523,7 +523,7 @@ function Legend() {
       <div className="kpt-legend-row">
         <span className="kpt-legend-item"><span className="kpt-asap">ORDER ASAP</span> Priority to order — set it, clears once Ordered</span>
         {KEYPARTS_FLAGS.map(f => (
-          <span key={f.key} className="kpt-legend-item"><span className="kpt-flagchip" style={{ background: f.color }}>{f.label}</span>
+          <span key={f.key} className="kpt-legend-item"><span className="kpt-flagchip" style={{ background: f.color }}>{f.label}</span></span>
         ))}
       </div>
       <div className="kpt-legend-note">Cell color = status. Cells read: “—” not ordered · “→ exp M/D” on order, expected date · “✓ M/D” received on that date · “N/A” not applicable (excluded from counts). Hover (or tap) a cell for full detail incl. the order date. Late auto-flags once past the expected date. Ops-only editing.</div>

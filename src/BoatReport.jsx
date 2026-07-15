@@ -201,7 +201,8 @@ async function askSummary(b) {
     const r = await apiFetch('/api/ask', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        question: `Give me a tight status summary for boat ${b.boat_id} (${b.customer}). Answer as 3 to 5 short bullet points in a markdown "- " list — no intro sentence, no paragraph. Cover where it is in the build, what is blocking it, and what needs attention next. Keep each bullet to one line. Ignore anything marked Not Applicable. Ignore the Lamination "Transducer" / transducer mold entirely — it only records which transducer mold this boat uses, it is never built or completed, so never treat it as outstanding work or mention it. Do not restate the whole checklist.`,
+        // Backend caps the question at 500 chars (413 over that) — keep this tight.
+        question: `Status summary for boat ${b.boat_id} (${b.customer}): 3-5 short markdown "- " bullets, one line each, no intro. Cover where it is in the build, what's blocking it, and what to do next. Ignore anything marked Not Applicable, and ignore the Lamination Transducer (a mold reference, never built). Don't restate the whole checklist.`,
       }),
     });
     const j = await r.json();

@@ -135,16 +135,17 @@ function buildBoat(b, tl, lamMap, finMap, wcs, asmByBoat, partsByBoat, std, feed
   for (const f of flagsOn) attention.push({ tone: 'red', text: `Flag — ${f}` });
   for (const s of stations) if (s.state === 'notstarted') attention.push({ tone: 'amber', text: `Assembly not started — ${s.name}` });
 
-  // Recent activity — noise removed, latest first, each tagged by department.
+  // Recent activity — completed tasks and status changes, latest first, tagged by
+  // department. Photos are dropped (one event per photo, no task context = noise).
   const activity = (feedByBoat[b.boat_id] || [])
+    .filter(e => e.type !== 'PHOTO_ADDED')
     .filter(e => e.type !== 'CHECKLIST_ITEM_COMPLETED' || cleanItem(e.title))
     .slice(0, 8)
     .map(e => {
       const dept = DEPTS[deptOf(e)] || DEPTS.other;
       return {
         date: fmtDate(e.created_at), dept: dept.label, color: dept.color,
-        text: e.type === 'PHOTO_ADDED' ? 'Photo added'
-          : e.type === 'CHECKLIST_ITEM_COMPLETED' ? (cleanItem(e.title) || e.title)
+        text: e.type === 'CHECKLIST_ITEM_COMPLETED' ? (cleanItem(e.title) || e.title)
           : (e.title || e.type),
       };
     });
@@ -310,7 +311,7 @@ function BoatPage({ b, dateLabel, withAI }) {
         <Tile label="Lamination" value={b.lam == null ? '—' : `${b.lam}%`} p={b.lam} />
         <Tile label="Finishing" value={b.fin == null ? '—' : `${b.fin}%`} p={b.fin} />
         <Tile label="Assembly" value={b.asy == null ? '—' : `${b.asy}%`} p={b.asy} />
-        <Tile label="Parts" value={`${b.partsReceived}/${b.partsTotal}`} p={pct(b.partsReceived, b.partsTotal)} />
+        <Tile label="Key Parts" value={`${b.partsReceived}/${b.partsTotal}`} p={pct(b.partsReceived, b.partsTotal)} />
         <div className={`br-tile ${schedTone}`}>
           <div className="br-tile-label">Schedule</div>
           <div className="br-tile-value">{schedText}</div>
@@ -353,7 +354,7 @@ function BoatPage({ b, dateLabel, withAI }) {
           <Panel title={`Finishing${b.fin == null ? '' : ` · ${b.fin}%`}`}>
             <Checklist items={b.finTasks} allLabel="All finished." noneLabel="Not in finishing yet." />
           </Panel>
-          <Panel title={`Parts · ${b.partsReceived}/${b.partsTotal}`}>
+          <Panel title={`Key Part Status · ${b.partsReceived}/${b.partsTotal}`}>
             {b.partsOutstanding.length
               ? <ul className="br-parts">{b.partsOutstanding.map((p, i) => <li key={i}>{p}</li>)}</ul>
               : <div className="br-ok">✓ All parts received.</div>}

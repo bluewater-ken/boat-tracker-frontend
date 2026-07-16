@@ -17,11 +17,19 @@ const NA = 'Not Applicable';
 const CELL = {
   'Not Ordered': { bg: '#F4F3EE', fg: '#9B998F' },
   'Ordered': { bg: '#FAC775', fg: '#633806' },
+  'Partial': { bg: '#DBE08A', fg: '#4E5308' },
   'Received': { bg: '#9CCB62', fg: '#1F3D07' },
   'Not Applicable': { bg: '#E4E4E7', fg: '#7A7A80' },
 };
 // A part marked N/A shows N/A regardless of its stored status, and drops out of counts.
 const statusOf = (row) => (row.na ? NA : (row.status || 'Not Ordered'));
+// Partial (some received) colors the whole cell — a lime step between Ordered's
+// amber and Received's green — instead of showing a flag chip. The flag itself is
+// still set/cleared from the part's flag menu.
+const cellStatusOf = (row) => {
+  const st = statusOf(row);
+  return !row.na && st !== 'Received' && row.flag_partial ? 'Partial' : st;
+};
 
 const fmtDate = (d) => { if (!d) return ''; const [, m, day] = d.slice(0, 10).split('-'); return `${+m}/${+day}`; };
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -39,7 +47,8 @@ const effFlags = (row) => ({
 // Active flags as bold text chips (they wrap/stack) — the corner icons were too
 // small to notice.
 function FlagChips({ flags }) {
-  const on = KEYPARTS_FLAGS.filter(f => flags[f.key]);
+  // Partial is carried by the cell color (see cellStatusOf), not a chip.
+  const on = KEYPARTS_FLAGS.filter(f => f.key !== 'flag_partial' && flags[f.key]);
   if (!on.length) return null;
   return <span className="kpt-flagchips">{on.map(f => <span key={f.key} className="kpt-flagchip" style={{ background: f.color }}>{f.label}</span>)}</span>;
 }
@@ -304,11 +313,12 @@ function KeyPartsTracker() {
       {sortedCustom(customList.boatId).length === 0 && <div className="am-menu-note">No custom parts on this boat yet — add them from Boat view.</div>}
       {sortedCustom(customList.boatId).map(row => {
         const st = statusOf(row);
-        const c = CELL[st];
+        const cst = cellStatusOf(row);
+        const c = CELL[cst];
         return (
           <button key={row.part_name} className="kpt-cprow" onClick={(e) => { setCustomList(null); openMenu(e, customList.boatId, row.part_name, true); }}>
             <span className="kpt-cpname">{!row.na && row.order_asap && st !== 'Received' && <span className="kpt-asap">ASAP</span>}{!row.na && <FlagChips flags={effFlags(row)} />}{row.part_name}{row.description ? ' 📝' : ''}</span>
-            <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
+            <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{cst}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
           </button>
         );
       })}
@@ -343,15 +353,17 @@ function KeyPartsTracker() {
                   {standardParts.map(p => {
                     const row = getRow(boat.boat_id, p);
                     const st = statusOf(row);
-                    const c = CELL[st];
+                    const cst = cellStatusOf(row);
+                    const c = CELL[cst];
                     // One anchor fact per cell — color carries the status, the line
-                    // carries the date that matters: → incoming, ✓ landed, — untouched.
+                    // carries the date that matters: → incoming, ◐ partly here, ✓ landed.
                     const primary = st === NA ? 'N/A'
                       : st === 'Received' ? `✓ ${fmtDate(receivedDateOf(row)) || ''}`.trim()
+                      : cst === 'Partial' ? `◐ exp ${fmtDate(row.expected_delivery) || '—'}`
                       : st === 'Ordered' ? `→ exp ${fmtDate(row.expected_delivery) || '—'}`
                       : '—';
                     // Everything (incl. the ord date) stays one hover / one tap away.
-                    const tip = [`${p} — ${st}`,
+                    const tip = [`${p} — ${cst === 'Partial' ? 'Partial (some received)' : st}`,
                       !row.na && orderDateOf(row) && `ord ${fmtDate(orderDateOf(row))}`,
                       !row.na && row.expected_delivery && `exp ${fmtDate(row.expected_delivery)}`,
                       !row.na && st === 'Received' && receivedDateOf(row) && `rec ${fmtDate(receivedDateOf(row))}`,
@@ -425,7 +437,8 @@ function KeyPartsTracker() {
             {standardParts.map(p => {
               const row = getRow(selectedBoat.boat_id, p);
               const st = statusOf(row);
-              const c = CELL[st];
+              const cst = cellStatusOf(row);
+              const c = CELL[cst];
               return (
                 <div key={p} className={`kpt-part ${isOps ? '' : 'readonly'}`} onClick={(e) => openMenu(e, selectedBoat.boat_id, p, false)}>
                   <span className="kpt-part-main">
@@ -435,7 +448,7 @@ function KeyPartsTracker() {
                   <span className="kpt-part-right">
                     {!row.na && row.order_asap && st !== 'Received' && <span className="kpt-asap">ORDER ASAP</span>}
                     {!row.na && <FlagChips flags={effFlags(row)} />}
-                    <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
+                    <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{cst}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
                   </span>
                 </div>
               );
@@ -468,14 +481,14 @@ function KeyPartsTracker() {
                   <div className="kpt-tbox-title">On this boat</div>
                   <div className="kpt-tbox-list">
                     {sortedCustom(selectedBoat.boat_id).map(row => {
-                      const st = statusOf(row);
-                      const c = CELL[st];
+                      const cst = cellStatusOf(row);
+                      const c = CELL[cst];
                       return (
                         <div key={row.part_name} className={`kpt-titem ${customSel?.side === 'boat' && customSel.name === row.part_name ? 'sel' : ''}`} onClick={() => setCustomSel({ side: 'boat', name: row.part_name })}>
                           <span className="kpt-titem-name">{row.part_name}{row.description ? ' 📝' : ''}</span>
                           <span className="kpt-titem-right">
                             {!row.na && <FlagChips flags={effFlags(row)} />}
-                            <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}</span>
+                            <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{cst}</span>
                             <button className="kpt-titem-edit" onClick={(e) => { e.stopPropagation(); openMenu(e, selectedBoat.boat_id, row.part_name, true); }}>Edit</button>
                           </span>
                         </div>
@@ -488,14 +501,15 @@ function KeyPartsTracker() {
             ) : (
               sortedCustom(selectedBoat.boat_id).map(row => {
                 const st = statusOf(row);
-                const c = CELL[st];
+                const cst = cellStatusOf(row);
+                const c = CELL[cst];
                 return (
                   <div key={row.part_name} className="kpt-part readonly">
                     <span className="kpt-part-main"><span className="kpt-part-name">{row.part_name}</span>{row.description && <span className="kpt-part-spec">{row.description}</span>}</span>
                     <span className="kpt-part-right">
                       {!row.na && row.order_asap && st !== 'Received' && <span className="kpt-asap">ORDER ASAP</span>}
                       {!row.na && <FlagChips flags={effFlags(row)} />}
-                      <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{st}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
+                      <span className="kpt-badge" style={{ background: c.bg, color: c.fg }}>{cst}{dateLabel(row) ? ` • ${dateLabel(row)}` : ''}</span>
                     </span>
                   </div>
                 );
@@ -515,18 +529,18 @@ function Legend() {
     <div className="kpt-legend">
       <div className="kpt-legend-title">Status</div>
       <div className="kpt-legend-row">
-        {[...STATUSES, NA].map(s => (
-          <span key={s} className="kpt-legend-item"><i className="kpt-legend-sw" style={{ background: CELL[s].bg }} />{s}</span>
+        {['Not Ordered', 'Ordered', 'Partial', 'Received', NA].map(s => (
+          <span key={s} className="kpt-legend-item"><i className="kpt-legend-sw" style={{ background: CELL[s].bg }} />{s === 'Partial' ? 'Partial — some received' : s}</span>
         ))}
       </div>
       <div className="kpt-legend-title" style={{ marginTop: 11 }}>Flags</div>
       <div className="kpt-legend-row">
         <span className="kpt-legend-item"><span className="kpt-asap">ORDER ASAP</span> Priority to order — set it, clears once Ordered</span>
-        {KEYPARTS_FLAGS.map(f => (
+        {KEYPARTS_FLAGS.filter(f => f.key !== 'flag_partial').map(f => (
           <span key={f.key} className="kpt-legend-item"><span className="kpt-flagchip" style={{ background: f.color }}>{f.label}</span></span>
         ))}
       </div>
-      <div className="kpt-legend-note">Cell color = status. Cells read: “—” not ordered · “→ exp M/D” on order, expected date · “✓ M/D” received on that date · “N/A” not applicable (excluded from counts). Hover (or tap) a cell for full detail incl. the order date. Late auto-flags once past the expected date. Ops-only editing.</div>
+      <div className="kpt-legend-note">Cell color = status. Cells read: “—” not ordered · “→ exp M/D” on order, expected date · “◐ exp M/D” partially received, waiting on the rest · “✓ M/D” received on that date · “N/A” not applicable (excluded from counts). Hover (or tap) a cell for full detail incl. the order date. Late auto-flags once past the expected date. Ops-only editing.</div>
     </div>
   );
 }

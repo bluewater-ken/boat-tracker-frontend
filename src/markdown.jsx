@@ -17,6 +17,34 @@ function inline(text, base) {
   return nodes;
 }
 
+// Same markdown rules rendered to an HTML string — for surfaces that need real
+// HTML instead of React nodes (e.g. Ask B.O.S.S's pop-out tab). Text is escaped
+// first, so answers can't inject markup.
+export const escapeHtml = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function inlineHtml(text) {
+  return escapeHtml(text)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/_([^_]+)_/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+export function answerToHtml(text) {
+  const lines = (text || '').split('\n');
+  let html = ''; let list = null;
+  const flush = () => { if (list) { html += `<${list.tag}>` + list.items.map(t => `<li>${inlineHtml(t)}</li>`).join('') + `</${list.tag}>`; list = null; } };
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, '');
+    const bullet = line.match(/^\s*[-*]\s+(.*)/);
+    const num = line.match(/^\s*\d+\.\s+(.*)/);
+    const head = line.match(/^#{1,6}\s+(.*)/);
+    if (bullet) { if (!list || list.tag !== 'ul') { flush(); list = { tag: 'ul', items: [] }; } list.items.push(bullet[1]); }
+    else if (num) { if (!list || list.tag !== 'ol') { flush(); list = { tag: 'ol', items: [] }; } list.items.push(num[1]); }
+    else { flush(); if (head) html += `<h3>${inlineHtml(head[1])}</h3>`; else if (line !== '') html += `<p>${inlineHtml(line)}</p>`; }
+  }
+  flush();
+  return html;
+}
+
 export function renderAnswer(text) {
   const lines = (text || '').split('\n');
   const blocks = [];

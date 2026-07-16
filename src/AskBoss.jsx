@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from './api';
-import { renderAnswer } from './markdown';
+import { renderAnswer, answerToHtml, escapeHtml } from './markdown';
 import './AskBoss.css';
 
 // Ask B.O.S.S — natural-language questions over the tracker's data.
@@ -28,6 +28,37 @@ const TIP_EXAMPLES = [
   'What is 25T047 waiting on before it can move to QC?',
 ];
 
+
+// Open one Q&A in its own browser tab — a clean standalone page that survives
+// closing the panel (and prints nicely). Built from escaped HTML; must be called
+// from a click handler so the browser allows the new tab.
+function popOut(it) {
+  const w = window.open('', '_blank');
+  if (!w) return; // popup blocked
+  const when = new Date().toLocaleString([], { month: 'numeric', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8">
+<title>B.O.S.S — ${escapeHtml(it.q).slice(0, 80)}</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #1c1c1c; background: #fff; margin: 0; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 24px 48px; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #173A5E; padding-bottom: 8px; margin-bottom: 18px; }
+  .brand { font-size: 15px; font-weight: 700; color: #173A5E; }
+  .when { font-size: 12px; color: #8A969E; }
+  .q { display: inline-block; background: #2E92D6; color: #fff; font-size: 14px; line-height: 1.5; padding: 9px 14px; border-radius: 12px 12px 3px 12px; margin-bottom: 14px; }
+  .a { font-size: 14px; line-height: 1.65; }
+  .a p { margin: 0 0 8px; } .a ul, .a ol { margin: 0 0 10px; padding-left: 22px; } .a li { margin: 2px 0; }
+  .a h3 { font-size: 14px; margin: 12px 0 6px; color: #173A5E; }
+  .a code { background: #f0f2f4; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .foot { margin-top: 28px; padding-top: 10px; border-top: 1px solid #E6E9EC; font-size: 11px; color: #8A969E; }
+  @media print { .wrap { padding: 0; } }
+</style></head><body><div class="wrap">
+  <div class="head"><span class="brand">Ask the B.O.S.S</span><span class="when">${escapeHtml(when)}</span></div>
+  <div class="q">${escapeHtml(it.q)}</div>
+  <div class="a">${answerToHtml(it.a)}</div>
+  <div class="foot">Bluewater B.O.S.S · answer from live tracker data at the time asked</div>
+</div></body></html>`);
+  w.document.close();
+}
 
 function AskBoss({ onClose }) {
   const [q, setQ] = useState('');
@@ -132,6 +163,11 @@ function AskBoss({ onClose }) {
               {it.a === null
                 ? <div className="ask-a ask-thinking">Looking through the tracker…</div>
                 : <div className={`ask-a ${it.error ? 'ask-err' : ''}`}>{renderAnswer(it.a)}</div>}
+              {it.a !== null && !it.error && (
+                <div className="ask-poprow">
+                  <button className="ask-pop" onClick={() => popOut(it)} title="Open this answer in a new browser tab so it isn't lost">↗ Keep in new tab</button>
+                </div>
+              )}
             </div>
           ))}
         </div>

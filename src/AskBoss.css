@@ -64,6 +64,13 @@
   font-size: 13px; line-height: 1.6;
   padding: 10px 14px; border-radius: 3px 12px 12px 12px;
 }
+/* Pop an answer into its own browser tab so it survives closing the panel. */
+.ask-poprow { display: flex; justify-content: flex-end; margin-top: 4px; }
+.ask-pop {
+  border: none; background: none; cursor: pointer;
+  font-size: 11px; font-weight: 600; color: #2E92D6; padding: 2px 4px;
+}
+.ask-pop:hover { text-decoration: underline; }
 /* Rendered-markdown answer */
 .ask-md-p { margin: 0 0 7px; }
 .ask-md-p:last-child { margin-bottom: 0; }

@@ -22,6 +22,18 @@ const STAGE_COLOR = (name) => {
   return '#2E92D6';
 };
 
+// Projected delivery + on-pace/behind, surfaced in the sticky left column so the
+// key status reads without scrolling out to the end of the bars.
+function deliveryStatus(g) {
+  const segs = g.segments || [];
+  const projStr = g.projected_end || (segs.length ? segs[segs.length - 1].end : null);
+  if (!projStr) return null;
+  const proj = fmtShort(parseD(projStr));
+  if (!g.target_date) return <span className="gantt-deliv"><span className="gantt-deliv-arrow">→</span> {proj} <span className="gantt-deliv-muted">· no target</span></span>;
+  if (g.behind_days > 0) return <span className="gantt-deliv"><span className="gantt-deliv-arrow">→</span> {proj} <b className="gantt-behindtag">· ▲ {g.behind_days}d behind</b></span>;
+  return <span className="gantt-deliv"><span className="gantt-deliv-arrow">→</span> {proj} <span className="gantt-onpace">· on pace</span></span>;
+}
+
 function GanttChart() {
   const { user } = useAuth();
   const isOps = user?.role === 'ops';
@@ -264,10 +276,7 @@ function GanttChart() {
         )}
         {g.target_date && <div className="gantt-diamond" style={{ left: x(g.target_date) }} title={`Target delivery ${String(g.target_date).slice(0, 10)}`} />}
         <span className="gantt-sumlabel" style={{ left: Math.max(x(ge), g.target_date ? x(g.target_date) : 0) + 18 }}>
-          {fmtShort(parseD(gs))} – {fmtShort(parseD(ge))} · {daysBetween(parseD(gs), parseD(ge))} days
-          {g.target_date && (behind
-            ? <b className="gantt-behindtag"> · ▲ {g.behind_days} days behind</b>
-            : <span className="gantt-onpace"> · on pace</span>)}
+          {daysBetween(parseD(gs), parseD(ge))}d
         </span>
       </>
     );
@@ -304,6 +313,7 @@ function GanttChart() {
             <div className="gantt-left gantt-headleft">Boat</div>
             <div className="gantt-lane gantt-headlane" style={{ width }}>
               {months.map((m, i) => <div key={i} className="gantt-month" style={{ width: m.days * px }}>{m.label}</div>)}
+              <div className="gantt-todaymark" style={{ left: todayX }}>Today</div>
             </div>
           </div>
           {zoom === 'weeks' && (
@@ -323,22 +333,31 @@ function GanttChart() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => startDrop(g.key)}
                 onClick={() => toggle(g.key)}>
-                <div className="gantt-left">
+                <div className="gantt-left gantt-grouphead">
                   {isOps && <span className="gantt-grip" title="Drag to test a new build order" draggable
                     onDragStart={(e) => { e.stopPropagation(); setDragKey(g.key); }}
                     onDragEnd={() => setDragKey(null)}
                     onClick={(e) => e.stopPropagation()}>⠿</span>}
                   <span className={`gantt-chev ${isOpen ? 'open' : ''}`}>▸</span>
-                  <span className="gantt-gtitle" title={g.title}>{g.title}</span>
-                  {g.kind === 'slot'
-                    ? <span className="gantt-gsub gantt-slottag">plan only</span>
-                    : <span className="gantt-gsub">{g.model}{g.hull_color ? ` · ${g.hull_color}` : ''}</span>}
-                  {isOps && g.kind === 'boat' && (
-                    <button className="gantt-targetbtn" title="Set target delivery" onClick={(e) => { e.stopPropagation(); if (guardDraft()) return; setEditor({ type: 'target', key: g.key, title: g.title, date: g.target_date ? String(g.target_date).slice(0, 10) : '' }); }}>◆</button>
-                  )}
-                  {isOps && g.kind === 'slot' && (
-                    <button className="gantt-slotdel" title="Remove slot" onClick={(e) => { e.stopPropagation(); if (guardDraft()) return; deleteSlot(g.key); }}>✕</button>
-                  )}
+                  <div className="gantt-gmeta">
+                    <div className="gantt-gline1">
+                      <span className="gantt-gtitle" title={g.title}>{g.title}</span>
+                      {isOps && g.kind === 'boat' && (
+                        <button className="gantt-targetbtn" title="Set target delivery" onClick={(e) => { e.stopPropagation(); if (guardDraft()) return; setEditor({ type: 'target', key: g.key, title: g.title, date: g.target_date ? String(g.target_date).slice(0, 10) : '' }); }}>◆</button>
+                      )}
+                      {isOps && g.kind === 'slot' && (
+                        <button className="gantt-slotdel" title="Remove slot" onClick={(e) => { e.stopPropagation(); if (guardDraft()) return; deleteSlot(g.key); }}>✕</button>
+                      )}
+                    </div>
+                    <div className="gantt-gline2">
+                      {g.kind === 'slot'
+                        ? <span className="gantt-slottag">plan only{g.model ? ` · ${g.model}` : ''}</span>
+                        : <>
+                            <span className="gantt-gsub">{g.model}{g.hull_color ? ` · ${g.hull_color}` : ''}</span>
+                            {deliveryStatus(g)}
+                          </>}
+                    </div>
+                  </div>
                 </div>
                 <div className="gantt-lane gantt-grouplane" style={{ width }}>
                   <div className="gantt-todayline" style={{ left: todayX }} />

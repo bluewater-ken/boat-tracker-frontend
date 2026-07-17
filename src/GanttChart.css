@@ -59,13 +59,24 @@
 .gantt-grip:hover { color: #2E92D6; }
 .gantt-chev { font-size: 11px; color: #5F6B73; transition: transform .12s; flex: 0 0 auto; }
 .gantt-chev.open { transform: rotate(90deg); }
+/* group-row left column: two stacked lines (title / model·status) */
+.gantt-grouphead { align-items: center; }
+.gantt-gmeta { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.gantt-gline1 { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.gantt-gline2 { display: flex; align-items: baseline; gap: 6px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gantt-gtitle { font-size: 12px; font-weight: 700; color: #1c1c1c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gantt-gsub { font-size: 10px; color: #2E92D6; font-style: italic; white-space: nowrap; flex: 0 0 auto; }
-.gantt-slottag { color: #8A969E; }
+.gantt-slottag { font-size: 10px; color: #8A969E; font-style: italic; }
+/* projected delivery + on-pace/behind in the sticky column */
+.gantt-deliv { font-size: 10px; color: #5F6B73; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gantt-deliv-arrow { color: #B9C2C9; }
+.gantt-deliv-muted { color: #A9B2B9; }
 .gantt-targetbtn { flex: 0 0 auto; margin-left: auto; background: none; border: none; color: #173A5E; font-size: 13px; cursor: pointer; padding: 2px 4px; opacity: 0.55; }
 .gantt-targetbtn:hover { opacity: 1; }
 .gantt-slotdel { flex: 0 0 auto; margin-left: auto; background: none; border: none; color: #9AA5AD; font-size: 12px; cursor: pointer; padding: 2px 4px; }
 .gantt-slotdel:hover { color: #A32D2D; }
+/* "Today" pill on the today line, in the month header */
+.gantt-todaymark { position: absolute; top: 4px; transform: translateX(-50%); background: #2E92D6; color: #fff; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px; white-space: nowrap; z-index: 8; pointer-events: none; }
 
 /* bars */
 .gantt-bar { position: absolute; top: 50%; transform: translateY(-50%); height: 18px; border-radius: 5px; z-index: 2; box-sizing: border-box; }

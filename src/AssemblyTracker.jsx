@@ -270,7 +270,12 @@ function AssemblyTracker() {
 
       {menu && menuBoat && menuWc && menuRow && (
         <ActionMenu className="asm-check-pop" anchor={{ x: menu.x, y: menu.y }} title={menuWc.name} subtitle={`${menuBoat.boat_id} · ${menuBoat.customer_name}`} onClose={() => setMenu(null)}>
-          <div className="asm-menu-count">{menuRow.completed_items} / {menuRow.total_items} items complete</div>
+          <div className="asm-menu-top">
+            <div className="asm-menu-count">{menuRow.completed_items} / {menuRow.total_items} items complete</div>
+            {!menuWc.app && menuRow.cc_url && (
+              <a className="asm-cc-link" href={menuRow.cc_url} target="_blank" rel="noreferrer">📷 See all photos ↗</a>
+            )}
+          </div>
           <div className="asm-check-tabs">
             {[['all', 'All'], ['todo', 'To do'], ['done', 'Done']].map(([k, label]) => (
               <button key={k} className={`asm-check-tab ${checkFilter === k ? 'on' : ''}`} onClick={() => setCheckFilter(k)}>{label}</button>
@@ -295,11 +300,6 @@ function AssemblyTracker() {
               <li className="asm-check-note">{menuRow.completed_items} completed item{menuRow.completed_items === 1 ? '' : 's'} tracked in CompanyCam</li>
             )}
           </ul>
-          {!menuWc.app && menuRow.cc_url && (
-            <a className="asm-cc-link" href={menuRow.cc_url} target="_blank" rel="noreferrer">
-              📷 View photos in CompanyCam ↗
-            </a>
-          )}
           <div className="am-spec-hint">
             {menuWc.app
               ? `Read-only here — update tasks on the ${menuWc.name} tab.`

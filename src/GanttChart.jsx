@@ -405,9 +405,19 @@ function GanttChart() {
     if (!segs.length) return null;
     const gs = segs[0].start, ge = segs[segs.length - 1].end;
     const behind = g.behind_days != null && g.behind_days > 0;
+    // Whole-boat rule baseline = sum of every stage's norm, from the boat's start.
+    const totalNorm = segs.reduce((sum, seg) => sum + (normDaysFor(g, seg) || 0), 0);
+    const actualSpan = daysBetween(parseD(gs), parseD(ge));
+    const over = actualSpan - totalNorm;
     return (
       <>
         <div className="gantt-bar gantt-sum" style={{ left: x(gs), width: w(gs, ge) }} />
+        {totalNorm > 0 && (
+          <div className="gantt-baseline" style={{ left: x(gs), width: totalNorm * px }}
+            title={`rule total: ${totalNorm}d${over > 0 ? ` · ${over}d over` : over < 0 ? ` · ${-over}d under` : ' · on the rule'}`}>
+            <span className="gantt-baseline-cap" />
+          </div>
+        )}
         {behind && g.target_date && (
           <div className="gantt-behind" style={{ left: x(g.target_date), width: Math.max(4, x(g.projected_end || ge) - x(g.target_date)) }} />
         )}

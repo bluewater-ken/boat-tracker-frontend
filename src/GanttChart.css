@@ -59,7 +59,7 @@
 /* headers — three sticky tiers: quarter / month / week (week only in weeks zoom) */
 .gantt-quarterrow { position: sticky; top: 0; z-index: 8; }
 .gantt-monthrow { position: sticky; top: 24px; z-index: 7; }
-.gantt-weekrow { position: sticky; top: 48px; z-index: 7; }
+.gantt-weekrow { position: sticky; top: 24px; z-index: 7; } /* sits directly under the quarter row (no month row in weeks zoom) */
 .gantt-quarterrow .gantt-left, .gantt-monthrow .gantt-left, .gantt-weekrow .gantt-left,
 .gantt-headlane { background: #173A5E; }
 .gantt-quarterrow .gantt-left, .gantt-quarterrow .gantt-headlane { min-height: 24px; height: 24px; }

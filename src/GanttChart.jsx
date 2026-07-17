@@ -468,12 +468,14 @@ function GanttChart() {
               <div className="gantt-todaymark" style={{ left: todayX }}>Today</div>
             </div>
           </div>
-          <div className="gantt-row gantt-monthrow">
-            <div className="gantt-left gantt-headleft" />
-            <div className="gantt-lane gantt-headlane" style={{ width }}>
-              {months.map((m, i) => <div key={i} className="gantt-month" style={{ width: m.days * px }}>{m.label}</div>)}
+          {zoom === 'months' && (
+            <div className="gantt-row gantt-monthrow">
+              <div className="gantt-left gantt-headleft" />
+              <div className="gantt-lane gantt-headlane" style={{ width }}>
+                {months.map((m, i) => <div key={i} className="gantt-month" style={{ width: m.days * px }}>{m.label}</div>)}
+              </div>
             </div>
-          </div>
+          )}
           {zoom === 'weeks' && (
             <div className="gantt-row gantt-weekrow">
               <div className="gantt-left gantt-headleft" />

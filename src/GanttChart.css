@@ -5,7 +5,12 @@
   .gantt-scroll { max-height: none; flex: 1; min-height: 0; }
 }
 
-.gantt-toolbar { display: flex; align-items: center; gap: 14px; padding: 12px 16px 10px; flex-wrap: wrap; }
+/* Toolbar lives INSIDE the scroll area (so one scrollbar covers the whole page)
+   but stays pinned horizontally while the chart pans. */
+.gantt-toolbar {
+  display: flex; align-items: center; gap: 14px; padding: 12px 16px 10px; flex-wrap: wrap;
+  position: sticky; left: 0; z-index: 6; background: #fff; border-bottom: 1px solid #E6E9EC;
+}
 .gantt-zoom { display: inline-flex; border: 1px solid #C7D2DB; border-radius: 8px; overflow: hidden; }
 .gantt-zoom button { padding: 7px 14px; font-size: 12px; font-weight: 600; color: #5F6B73; background: #fff; border: none; cursor: pointer; }
 .gantt-zoom button.on { background: #2E92D6; color: #fff; }
@@ -24,17 +29,27 @@
 .gantt-draft-save { padding: 6px 16px; font-size: 12px; font-weight: 700; color: #fff; background: #2E92D6; border: none; border-radius: 6px; cursor: pointer; }
 .gantt-draft-discard { padding: 6px 12px; font-size: 12px; font-weight: 600; color: #7A6310; background: transparent; border: 1px solid #E8D48A; border-radius: 6px; cursor: pointer; }
 
-.gantt-scroll { overflow: auto; max-height: calc(100vh - 290px); border-top: 1px solid #E6E9EC; }
-.gantt-inner { display: inline-block; min-width: 100%; background: #fff; }
+.gantt-scroll { overflow: auto; max-height: calc(100vh - 230px); }
+.gantt-inner { display: inline-block; min-width: 100%; background: #fff; position: relative; }
+
+/* month/week/quarter gridlines behind the bars */
+.gantt-grid { position: absolute; top: 0; bottom: 0; z-index: 1; pointer-events: none; }
+.gantt-gl { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid; }
+.gantt-gl.w { border-color: #F1F3F5; }
+.gantt-gl.m { border-color: #D9DEE3; }
+.gantt-gl.q { border-color: #AEB9C2; border-left-width: 2px; }
 
 .gantt-row { display: flex; align-items: stretch; }
 .gantt-left {
-  position: sticky; left: 0; z-index: 5; flex: 0 0 260px;
+  position: sticky; left: 0; z-index: 5; flex: 0 0 var(--gcol, 260px);
   display: flex; align-items: center; gap: 7px;
   background: #fff; padding: 0 8px;
   border-right: 1px solid #C7CDD2; border-bottom: 1px solid #F0F2F4;
   min-height: 36px; overflow: hidden;
 }
+/* drag handle on the "Boat" header's right edge — resizes the whole column */
+.gantt-colresize { position: absolute; top: 0; bottom: 0; right: 0; width: 8px; cursor: col-resize; z-index: 9; }
+.gantt-colresize:hover { background: rgba(46, 146, 214, 0.35); }
 .gantt-lane { position: relative; flex: 0 0 auto; border-bottom: 1px solid #F0F2F4; min-height: 36px; }
 
 /* headers */
@@ -82,6 +97,11 @@
 .gantt-bar { position: absolute; top: 50%; transform: translateY(-50%); height: 18px; border-radius: 5px; z-index: 2; box-sizing: border-box; }
 .gantt-bar.clickable { cursor: pointer; }
 .gantt-bar.clickable:hover { outline: 2px solid #173A5E; }
+/* date-editing drags */
+.gantt-bar.draggable { cursor: grab; touch-action: none; }
+.gantt-bar.draggable:hover, .gantt-bar.resizable:hover { outline: 2px solid #173A5E; }
+.gantt-bar.dragging { outline: 2px solid #2E92D6; opacity: 0.85; z-index: 6; }
+.gantt-rsz { position: absolute; top: 0; bottom: 0; right: 0; width: 8px; cursor: ew-resize; touch-action: none; }
 .gantt-solid { box-shadow: 0 1px 2px rgba(0,0,0,0.16); }
 .gantt-proj { background: #fff; border: 1.6px dashed; }
 .gantt-current { background: #fff; border: 1.6px solid; overflow: hidden; }
@@ -131,9 +151,8 @@
 .gantt-ed-cancel { padding: 9px 14px; font-size: 13px; font-weight: 600; color: #5F6B73; background: #fff; border: 1px solid #C7D2DB; border-radius: 7px; cursor: pointer; }
 .gantt-ed-del { padding: 9px 14px; font-size: 13px; font-weight: 600; color: #A32D2D; background: #FCEBEB; border: 1px solid #eec6c6; border-radius: 7px; cursor: pointer; }
 
-/* Laptop (641–1280px): slimmer boat column = more chart on screen. */
+/* Laptop (641–1280px): tighter task-row indent (column width is user-resizable now). */
 @media (min-width: 641px) and (max-width: 1280px) {
-  .gantt-left { flex-basis: 210px; }
   .gantt-taskrow .gantt-left { padding-left: 26px; }
 }
 
@@ -141,4 +160,5 @@
   .gantt-left { flex-basis: 175px; }
   .gantt-taskrow .gantt-left { padding-left: 22px; }
   .gantt-grip { display: none; } /* reordering is a desktop job */
+  .gantt-colresize { display: none; }
 }

@@ -47,6 +47,11 @@ function GanttChart() {
   const [open, setOpen] = useState({});
   const [dragKey, setDragKey] = useState(null);
   const [editor, setEditor] = useState(null); // {type:'pin'|'target'|'slot', ...}
+  const [colW, setColW] = useState(() => {
+    const v = +localStorage.getItem('gantt_colw');
+    return v >= 150 && v <= 520 ? v : 260;
+  });
+  const [segDrag, setSegDrag] = useState(null); // live bar-drag: {gkey, name, mode, dDays}
   const scrollRef = useRef(null);
   const didAutoScroll = useRef(false);
 
@@ -157,6 +162,21 @@ function GanttChart() {
     } catch { alert('Failed to remove slot.'); }
   };
 
+  // ---------- first-column resize (drag the handle on the "Boat" header edge) ----------
+  const beginColResize = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const x0 = e.clientX, w0 = colW;
+    const clamp = (v) => Math.max(150, Math.min(520, v));
+    const onMove = (ev) => setColW(clamp(w0 + ev.clientX - x0));
+    const onUp = (ev) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      localStorage.setItem('gantt_colw', String(clamp(w0 + ev.clientX - x0)));
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
   if (loading) return <div className="loading">Loading timeline...</div>;
 
   if (!data || !Array.isArray(data.groups)) {
@@ -197,6 +217,50 @@ function GanttChart() {
   const w = (s, e) => Math.max(px, (Math.round((parseD(e) - parseD(s)) / DAY) + 1) * px);
   const todayX = Math.round((today - min) / DAY) * px;
 
+  // ---------- drag a bar to change its dates (saved as a pin) ----------
+  const openPinEditor = (g, s) => {
+    setEditor(s.pin_id
+      ? { type: 'pin', key: g.key, stage: s.name, kind: s.kind === 'hold' ? 'hold' : 'pin', start: String(s.start).slice(0, 10), end: String(s.end).slice(0, 10), pin_id: s.pin_id, note: s.duration_note }
+      : { type: 'pin', key: g.key, stage: s.name, kind: 'pin', start: String(s.start).slice(0, 10), end: String(s.end).slice(0, 10), note: s.duration_note });
+  };
+  const shiftDate = (dstr, n) => {
+    const d = parseD(dstr); d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  // mode 'move' slides the whole bar; 'resize' drags the end date only.
+  const beginSegDrag = (e, g, s, mode) => {
+    e.preventDefault(); e.stopPropagation();
+    const info = { x0: e.clientX, moved: false };
+    const onMove = (ev) => {
+      const dx = ev.clientX - info.x0;
+      if (Math.abs(dx) > 3) info.moved = true;
+      setSegDrag({ gkey: g.key, name: s.name, mode, dDays: Math.round(dx / px) });
+    };
+    const onUp = async (ev) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      const dDays = Math.round((ev.clientX - info.x0) / px);
+      const wasMoved = info.moved;
+      setSegDrag(null);
+      if (guardDraft()) return;
+      if (!wasMoved) { openPinEditor(g, s); return; } // a plain click still opens the date popup
+      if (dDays === 0) return;
+      let start = String(s.start).slice(0, 10), end = String(s.end).slice(0, 10);
+      if (mode === 'move') { start = shiftDate(start, dDays); end = shiftDate(end, dDays); }
+      else { end = shiftDate(end, dDays); if (end < start) end = start; }
+      try {
+        const r = await apiFetch('/api/timeline/pins', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ group_key: g.key, stage: s.name, kind: 'pin', start_date: start, end_date: end }),
+        });
+        if (!r.ok) throw new Error();
+        init(true);
+      } catch { alert('Failed to save the new dates.'); init(true); }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
   const months = [];
   { let d = new Date(min);
     while (d <= max) {
@@ -207,6 +271,21 @@ function GanttChart() {
     } }
   const weeks = [];
   if (zoom === 'weeks') { let d = new Date(min); while (d <= max) { weeks.push(fmtShort(d)); d = new Date(d.getTime() + 7 * DAY); } }
+
+  // Vertical gridlines: light weekly (weeks zoom), medium at month starts, heavy at quarters.
+  const gridLines = [];
+  if (zoom === 'weeks') {
+    const totalDays = Math.round((max - min) / DAY);
+    for (let j = 1; j * 7 <= totalDays; j++) gridLines.push({ left: j * 7 * px, cls: 'w' });
+  }
+  { let cum = 0;
+    months.forEach((m, i) => {
+      if (i > 0) {
+        const d = new Date(min.getTime() + cum * DAY);
+        gridLines.push({ left: Math.round(cum * px), cls: d.getMonth() % 3 === 0 ? 'q' : 'm' });
+      }
+      cum += m.days;
+    }); }
 
   setTimeout(() => {
     if (!didAutoScroll.current && scrollRef.current) {
@@ -220,33 +299,42 @@ function GanttChart() {
   // ---------- segment renderer ----------
   const segBar = (g, s) => {
     const color = STAGE_COLOR(s.name);
-    const left = x(s.start), wd = w(s.start, s.end);
-    const clickable = isOps && g.kind !== 'slot' && s.kind !== 'actual';
-    const onClick = (e) => {
-      e.stopPropagation();
-      if (!clickable || guardDraft()) return;
-      setEditor(s.pin_id
-        ? { type: 'pin', key: g.key, stage: s.name, kind: s.kind === 'hold' ? 'hold' : 'pin', start: String(s.start).slice(0, 10), end: String(s.end).slice(0, 10), pin_id: s.pin_id, note: s.duration_note }
-        : { type: 'pin', key: g.key, stage: s.name, kind: 'pin', start: String(s.start).slice(0, 10), end: String(s.end).slice(0, 10), note: s.duration_note });
-    };
-    const title = `${s.name}: ${String(s.start).slice(0, 10)} → ${String(s.end).slice(0, 10)}${s.duration_note ? ` · ${s.duration_note}` : ''}${s.fill_note ? ` · ${s.fill_note}` : ''}`;
+    let left = x(s.start), wd = w(s.start, s.end);
+    // Live preview while dragging this bar.
+    const dm = segDrag && segDrag.gkey === g.key && segDrag.name === s.name ? segDrag : null;
+    if (dm) {
+      if (dm.mode === 'move') left += dm.dDays * px;
+      else wd = Math.max(px, wd + dm.dDays * px);
+    }
+    const editable = isOps && g.kind !== 'slot' && s.kind !== 'actual';
+    // Body drag slides the WHOLE bar (length kept, dates shift); the right-edge
+    // handle changes the end date (length). Both save as a pin.
+    const canDrag = editable && s.kind !== 'hold';
+    const canMove = canDrag;
+    const title = `${s.name}: ${String(s.start).slice(0, 10)} → ${String(s.end).slice(0, 10)}${s.duration_note ? ` · ${s.duration_note}` : ''}${s.fill_note ? ` · ${s.fill_note}` : ''}${canDrag ? ' · drag bar = shift dates · drag right edge = change length' : ''}`;
+    const bodyDown = canDrag ? (e) => beginSegDrag(e, g, s, 'move') : undefined;
+    const holdClick = (e) => { e.stopPropagation(); if (!editable || guardDraft()) return; openPinEditor(g, s); };
+    const rsz = canDrag && <span className="gantt-rsz" onPointerDown={(e) => beginSegDrag(e, g, s, 'resize')} title="Drag to change the end date" />;
+    const dragCls = canDrag ? (canMove ? 'draggable' : 'resizable') : '';
     if (s.kind === 'hold') {
-      return <div key={s.name + s.start} className={`gantt-bar gantt-hold ${clickable ? 'clickable' : ''}`} style={{ left, width: wd }} title={title} onClick={onClick}><span className="gantt-pinmark">📌</span></div>;
+      return <div key={s.name + s.start} className={`gantt-bar gantt-hold ${editable ? 'clickable' : ''}`} style={{ left, width: wd }} title={title} onClick={holdClick}><span className="gantt-pinmark">📌</span></div>;
     }
     if (s.kind === 'projected') {
-      return <div key={s.name + s.start} className={`gantt-bar gantt-proj ${clickable ? 'clickable' : ''}`} style={{ left, width: wd, borderColor: color }} title={title} onClick={onClick} />;
+      return <div key={s.name + s.start} className={`gantt-bar gantt-proj ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, borderColor: color }} title={title} onPointerDown={bodyDown}>{rsz}</div>;
     }
     if (s.kind === 'current') {
       return (
-        <div key={s.name + s.start} className={`gantt-bar gantt-current ${clickable ? 'clickable' : ''}`} style={{ left, width: wd, borderColor: color }} title={title} onClick={onClick}>
+        <div key={s.name + s.start} className={`gantt-bar gantt-current ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, borderColor: color }} title={title} onPointerDown={bodyDown}>
           <div className="gantt-fill" style={{ width: `${s.fill_pct ?? 0}%`, background: color }} />
+          {rsz}
         </div>
       );
     }
     // actual or pinned
     return (
-      <div key={s.name + s.start} className={`gantt-bar gantt-solid ${clickable ? 'clickable' : ''}`} style={{ left, width: wd, background: color, filter: s.kind === 'pinned' ? 'brightness(0.82)' : 'none' }} title={title} onClick={onClick}>
+      <div key={s.name + s.start} className={`gantt-bar gantt-solid ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, background: color, filter: s.kind === 'pinned' ? 'brightness(0.82)' : 'none' }} title={title} onPointerDown={bodyDown}>
         {s.kind === 'pinned' && <span className="gantt-pinmark">📌</span>}
+        {s.kind === 'pinned' && rsz}
       </div>
     );
   };
@@ -283,34 +371,39 @@ function GanttChart() {
   };
 
   return (
-    <div className="gantt">
-      <div className="gantt-toolbar">
-        <div className="gantt-zoom">
-          <button className={zoom === 'weeks' ? 'on' : ''} onClick={() => setZoom('weeks')}>Weeks</button>
-          <button className={zoom === 'months' ? 'on' : ''} onClick={() => setZoom('months')}>Months</button>
-        </div>
-        <button className="gantt-expandall"
-          onClick={() => {
-            const allOpen = groups.length > 0 && groups.every(g => open[g.key]);
-            setOpen(allOpen ? {} : Object.fromEntries(groups.map(g => [g.key, true])));
-          }}>
-          {groups.length > 0 && groups.every(g => open[g.key]) ? '⌃ Collapse all' : '⌄ Expand all'}
-        </button>
-        {!draft && <span className="gantt-note">{isOps ? 'Drag ⠿ to test a new build order · click a bar to pin/hold · ◆ = target delivery.' : 'Solid = done, shaded = work complete, dashed = projected. ◆ = target.'}</span>}
-        {draft && (
-          <div className="gantt-draftbar">
-            🧪 Draft order — nothing saved{previewFailed ? ' (preview unavailable — dates show the saved order)' : ''}.
-            <button className="gantt-draft-save" onClick={saveDraft}>Save order</button>
-            <button className="gantt-draft-discard" onClick={discardDraft}>Discard</button>
-          </div>
-        )}
-        {isOps && !draft && <button className="gantt-addgroup" onClick={() => setEditor({ type: 'slot', title: '', model: '' })}>+ Add boat / slot</button>}
-      </div>
-
+    <div className="gantt" style={{ '--gcol': colW + 'px' }}>
       <div className="gantt-scroll" ref={scrollRef}>
+        <div className="gantt-toolbar">
+          <div className="gantt-zoom">
+            <button className={zoom === 'weeks' ? 'on' : ''} onClick={() => setZoom('weeks')}>Weeks</button>
+            <button className={zoom === 'months' ? 'on' : ''} onClick={() => setZoom('months')}>Months</button>
+          </div>
+          <button className="gantt-expandall"
+            onClick={() => {
+              const allOpen = groups.length > 0 && groups.every(g => open[g.key]);
+              setOpen(allOpen ? {} : Object.fromEntries(groups.map(g => [g.key, true])));
+            }}>
+            {groups.length > 0 && groups.every(g => open[g.key]) ? '⌃ Collapse all' : '⌄ Expand all'}
+          </button>
+          {!draft && <span className="gantt-note">{isOps ? 'Drag ⠿ to test a new build order · drag a bar to shift dates, its right edge to change length · ◆ = target.' : 'Solid = done, shaded = work complete, dashed = projected. ◆ = target.'}</span>}
+          {draft && (
+            <div className="gantt-draftbar">
+              🧪 Draft order — nothing saved{previewFailed ? ' (preview unavailable — dates show the saved order)' : ''}.
+              <button className="gantt-draft-save" onClick={saveDraft}>Save order</button>
+              <button className="gantt-draft-discard" onClick={discardDraft}>Discard</button>
+            </div>
+          )}
+          {isOps && !draft && <button className="gantt-addgroup" onClick={() => setEditor({ type: 'slot', title: '', model: '' })}>+ Add boat / slot</button>}
+        </div>
+
         <div className="gantt-inner">
+          <div className="gantt-grid" style={{ left: colW, width }}>
+            {gridLines.map((l, i) => <div key={i} className={`gantt-gl ${l.cls}`} style={{ left: l.left }} />)}
+          </div>
           <div className="gantt-row gantt-monthrow">
-            <div className="gantt-left gantt-headleft">Boat</div>
+            <div className="gantt-left gantt-headleft">Boat
+              <span className="gantt-colresize" onPointerDown={beginColResize} title="Drag to resize this column" />
+            </div>
             <div className="gantt-lane gantt-headlane" style={{ width }}>
               {months.map((m, i) => <div key={i} className="gantt-month" style={{ width: m.days * px }}>{m.label}</div>)}
               <div className="gantt-todaymark" style={{ left: todayX }}>Today</div>

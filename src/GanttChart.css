@@ -52,7 +52,9 @@
 /* drag handle on the "Boat" header's right edge — resizes the whole column */
 .gantt-colresize { position: absolute; top: 0; bottom: 0; right: 0; width: 8px; cursor: col-resize; z-index: 9; }
 .gantt-colresize:hover { background: rgba(46, 146, 214, 0.35); }
-.gantt-lane { position: relative; flex: 0 0 auto; border-bottom: 1px solid #F0F2F4; min-height: 36px; }
+.gantt-lane { position: relative; flex: 0 0 auto; border-bottom: 1px solid #F0F2F4; min-height: 36px; cursor: grab; }
+.gantt-scroll.panning { cursor: grabbing; }
+.gantt-scroll.panning * { cursor: grabbing !important; user-select: none; }
 
 /* headers — three sticky tiers: quarter / month / week (week only in weeks zoom) */
 .gantt-quarterrow { position: sticky; top: 0; z-index: 8; }

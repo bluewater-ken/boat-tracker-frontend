@@ -54,6 +54,34 @@ function GanttChart() {
   const [segDrag, setSegDrag] = useState(null); // live bar-drag: {gkey, name, mode, dDays}
   const scrollRef = useRef(null);
   const didAutoScroll = useRef(false);
+  const panRef = useRef({ suppress: false }); // suppress the click a pan-drag would fire
+
+  // Hand-pan: dragging empty chart space (not a bar/handle) pans the view. No toggle
+  // — grab-drag on the lanes; a real drag suppresses the click so it won't also
+  // toggle a row.
+  const beginPan = (e) => {
+    const el = scrollRef.current;
+    if (!el || e.button !== 0) return;
+    const t = e.target;
+    if (!t.closest('.gantt-lane')) return;            // only from the chart area
+    if (t.closest('.gantt-bar, .gantt-rsz')) return;  // bars own their drags
+    const x0 = e.clientX, y0 = e.clientY, sl = el.scrollLeft, st = el.scrollTop;
+    let moved = false;
+    el.classList.add('panning');
+    const onMove = (ev) => {
+      const dx = ev.clientX - x0, dy = ev.clientY - y0;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+      el.scrollLeft = sl - dx; el.scrollTop = st - dy;
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      el.classList.remove('panning');
+      if (moved) { panRef.current.suppress = true; setTimeout(() => { panRef.current.suppress = false; }, 0); }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
 
   useEffect(() => {
     init();
@@ -385,7 +413,7 @@ function GanttChart() {
 
   return (
     <div className="gantt" style={{ '--gcol': colW + 'px' }}>
-      <div className="gantt-scroll" ref={scrollRef}>
+      <div className="gantt-scroll" ref={scrollRef} onPointerDown={beginPan}>
         <div className="gantt-toolbar">
           <div className="gantt-zoom">
             <button className={zoom === 'weeks' ? 'on' : ''} onClick={() => setZoom('weeks')}>Weeks</button>
@@ -444,7 +472,7 @@ function GanttChart() {
               <div key={g.key} className={`gantt-row gantt-grouprow ${dragKey === g.key ? 'dragging' : ''}`}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => startDrop(g.key)}
-                onClick={() => toggle(g.key)}>
+                onClick={() => { if (panRef.current.suppress) return; toggle(g.key); }}>
                 <div className="gantt-left gantt-grouphead">
                   {isOps && <span className="gantt-grip" title="Drag to test a new build order" draggable
                     onDragStart={(e) => { e.stopPropagation(); setDragKey(g.key); }}

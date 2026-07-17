@@ -261,16 +261,28 @@ function GanttChart() {
     window.addEventListener('pointerup', onUp);
   };
 
+  // Quarter row (top): Q1–Q4 + year, spanning three months each.
+  const quarters = [];
+  { let d = new Date(min);
+    while (d <= max) {
+      const q = Math.floor(d.getMonth() / 3);
+      const qEnd = new Date(d.getFullYear(), q * 3 + 3, 0);
+      const end = qEnd < max ? qEnd : max;
+      quarters.push({ label: `Q${q + 1} ${d.getFullYear()}`, days: Math.round((end - d) / DAY) + 1 });
+      d = new Date(d.getFullYear(), q * 3 + 3, 1);
+    } }
+  // Month row: month name only (year lives on the quarter row above).
   const months = [];
   { let d = new Date(min);
     while (d <= max) {
       const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
       const end = mEnd < max ? mEnd : max;
-      months.push({ label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }), days: Math.round((end - d) / DAY) + 1 });
+      months.push({ label: d.toLocaleDateString('en-US', { month: 'long' }), days: Math.round((end - d) / DAY) + 1 });
       d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
     } }
+  // Week row (weeks zoom): labelled by each week's END date (Sunday).
   const weeks = [];
-  if (zoom === 'weeks') { let d = new Date(min); while (d <= max) { weeks.push(fmtShort(d)); d = new Date(d.getTime() + 7 * DAY); } }
+  if (zoom === 'weeks') { let d = new Date(min); while (d <= max) { weeks.push(fmtShort(new Date(d.getTime() + 6 * DAY))); d = new Date(d.getTime() + 7 * DAY); } }
 
   // Vertical gridlines: light weekly (weeks zoom), medium at month starts, heavy at quarters.
   const gridLines = [];
@@ -401,13 +413,19 @@ function GanttChart() {
           <div className="gantt-grid" style={{ left: colW, width }}>
             {gridLines.map((l, i) => <div key={i} className={`gantt-gl ${l.cls}`} style={{ left: l.left }} />)}
           </div>
-          <div className="gantt-row gantt-monthrow">
+          <div className="gantt-row gantt-quarterrow">
             <div className="gantt-left gantt-headleft">Boat
               <span className="gantt-colresize" onPointerDown={beginColResize} title="Drag to resize this column" />
             </div>
             <div className="gantt-lane gantt-headlane" style={{ width }}>
-              {months.map((m, i) => <div key={i} className="gantt-month" style={{ width: m.days * px }}>{m.label}</div>)}
+              {quarters.map((q, i) => <div key={i} className="gantt-quarter" style={{ width: q.days * px }}>{q.label}</div>)}
               <div className="gantt-todaymark" style={{ left: todayX }}>Today</div>
+            </div>
+          </div>
+          <div className="gantt-row gantt-monthrow">
+            <div className="gantt-left gantt-headleft" />
+            <div className="gantt-lane gantt-headlane" style={{ width }}>
+              {months.map((m, i) => <div key={i} className="gantt-month" style={{ width: m.days * px }}>{m.label}</div>)}
             </div>
           </div>
           {zoom === 'weeks' && (

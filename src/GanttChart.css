@@ -54,15 +54,21 @@
 .gantt-colresize:hover { background: rgba(46, 146, 214, 0.35); }
 .gantt-lane { position: relative; flex: 0 0 auto; border-bottom: 1px solid #F0F2F4; min-height: 36px; }
 
-/* headers */
-.gantt-monthrow { position: sticky; top: 0; z-index: 7; }
-.gantt-weekrow { position: sticky; top: 30px; z-index: 7; }
-.gantt-monthrow .gantt-left, .gantt-weekrow .gantt-left,
-.gantt-headlane { background: #173A5E; border-bottom: 1px solid #2E5275; min-height: 30px; }
+/* headers — three sticky tiers: quarter / month / week (week only in weeks zoom) */
+.gantt-quarterrow { position: sticky; top: 0; z-index: 8; }
+.gantt-monthrow { position: sticky; top: 24px; z-index: 7; }
+.gantt-weekrow { position: sticky; top: 48px; z-index: 7; }
+.gantt-quarterrow .gantt-left, .gantt-monthrow .gantt-left, .gantt-weekrow .gantt-left,
+.gantt-headlane { background: #173A5E; }
+.gantt-quarterrow .gantt-left, .gantt-quarterrow .gantt-headlane { min-height: 24px; height: 24px; }
+.gantt-monthrow .gantt-left, .gantt-monthrow .gantt-headlane { min-height: 24px; height: 24px; border-bottom: 1px solid #2E5275; }
+.gantt-weekrow .gantt-left, .gantt-weekrow .gantt-headlane { min-height: 22px; height: 22px; }
+.gantt-weekrow .gantt-headlane, .gantt-quarterrow .gantt-headlane { border-bottom: 1px solid #2E5275; }
 .gantt-headleft { color: #fff; font-size: 12px; font-weight: 700; }
 .gantt-headlane { display: flex; }
-.gantt-month { flex: 0 0 auto; color: #fff; font-size: 11px; font-weight: 700; padding: 7px 8px; border-right: 1px solid #2E5275; white-space: nowrap; overflow: hidden; }
-.gantt-week { flex: 0 0 auto; color: #9db8d0; font-size: 9px; padding: 8px 4px 6px; border-right: 1px dashed #2E5275; white-space: nowrap; overflow: hidden; }
+.gantt-quarter { flex: 0 0 auto; color: #fff; font-size: 11px; font-weight: 700; padding: 5px 8px; border-right: 1px solid #4A6D93; white-space: nowrap; overflow: hidden; }
+.gantt-month { flex: 0 0 auto; color: #cfe0f1; font-size: 11px; font-weight: 500; padding: 5px 8px; border-right: 1px solid #2E5275; white-space: nowrap; overflow: hidden; }
+.gantt-week { flex: 0 0 auto; color: #9db8d0; font-size: 9px; padding: 5px 4px; border-right: 1px dashed #2E5275; white-space: nowrap; overflow: hidden; text-align: right; }
 
 .gantt-todayline { position: absolute; top: 0; bottom: 0; width: 2px; background: #2E92D6; opacity: 0.85; z-index: 3; }
 

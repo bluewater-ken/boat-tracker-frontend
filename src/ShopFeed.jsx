@@ -4,6 +4,57 @@ import { useAuth } from './AuthContext';
 import { isDelivered } from './boatFilter';
 import './ShopFeed.css';
 
+// A single activity row. When the event has CompanyCam photos (has_photos), the
+// row is clickable and expands a thumbnail strip — photos are fetched lazily on
+// first open. Clicking a thumbnail opens the full image via onOpenPhoto.
+function FeedRow({ it, iconFor, fmtTime, onOpenPhoto }) {
+  const [open, setOpen] = useState(false);
+  const [photos, setPhotos] = useState(null); // null=unloaded/loading, []=none, [...]=loaded
+  const hasPhotos = !!it.has_photos;
+
+  const toggle = async () => {
+    if (!hasPhotos) return;
+    const next = !open;
+    setOpen(next);
+    if (next && photos === null) {
+      try {
+        const r = await apiFetch(`/api/assembly/feed/${it.id}/photos`);
+        setPhotos(r.ok ? (await r.json()) : []);
+      } catch (e) { setPhotos([]); }
+    }
+  };
+
+  return (
+    <div className={`feed-row ${hasPhotos ? 'has-photos' : ''} ${open ? 'open' : ''}`}>
+      <div className="feed-rowmain" onClick={toggle} role={hasPhotos ? 'button' : undefined} tabIndex={hasPhotos ? 0 : undefined}
+        onKeyDown={hasPhotos ? (e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }) : undefined}>
+        <span className="feed-time">{fmtTime(it.created_at)}</span>
+        <span className="feed-icon">{iconFor(it)}</span>
+        <span className="feed-main">
+          <span className="feed-title">{it.title}{hasPhotos && <span className="feed-camera" title="Has photos">📷</span>}</span>
+          <span className="feed-sub">
+            {it.boat_id}{it.customer_name ? ` · ${it.customer_name}` : ''}
+            {it.work_center_name ? ` · ${it.work_center_name}` : ''}
+            {it.actor_name ? ` — ${it.actor_name}` : ''}
+          </span>
+        </span>
+        {hasPhotos && <span className={`feed-chevron ${open ? 'up' : ''}`}>⌄</span>}
+      </div>
+      {open && (
+        <div className="feed-photos">
+          {photos === null ? <span className="feed-quiet">Loading photos…</span>
+            : photos.length === 0 ? <span className="feed-quiet">No photos found for this item.</span>
+            : photos.map((p, i) => (
+              <button key={i} className="feed-thumb" onClick={() => onOpenPhoto(photos, i)} title={p.creator_name || 'Photo'}>
+                <img src={p.thumb_url} alt="" loading="lazy" />
+              </button>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Shop Feed — Activity (event stream) + Issues (open items).
 // Wide screens show BOTH side by side; narrow screens show one at a time with the
 // Activity | Issues toggle (the CSS media query decides — see ShopFeed.css).
@@ -141,6 +192,9 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
   const [qKind, setQKind] = useState('');
   const [qPhotos, setQPhotos] = useState([]); // { file, url } — local previews until posted
   const [boats, setBoats] = useState([]);
+  const [lightbox, setLightbox] = useState(null); // { photos, i } — full-size CompanyCam viewer
+
+  const openLightbox = (photos, i) => setLightbox({ photos, i });
 
   useEffect(() => {
     init();
@@ -283,20 +337,7 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
             <div key={g.key} className="feed-day">
               <div className="feed-daylabel">{g.label}</div>
               {g.items.map(it => (
-                <div key={it.id} className="feed-row">
-                  <span className="feed-time">{fmtTime(it.created_at)}</span>
-                  <span className="feed-icon">{iconFor(it)}</span>
-                  {/* "Who" only shows when the event carries a real user: app events do;
-                      CompanyCam events don't (the shop shares one CC login). */}
-                  <span className="feed-main">
-                    <span className="feed-title">{it.title}</span>
-                    <span className="feed-sub">
-                      {it.boat_id}{it.customer_name ? ` · ${it.customer_name}` : ''}
-                      {it.work_center_name ? ` · ${it.work_center_name}` : ''}
-                      {it.actor_name ? ` — ${it.actor_name}` : ''}
-                    </span>
-                  </span>
-                </div>
+                <FeedRow key={it.id} it={it} iconFor={iconFor} fmtTime={fmtTime} onOpenPhoto={openLightbox} />
               ))}
             </div>
           ))}
@@ -455,6 +496,47 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
     <div className="feed feed-split">
       {issuesCol}
       {activityCol}
+      {lightbox && (
+        <PhotoLightbox
+          photos={lightbox.photos}
+          index={lightbox.i}
+          onIndex={i => setLightbox(lb => ({ ...lb, i }))}
+          onClose={() => setLightbox(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Full-size CompanyCam photo viewer with prev/next and keyboard support.
+function PhotoLightbox({ photos, index, onIndex, onClose }) {
+  const p = photos[index];
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'ArrowRight') onIndex((index + 1) % photos.length);
+      else if (e.key === 'ArrowLeft') onIndex((index - 1 + photos.length) % photos.length);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [index, photos.length, onIndex, onClose]);
+
+  return (
+    <div className="feed-lightbox" onClick={onClose}>
+      <button className="feed-lb-x" onClick={onClose} aria-label="Close">✕</button>
+      {photos.length > 1 && (
+        <button className="feed-lb-nav prev" onClick={e => { e.stopPropagation(); onIndex((index - 1 + photos.length) % photos.length); }} aria-label="Previous">‹</button>
+      )}
+      <figure className="feed-lb-figure" onClick={e => e.stopPropagation()}>
+        <img src={p.full_url || p.web_url} alt="" />
+        <figcaption>
+          {p.creator_name ? `${p.creator_name} · ` : ''}{fmtTime(p.captured_at)}
+          {photos.length > 1 ? ` · ${index + 1}/${photos.length}` : ''}
+        </figcaption>
+      </figure>
+      {photos.length > 1 && (
+        <button className="feed-lb-nav next" onClick={e => { e.stopPropagation(); onIndex((index + 1) % photos.length); }} aria-label="Next">›</button>
+      )}
     </div>
   );
 }

@@ -371,15 +371,18 @@ function GanttChart() {
     if (s.kind === 'projected') {
       return <div key={s.name + s.start} className={`gantt-bar gantt-proj ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, borderColor: color }} title={title} onPointerDown={bodyDown}>{rsz}</div>;
     }
-    if (s.kind === 'current') {
+    // Current stage, or a pinned stage that's still in progress (has a live fill) —
+    // draw it as a bordered bar with the work-completion fill; add 📌 when pinned.
+    if (s.kind === 'current' || (s.kind === 'pinned' && s.fill_pct != null)) {
       return (
         <div key={s.name + s.start} className={`gantt-bar gantt-current ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, borderColor: color }} title={title} onPointerDown={bodyDown}>
           <div className="gantt-fill" style={{ width: `${s.fill_pct ?? 0}%`, background: color }} />
+          {s.kind === 'pinned' && <span className="gantt-pinmark">📌</span>}
           {rsz}
         </div>
       );
     }
-    // actual or pinned
+    // actual, or a pinned stage with no live work (future/past)
     return (
       <div key={s.name + s.start} className={`gantt-bar gantt-solid ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, background: color, filter: s.kind === 'pinned' ? 'brightness(0.82)' : 'none' }} title={title} onPointerDown={bodyDown}>
         {s.kind === 'pinned' && <span className="gantt-pinmark">📌</span>}
@@ -558,7 +561,7 @@ function GanttChart() {
                         );
                       })()}
                       {segBar(g, s)}
-                      {s.kind === 'current' && s.fill_note && <span className="gantt-filllabel" style={{ left: x(s.start) + w(s.start, s.end) + 8 }}>{s.fill_note}{s.fill_pct != null ? ` · ${s.fill_pct}%` : ''}</span>}
+                      {(s.kind === 'current' || (s.kind === 'pinned' && s.fill_pct != null)) && s.fill_note && <span className="gantt-filllabel" style={{ left: x(s.start) + w(s.start, s.end) + 8 }}>{s.fill_note}{s.fill_pct != null ? ` · ${s.fill_pct}%` : ''}</span>}
                     </div>
                   </div>
                 );

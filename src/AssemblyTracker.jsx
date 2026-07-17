@@ -295,6 +295,11 @@ function AssemblyTracker() {
               <li className="asm-check-note">{menuRow.completed_items} completed item{menuRow.completed_items === 1 ? '' : 's'} tracked in CompanyCam</li>
             )}
           </ul>
+          {!menuWc.app && menuRow.cc_url && (
+            <a className="asm-cc-link" href={menuRow.cc_url} target="_blank" rel="noreferrer">
+              📷 View photos in CompanyCam ↗
+            </a>
+          )}
           <div className="am-spec-hint">
             {menuWc.app
               ? `Read-only here — update tasks on the ${menuWc.name} tab.`

@@ -29,7 +29,9 @@
 .gantt-draft-save { padding: 6px 16px; font-size: 12px; font-weight: 700; color: #fff; background: #2E92D6; border: none; border-radius: 6px; cursor: pointer; }
 .gantt-draft-discard { padding: 6px 12px; font-size: 12px; font-weight: 600; color: #7A6310; background: transparent; border: 1px solid #E8D48A; border-radius: 6px; cursor: pointer; }
 
-.gantt-scroll { overflow: auto; max-height: calc(100vh - 230px); }
+/* No max-height here: on desktop the flex chain (below, min-width 641) makes the
+   chart fill the whole page; the mobile cap lives in the 640px media block. */
+.gantt-scroll { overflow: auto; }
 .gantt-inner { display: inline-block; min-width: 100%; background: #fff; position: relative; }
 
 /* month/week/quarter gridlines behind the bars */
@@ -120,6 +122,8 @@
 
 /* task rows */
 .gantt-taskrow .gantt-left { padding-left: 34px; }
+.gantt-taskleft.clickable { cursor: pointer; }
+.gantt-taskleft.clickable:hover { background: #eef6fc; }
 .gantt-tname { display: flex; flex-direction: column; min-width: 0; font-size: 11px; font-weight: 600; color: #33424C; line-height: 1.25; }
 .gantt-tdates { font-size: 9.5px; font-weight: 500; color: #8A969E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -157,6 +161,7 @@
 }
 
 @media (max-width: 640px) {
+  .gantt-scroll { max-height: calc(100vh - 210px); }
   .gantt-left { flex-basis: 175px; }
   .gantt-taskrow .gantt-left { padding-left: 22px; }
   .gantt-grip { display: none; } /* reordering is a desktop job */

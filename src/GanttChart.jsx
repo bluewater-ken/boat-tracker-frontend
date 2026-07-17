@@ -306,16 +306,17 @@ function GanttChart() {
       if (dm.mode === 'move') left += dm.dDays * px;
       else wd = Math.max(px, wd + dm.dDays * px);
     }
-    const editable = isOps && g.kind !== 'slot' && s.kind !== 'actual';
+    const editable = isOps && g.kind !== 'slot';
     // Body drag slides the WHOLE bar (length kept, dates shift); the right-edge
-    // handle changes the end date (length). Both save as a pin.
-    const canDrag = editable && s.kind !== 'hold';
-    const canMove = canDrag;
-    const title = `${s.name}: ${String(s.start).slice(0, 10)} → ${String(s.end).slice(0, 10)}${s.duration_note ? ` · ${s.duration_note}` : ''}${s.fill_note ? ` · ${s.fill_note}` : ''}${canDrag ? ' · drag bar = shift dates · drag right edge = change length' : ''}`;
+    // handle changes the end date (length). Both save as a pin. Actual (past)
+    // bars: end-edge drag only — the recorded start stays put.
+    const canDrag = editable && s.kind !== 'hold' && s.kind !== 'actual';
+    const endOnly = editable && s.kind === 'actual';
+    const title = `${s.name}: ${String(s.start).slice(0, 10)} → ${String(s.end).slice(0, 10)}${s.duration_note ? ` · ${s.duration_note}` : ''}${s.fill_note ? ` · ${s.fill_note}` : ''}${canDrag ? ' · drag bar = shift dates · drag right edge = change length' : endOnly ? ' · drag right edge = adjust end date' : ''}`;
     const bodyDown = canDrag ? (e) => beginSegDrag(e, g, s, 'move') : undefined;
     const holdClick = (e) => { e.stopPropagation(); if (!editable || guardDraft()) return; openPinEditor(g, s); };
-    const rsz = canDrag && <span className="gantt-rsz" onPointerDown={(e) => beginSegDrag(e, g, s, 'resize')} title="Drag to change the end date" />;
-    const dragCls = canDrag ? (canMove ? 'draggable' : 'resizable') : '';
+    const rsz = (canDrag || endOnly) && <span className="gantt-rsz" onPointerDown={(e) => beginSegDrag(e, g, s, 'resize')} title="Drag to change the end date" />;
+    const dragCls = canDrag ? 'draggable' : endOnly ? 'resizable' : '';
     if (s.kind === 'hold') {
       return <div key={s.name + s.start} className={`gantt-bar gantt-hold ${editable ? 'clickable' : ''}`} style={{ left, width: wd }} title={title} onClick={holdClick}><span className="gantt-pinmark">📌</span></div>;
     }
@@ -334,7 +335,7 @@ function GanttChart() {
     return (
       <div key={s.name + s.start} className={`gantt-bar gantt-solid ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, background: color, filter: s.kind === 'pinned' ? 'brightness(0.82)' : 'none' }} title={title} onPointerDown={bodyDown}>
         {s.kind === 'pinned' && <span className="gantt-pinmark">📌</span>}
-        {s.kind === 'pinned' && rsz}
+        {rsz}
       </div>
     );
   };
@@ -463,7 +464,9 @@ function GanttChart() {
                 const prev = i > 0 ? g.segments[i - 1] : null;
                 rows.push(
                   <div key={`${g.key}-${s.name}-${s.start}`} className="gantt-row gantt-taskrow">
-                    <div className="gantt-left gantt-taskleft">
+                    <div className={`gantt-left gantt-taskleft ${isOps && g.kind !== 'slot' ? 'clickable' : ''}`}
+                      title={isOps && g.kind !== 'slot' ? 'Click to edit dates (pin / hold)' : undefined}
+                      onClick={() => { if (!isOps || g.kind === 'slot' || guardDraft()) return; openPinEditor(g, s); }}>
                       <span className="gantt-tname">
                         {s.name}{s.kind === 'pinned' ? ' 📌' : s.kind === 'hold' ? ' (hold) 📌' : ''}
                         <span className="gantt-tdates">

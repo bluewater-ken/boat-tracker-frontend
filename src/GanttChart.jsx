@@ -336,6 +336,14 @@ function GanttChart() {
 
   const toggle = (k) => setOpen(p => ({ ...p, [k]: !p[k] }));
 
+  // ---------- norm baseline ----------
+  // The rule/learned duration for a stage, drawn as a thin line under the bar so an
+  // extended/over-running stage shows the gap. Prefer the per-boat planned_days the
+  // backend already computes for the current stage; else the model's norm.
+  const normMap = {};
+  for (const n of (payload.norms || [])) normMap[`${n.model}|${n.stage}`] = n.days;
+  const normDaysFor = (g, s) => (s.planned_days || normMap[`${g.model}|${s.name}`] || null);
+
   // ---------- segment renderer ----------
   const segBar = (g, s) => {
     const color = STAGE_COLOR(s.name);
@@ -525,6 +533,18 @@ function GanttChart() {
                     <div className="gantt-lane" style={{ width }}>
                       <div className="gantt-todayline" style={{ left: todayX }} />
                       {waitEl(s, prev ? prev.end : null)}
+                      {(() => {
+                        const nd = normDaysFor(g, s);
+                        if (!nd) return null;
+                        const bd = daysBetween(parseD(s.start), parseD(s.end));
+                        const over = bd - nd; // + = ran/running longer than the rule
+                        return (
+                          <div className="gantt-baseline" style={{ left: x(s.start), width: nd * px }}
+                            title={`rule: ${nd}d${over > 0 ? ` · ${over}d over` : over < 0 ? ` · ${-over}d under` : ' · on the rule'}`}>
+                            <span className="gantt-baseline-cap" />
+                          </div>
+                        );
+                      })()}
                       {segBar(g, s)}
                       {s.kind === 'current' && s.fill_note && <span className="gantt-filllabel" style={{ left: x(s.start) + w(s.start, s.end) + 8 }}>{s.fill_note}{s.fill_pct != null ? ` · ${s.fill_pct}%` : ''}</span>}
                     </div>
@@ -540,6 +560,7 @@ function GanttChart() {
           <span><i className="sw" style={{ background: '#E89A2B' }} />Actual</span>
           <span><i className="sw swfill" />Current — fill = work done</span>
           <span><i className="sw swproj" />Projected</span>
+          <span><i className="sw swbaseline" />Rule / norm (bar past it = over)</span>
           <span>📌 Pinned / hold</span>
           <span><i className="sw swdiamond" /> Target delivery</span>
           <span><i className="sw swbehind" /><b className="gantt-behindtag">Behind target</b></span>

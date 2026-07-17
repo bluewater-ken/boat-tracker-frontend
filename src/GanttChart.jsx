@@ -312,11 +312,12 @@ function GanttChart() {
   const weeks = [];
   if (zoom === 'weeks') { let d = new Date(min); while (d <= max) { weeks.push(fmtShort(new Date(d.getTime() + 6 * DAY))); d = new Date(d.getTime() + 7 * DAY); } }
 
-  // Vertical gridlines: light weekly (weeks zoom), medium at month starts, heavy at quarters.
+  // Vertical gridlines: faint daily + light weekly (weeks zoom), medium at month
+  // starts, heavy at quarters.
   const gridLines = [];
   if (zoom === 'weeks') {
     const totalDays = Math.round((max - min) / DAY);
-    for (let j = 1; j * 7 <= totalDays; j++) gridLines.push({ left: j * 7 * px, cls: 'w' });
+    for (let j = 1; j <= totalDays; j++) gridLines.push({ left: j * px, cls: j % 7 === 0 ? 'w' : 'd' });
   }
   { let cum = 0;
     months.forEach((m, i) => {

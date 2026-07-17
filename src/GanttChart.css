@@ -37,6 +37,7 @@
 /* month/week/quarter gridlines behind the bars */
 .gantt-grid { position: absolute; top: 0; bottom: 0; z-index: 1; pointer-events: none; }
 .gantt-gl { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid; }
+.gantt-gl.d { border-color: #FaFbFc; }
 .gantt-gl.w { border-color: #F1F3F5; }
 .gantt-gl.m { border-color: #D9DEE3; }
 .gantt-gl.q { border-color: #AEB9C2; border-left-width: 2px; }

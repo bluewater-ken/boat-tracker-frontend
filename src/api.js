@@ -2,7 +2,15 @@
 // One place for: the backend base URL, the login token, and a fetch wrapper
 // that attaches the token to every request and handles expired sessions.
 
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// API base URL. An explicit VITE_API_URL always wins. Otherwise we pick a safe
+// default by where the app is running: localhost during dev, the production
+// backend anywhere else — so a deploy that's missing VITE_API_URL still reaches
+// the real server instead of falling back to localhost (which breaks login with
+// "Failed to fetch" / mixed-content on the live site).
+const PROD_API = 'https://tracker.bluewatersportfishingboats.com';
+const isLocalHost = typeof window !== 'undefined' &&
+  /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+export const API_URL = import.meta.env.VITE_API_URL || (isLocalHost ? 'http://localhost:5000' : PROD_API);
 
 const TOKEN_KEY = 'bw_token';
 

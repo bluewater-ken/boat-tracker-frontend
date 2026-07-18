@@ -47,6 +47,9 @@ function GanttChart() {
   const [open, setOpen] = useState({});
   const [dragKey, setDragKey] = useState(null);
   const [editor, setEditor] = useState(null); // {type:'pin'|'target'|'slot', ...}
+  const [lamRows, setLamRows] = useState([]);     // /api/lamination — feeds Glass Shop items
+  const [asmRows, setAsmRows] = useState([]);     // /api/assembly rows — feed Back/Front/QC items
+  const [itemsPop, setItemsPop] = useState(null); // { title, sub, groups:[{label, items:[{name,done}]}] }
   const [colW, setColW] = useState(() => {
     const v = +localStorage.getItem('gantt_colw');
     return v >= 150 && v <= 520 ? v : 260;
@@ -94,8 +97,16 @@ function GanttChart() {
   const init = async (quiet) => {
     try {
       if (!quiet) setLoading(true);
-      const r = await apiFetch('/api/timeline').catch(() => null);
+      // Timeline drives the chart; lamination + assembly let a stage's "7/9 items"
+      // expand into WHICH items are done (sources verified to match the fills exactly).
+      const [r, lam, asm] = await Promise.all([
+        apiFetch('/api/timeline').catch(() => null),
+        apiFetch('/api/lamination').then(x => (x.ok ? x.json() : [])).catch(() => []),
+        apiFetch('/api/assembly').then(x => (x.ok ? x.json() : null)).catch(() => null),
+      ]);
       setData(r && r.ok ? await r.json() : null);
+      setLamRows(lam || []);
+      setAsmRows(asm?.rows || []);
     } finally { if (!quiet) setLoading(false); }
   };
 
@@ -337,6 +348,45 @@ function GanttChart() {
 
   const toggle = (k) => setOpen(p => ({ ...p, [k]: !p[k] }));
 
+  // ---------- what's behind a stage's "7/9 items" ----------
+  // Which source rows make up each stage's fill. Verified against live payloads:
+  // Glass Shop = lamination (minus N/A and the Transducer mold reference);
+  // Back Line = every backline-* work center; Front Line = front-line + console;
+  // QC = quality-control. Counts reproduce the backend's fill_note exactly.
+  const LAM_TASKS = ['Glass Kit', 'Hull', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid', 'Other'];
+  const lamDone = (task, status) => (task === 'Glass Kit' ? ['Complete'] : ['Complete/On Mold', 'Pulled']).includes(status || '');
+  const WC_FOR_STAGE = {
+    'Back Line': (id) => /^backline-/.test(id),
+    'Front Line': (id) => id === 'front-line' || id === 'console-hardtop-and-leaning-post',
+    'QC': (id) => id === 'quality-control',
+  };
+  const stageItemGroups = (g, s) => {
+    if (s.name === 'Glass Shop') {
+      const byTask = {};
+      for (const r of lamRows) if (r.boat_id === g.key) byTask[r.task_name] = r;
+      const items = [];
+      for (const t of LAM_TASKS) {
+        const r = byTask[t];
+        if (!r || r.na) continue;                  // N/A drops out, like the rollup
+        items.push({ name: t, done: lamDone(t, r.status) });
+      }
+      return items.length ? [{ label: 'Lamination', items }] : [];
+    }
+    const match = WC_FOR_STAGE[s.name];
+    if (!match) return [];
+    return asmRows
+      .filter(r => r.boat_id === g.key && match(r.work_center_id) && (r.items || []).length)
+      .map(r => ({
+        label: (r.work_center_id || '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        items: (r.items || []).map(i => ({ name: String(i.name).replace(/\*\*|__/g, '').trim(), done: !!i.done })),
+      }));
+  };
+  const openItems = (g, s) => {
+    const groups = stageItemGroups(g, s);
+    if (!groups.length) return;
+    setItemsPop({ title: `${g.title} · ${s.name}`, sub: s.fill_note ? `${s.fill_note}${s.fill_pct != null ? ` · ${s.fill_pct}%` : ''}` : '', groups });
+  };
+
   // ---------- norm baseline ----------
   // The rule/learned duration for a stage, drawn as a thin line under the bar so an
   // extended/over-running stage shows the gap. Prefer the per-boat planned_days the
@@ -567,7 +617,12 @@ function GanttChart() {
                         );
                       })()}
                       {segBar(g, s)}
-                      {(s.kind === 'current' || (s.kind === 'pinned' && s.fill_pct != null)) && s.fill_note && <span className="gantt-filllabel" style={{ left: x(s.start) + w(s.start, s.end) + 8 }}>{s.fill_note}{s.fill_pct != null ? ` · ${s.fill_pct}%` : ''}</span>}
+                      {(s.kind === 'current' || (s.kind === 'pinned' && s.fill_pct != null)) && s.fill_note && (
+                        <button className="gantt-filllabel" style={{ left: x(s.start) + w(s.start, s.end) + 8 }}
+                          title="See which items are done" onClick={(e) => { e.stopPropagation(); openItems(g, s); }}>
+                          {s.fill_note}{s.fill_pct != null ? ` · ${s.fill_pct}%` : ''}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -589,6 +644,32 @@ function GanttChart() {
         </div>
       </div>
 
+      {itemsPop && (
+        <div className="gantt-edbackdrop" onClick={() => setItemsPop(null)}>
+          <div className="gantt-editor gantt-itemspop" onClick={(e) => e.stopPropagation()}>
+            <div className="gantt-ed-title">{itemsPop.title}</div>
+            {itemsPop.sub && <div className="gantt-ed-note">{itemsPop.sub} — what's left drives how long this stage really takes.</div>}
+            {itemsPop.groups.map((grp, gi) => (
+              <div key={gi} className="gantt-itemgrp">
+                {itemsPop.groups.length > 1 && (
+                  <div className="gantt-itemgrp-title">
+                    {grp.label}
+                    <span className="gantt-itemgrp-count">{grp.items.filter(i => i.done).length}/{grp.items.length}</span>
+                  </div>
+                )}
+                <ul className="gantt-itemlist">
+                  {grp.items.map((it, ii) => (
+                    <li key={ii} className={it.done ? 'done' : ''}><span className="gantt-itembox">{it.done ? '✓' : ''}</span>{it.name}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            <div className="gantt-ed-actions">
+              <button className="gantt-ed-cancel" onClick={() => setItemsPop(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
       {editor && (
         <div className="gantt-edbackdrop" onClick={() => setEditor(null)}>
           <div className="gantt-editor" onClick={(e) => e.stopPropagation()}>

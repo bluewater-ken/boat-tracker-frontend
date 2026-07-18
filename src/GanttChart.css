@@ -130,7 +130,24 @@
 .gantt-baseline-cap { position: absolute; right: 0; bottom: -2px; width: 2px; height: 6px; background: #8A969E; border-radius: 1px; }
 .gantt-wait { position: absolute; top: 50%; transform: translateY(-50%); border-top: 2px dotted #B9C2C9; z-index: 1; }
 .gantt-waitlabel { position: absolute; top: 2px; font-size: 9px; color: #8A969E; white-space: nowrap; z-index: 2; }
-.gantt-filllabel { position: absolute; top: 50%; transform: translateY(-50%); font-size: 10px; color: #5F6B73; white-space: nowrap; z-index: 2; }
+/* Fill label is a button — click to see which items make up the count. */
+.gantt-filllabel {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  font-size: 10px; color: #5F6B73; white-space: nowrap; z-index: 3;
+  background: none; border: none; padding: 2px 4px; cursor: pointer; border-radius: 4px;
+}
+.gantt-filllabel:hover { background: #EEF3F8; color: #173A5E; text-decoration: underline; }
+
+/* Stage item breakdown popup */
+.gantt-itemspop { width: min(460px, 94vw); max-height: 80vh; overflow-y: auto; }
+.gantt-itemgrp { margin-bottom: 12px; }
+.gantt-itemgrp-title { display: flex; align-items: baseline; gap: 8px; font-size: 11px; font-weight: 700; color: #173A5E; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid #E6E9EC; padding-bottom: 3px; margin-bottom: 5px; }
+.gantt-itemgrp-count { margin-left: auto; font-size: 11px; font-weight: 700; color: #5F6B73; text-transform: none; }
+.gantt-itemlist { list-style: none; margin: 0; padding: 0; }
+.gantt-itemlist li { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: #33424C; padding: 3px 0; line-height: 1.35; }
+.gantt-itemlist li.done { color: #A6B79A; text-decoration: line-through; }
+.gantt-itembox { flex: 0 0 auto; width: 14px; height: 14px; border: 1.5px solid #C7D2DB; border-radius: 4px; font-size: 10px; line-height: 12px; text-align: center; color: #fff; margin-top: 1px; }
+.gantt-itemlist li.done .gantt-itembox { background: #3B6D11; border-color: #3B6D11; }
 
 /* task rows */
 .gantt-taskrow .gantt-left { padding-left: 34px; }

@@ -392,10 +392,16 @@ function GanttChart() {
     );
   };
 
-  const waitEl = (s, prevEnd) => {
-    if (!s.wait_before_days || !prevEnd) return null;
-    const left = x(prevEnd) + w(prevEnd, prevEnd);
-    const wd = Math.max(2, x(s.start) - left);
+  // A wait occupies the days immediately BEFORE the stage starts, so derive it from
+  // the start — not from the previous segment. (Deriving it from prevEnd silently
+  // dropped every wait on a first stage, e.g. a queued slot waiting on the glass
+  // shop, which is exactly when the wait matters most.)
+  const waitEl = (s) => {
+    if (!s.wait_before_days) return null;
+    let wd = Math.max(2, s.wait_before_days * px);
+    let left = x(s.start) - wd;
+    if (left < 0) { wd += left; left = 0; }   // clamp if it runs off the chart start
+    if (wd <= 0) return null;
     return (
       <div key={'w' + s.name + s.start}>
         <div className="gantt-wait" style={{ left, width: wd }} />
@@ -530,8 +536,7 @@ function GanttChart() {
               </div>
             );
             if (isOpen) {
-              (g.segments || []).forEach((s, i) => {
-                const prev = i > 0 ? g.segments[i - 1] : null;
+              (g.segments || []).forEach((s) => {
                 rows.push(
                   <div key={`${g.key}-${s.name}-${s.start}`} className="gantt-row gantt-taskrow">
                     <div className={`gantt-left gantt-taskleft ${isOps && g.kind !== 'slot' ? 'clickable' : ''}`}
@@ -548,7 +553,7 @@ function GanttChart() {
                     </div>
                     <div className="gantt-lane" style={{ width }}>
                       <div className="gantt-todayline" style={{ left: todayX }} />
-                      {waitEl(s, prev ? prev.end : null)}
+                      {waitEl(s)}
                       {(() => {
                         const nd = normDaysFor(g, s);
                         if (!nd) return null;

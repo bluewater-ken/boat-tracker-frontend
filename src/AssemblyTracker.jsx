@@ -3,6 +3,7 @@ import { apiFetch } from './api';
 import ActionMenu from './ActionMenu';
 import { applyDeliveredFilter, ShowDeliveredToggle, inProduction } from './boatFilter';
 import useIsMobile from './useIsMobile';
+import PhotoLightbox from './PhotoLightbox';
 import './AssemblyTracker.css';
 
 // Assembly board (BRD "Mission Control") — read-only mirror of CompanyCam checklists.
@@ -76,6 +77,21 @@ function AssemblyTracker() {
   const [loading, setLoading] = useState(true);
   const [menu, setMenu] = useState(null); // { boatId, wcId, x, y }
   const [checkFilter, setCheckFilter] = useState('todo'); // popup checklist filter: all | todo | done — opens on the actionable list
+  const [lightbox, setLightbox] = useState(null); // { photos, i, caption }
+  const [loadingPhotos, setLoadingPhotos] = useState(null); // item_id | 'all' while fetching
+
+  // Open the shared viewer on a checklist item's photos, or on every photo in the
+  // work center. Fetched on demand so the board payload stays light.
+  const openPhotos = async (url, caption, tag) => {
+    setLoadingPhotos(tag);
+    try {
+      const r = await apiFetch(url);
+      const photos = r.ok ? await r.json() : [];
+      if (photos.length) setLightbox({ photos, i: 0, caption });
+      else alert('No photos found for this one.');
+    } catch { alert('Could not load photos.'); }
+    finally { setLoadingPhotos(null); }
+  };
 
   useEffect(() => {
     init();
@@ -272,8 +288,14 @@ function AssemblyTracker() {
         <ActionMenu className="asm-check-pop" anchor={{ x: menu.x, y: menu.y }} title={menuWc.name} subtitle={`${menuBoat.boat_id} · ${menuBoat.customer_name}`} onClose={() => setMenu(null)}>
           <div className="asm-menu-top">
             <div className="asm-menu-count">{menuRow.completed_items} / {menuRow.total_items} items complete</div>
-            {!menuWc.app && menuRow.cc_url && (
-              <a className="asm-cc-link" href={menuRow.cc_url} target="_blank" rel="noreferrer">📷 See all photos ↗</a>
+            {!menuWc.app && menuRow.photo_count > 0 && (
+              <button className="asm-cc-link" disabled={loadingPhotos === 'all'}
+                onClick={() => openPhotos(`/api/assembly/${menu.boatId}/${menu.wcId}/photos`, `${menuWc.name} · all photos`, 'all')}>
+                {loadingPhotos === 'all' ? 'Loading…' : `📷 See all ${menuRow.photo_count} photos`}
+              </button>
+            )}
+            {!menuWc.app && !menuRow.photo_count && menuRow.cc_url && (
+              <a className="asm-cc-link" href={menuRow.cc_url} target="_blank" rel="noreferrer">📷 Open in CompanyCam ↗</a>
             )}
           </div>
           <div className="asm-check-tabs">
@@ -286,6 +308,13 @@ function AssemblyTracker() {
               <li key={i} className={`asm-check-item ${it.done ? 'done' : ''}`}>
                 <span className="asm-check-box">{it.done ? '✓' : ''}</span>
                 <span className="asm-check-name">{it.name}</span>
+                {it.photo_count > 0 && (
+                  <button className="asm-item-photos" disabled={loadingPhotos === it.item_id}
+                    title={`${it.photo_count} photo${it.photo_count === 1 ? '' : 's'} for this item`}
+                    onClick={(e) => { e.stopPropagation(); openPhotos(`/api/assembly/item/${it.item_id}/photos`, it.name, it.item_id); }}>
+                    📷 {loadingPhotos === it.item_id ? '…' : it.photo_count}
+                  </button>
+                )}
               </li>
             ))}
             {shownItems.length === 0 && (
@@ -306,6 +335,11 @@ function AssemblyTracker() {
               : 'Read-only — items are checked off in CompanyCam.'}
           </div>
         </ActionMenu>
+      )}
+      {lightbox && (
+        <PhotoLightbox photos={lightbox.photos} index={lightbox.i} caption={lightbox.caption}
+          onIndex={i => setLightbox(lb => ({ ...lb, i }))}
+          onClose={() => setLightbox(null)} />
       )}
     </div>
   );

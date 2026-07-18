@@ -125,19 +125,7 @@
 .feed-thumb img { width: 68px; height: 68px; object-fit: cover; display: block; }
 .feed-thumb:hover { border-color: #2E92D6; }
 
-/* Full-size photo viewer. */
-.feed-lightbox {
-  position: fixed; inset: 0; z-index: 1200; background: rgba(15, 20, 24, 0.9);
-  display: flex; align-items: center; justify-content: center; padding: 24px;
-}
-.feed-lb-figure { margin: 0; max-width: 92vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.feed-lb-figure img { max-width: 92vw; max-height: 82vh; object-fit: contain; border-radius: 4px; }
-.feed-lb-figure figcaption { color: #D6DBE0; font-size: 12px; }
-.feed-lb-x { position: absolute; top: 14px; right: 18px; background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; line-height: 1; }
-.feed-lb-nav { background: rgba(255,255,255,0.12); border: none; color: #fff; font-size: 34px; width: 46px; height: 66px; border-radius: 8px; cursor: pointer; flex: 0 0 auto; }
-.feed-lb-nav:hover { background: rgba(255,255,255,0.24); }
-.feed-lb-nav.prev { margin-right: 12px; }
-.feed-lb-nav.next { margin-left: 12px; }
+/* (Full-size viewer styles live in PhotoLightbox.css — shared with Assembly.) */
 
 .feed-time { flex: 0 0 62px; font-size: 11px; color: #8A969E; padding-top: 2px; text-align: right; }
 .feed-icon { flex: 0 0 18px; text-align: center; font-size: 13px; color: #3B6D11; padding-top: 1px; }

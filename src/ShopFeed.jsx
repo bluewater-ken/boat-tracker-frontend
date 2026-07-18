@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiFetch, API_URL } from './api';
 import { useAuth } from './AuthContext';
 import { isDelivered } from './boatFilter';
+import PhotoLightbox from './PhotoLightbox';
 import './ShopFeed.css';
 
 // A single activity row. When the event has CompanyCam photos (has_photos), the
@@ -503,39 +504,6 @@ function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
           onIndex={i => setLightbox(lb => ({ ...lb, i }))}
           onClose={() => setLightbox(null)}
         />
-      )}
-    </div>
-  );
-}
-
-// Full-size CompanyCam photo viewer with prev/next and keyboard support.
-function PhotoLightbox({ photos, index, onIndex, onClose }) {
-  const p = photos[index];
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
-      else if (e.key === 'ArrowRight') onIndex((index + 1) % photos.length);
-      else if (e.key === 'ArrowLeft') onIndex((index - 1 + photos.length) % photos.length);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [index, photos.length, onIndex, onClose]);
-
-  return (
-    <div className="feed-lightbox" onClick={onClose}>
-      <button className="feed-lb-x" onClick={onClose} aria-label="Close">✕</button>
-      {photos.length > 1 && (
-        <button className="feed-lb-nav prev" onClick={e => { e.stopPropagation(); onIndex((index - 1 + photos.length) % photos.length); }} aria-label="Previous">‹</button>
-      )}
-      <figure className="feed-lb-figure" onClick={e => e.stopPropagation()}>
-        <img src={p.full_url || p.web_url} alt="" />
-        <figcaption>
-          {p.creator_name ? `${p.creator_name} · ` : ''}{fmtTime(p.captured_at)}
-          {photos.length > 1 ? ` · ${index + 1}/${photos.length}` : ''}
-        </figcaption>
-      </figure>
-      {photos.length > 1 && (
-        <button className="feed-lb-nav next" onClick={e => { e.stopPropagation(); onIndex((index + 1) % photos.length); }} aria-label="Next">›</button>
       )}
     </div>
   );

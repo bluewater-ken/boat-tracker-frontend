@@ -1,0 +1,18 @@
+/* Shared full-size CompanyCam photo viewer. */
+.plb {
+  position: fixed; inset: 0; z-index: 1200; background: rgba(15, 20, 24, 0.9);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.plb-figure { margin: 0; max-width: 92vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.plb-figure img { max-width: 92vw; max-height: 82vh; object-fit: contain; border-radius: 4px; }
+.plb-figure figcaption { color: #D6DBE0; font-size: 12px; text-align: center; max-width: 80vw; }
+.plb-x { position: absolute; top: 14px; right: 18px; background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; line-height: 1; }
+.plb-nav { background: rgba(255,255,255,0.12); border: none; color: #fff; font-size: 34px; width: 46px; height: 66px; border-radius: 8px; cursor: pointer; flex: 0 0 auto; }
+.plb-nav:hover { background: rgba(255,255,255,0.24); }
+.plb-nav.prev { margin-right: 12px; }
+.plb-nav.next { margin-left: 12px; }
+
+/* Thumbnail strip — shared by the feed rows and the assembly popup. */
+.plb-thumb { padding: 0; border: 1px solid #D6DBE0; border-radius: 6px; overflow: hidden; cursor: pointer; background: #EEF1F4; line-height: 0; }
+.plb-thumb img { width: 68px; height: 68px; object-fit: cover; display: block; }
+.plb-thumb:hover { border-color: #2E92D6; }

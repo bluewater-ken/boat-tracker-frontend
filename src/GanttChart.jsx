@@ -433,10 +433,20 @@ function GanttChart() {
         </div>
       );
     }
-    // actual, or a pinned stage with no live work (future/past)
+    // Pinned with no work data = a stage you've manually DATED, not one that's done.
+    // Draw it like a projection (outlined) with the 📌 — never solid. Solid is
+    // reserved for `actual`, i.e. work that really happened.
+    if (s.kind === 'pinned') {
+      return (
+        <div key={s.name + s.start} className={`gantt-bar gantt-proj ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, borderColor: color }} title={title} onPointerDown={bodyDown}>
+          <span className="gantt-pinmark">📌</span>
+          {rsz}
+        </div>
+      );
+    }
+    // actual — real history
     return (
-      <div key={s.name + s.start} className={`gantt-bar gantt-solid ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, background: color, filter: s.kind === 'pinned' ? 'brightness(0.82)' : 'none' }} title={title} onPointerDown={bodyDown}>
-        {s.kind === 'pinned' && <span className="gantt-pinmark">📌</span>}
+      <div key={s.name + s.start} className={`gantt-bar gantt-solid ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, background: color }} title={title} onPointerDown={bodyDown}>
         {rsz}
       </div>
     );
@@ -633,11 +643,11 @@ function GanttChart() {
           {groups.length === 0 && <div className="gantt-nogroups">Nothing to schedule yet.</div>}
         </div>
         <div className="gantt-legend">
-          <span><i className="sw" style={{ background: '#E89A2B' }} />Actual</span>
+          <span><i className="sw" style={{ background: '#E89A2B' }} />Solid = actually done</span>
           <span><i className="sw swfill" />Current — fill = work done</span>
-          <span><i className="sw swproj" />Projected</span>
+          <span><i className="sw swproj" />Outlined = planned</span>
           <span><i className="sw swbaseline" />Rule / norm (bar past it = over)</span>
-          <span>📌 Pinned / hold</span>
+          <span>📌 Your pinned dates — an estimate, not a completion</span>
           <span><i className="sw swdiamond" /> Target delivery</span>
           <span><i className="sw swbehind" /><b className="gantt-behindtag">Behind target</b></span>
           <span className="gantt-legend-note">Norms learn from real history per model — see Admin → Timeline.</span>

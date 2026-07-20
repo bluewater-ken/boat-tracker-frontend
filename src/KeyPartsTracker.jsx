@@ -378,11 +378,30 @@ function KeyPartsTracker() {
                     );
                   })}
                   {(() => {
+                    // Show each custom part by name — a bare x/x told you nothing about
+                    // WHICH extras a boat carries. Click still opens the editor list.
+                    const rows = sortedCustom(boat.boat_id);
                     const { received, total } = customRollup(boat.boat_id);
-                    const cls = total === 0 ? 'chip-none' : received === total ? 'chip-done' : 'chip-part';
                     return (
                       <td className={`kpt-customcell ${isOps ? '' : 'readonly'}`} onClick={(e) => isOps && setCustomList({ boatId: boat.boat_id, x: e.clientX, y: e.clientY })}>
-                        <span className={`kpt-chip ${cls}`}>{total === 0 ? '—' : `${received}/${total}${received === total ? ' ✓' : ''}`}</span>
+                        {rows.length === 0 ? <span className="kpt-chip chip-none">—</span> : (
+                          <>
+                            <div className="kpt-customlist">
+                              {rows.map(row => {
+                                const st = statusOf(row);
+                                const c = CELL[cellStatusOf(row)];
+                                return (
+                                  <span key={row.part_name} className="kpt-custompart" style={{ background: c.bg, color: c.fg }}
+                                    title={`${row.part_name} — ${st}${row.description ? ` · ${row.description}` : ''}`}>
+                                    {!row.na && row.order_asap && st !== 'Received' && <b>🔴 </b>}
+                                    {row.part_name}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                            <span className="kpt-customcount">{received}/{total}{received === total ? ' ✓' : ''}</span>
+                          </>
+                        )}
                       </td>
                     );
                   })()}

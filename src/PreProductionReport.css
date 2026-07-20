@@ -61,6 +61,10 @@
 }
 .ppr-list li.done .ppr-box { background: #3B6D11; border-color: #3B6D11; }
 .ppr-list li.na .ppr-box { background: #E4E4E7; border-color: #D2D2D6; color: #7A7A80; }
+/* Reference row (Transducer Type) — a spec/mold note, not a step to complete. */
+.ppr-list li.ref { color: #633806; }
+.ppr-list li.ref .ppr-box { background: #FAC775; border-color: #EF9F27; color: #633806; font-style: italic; font-weight: 700; }
+.ppr-list li.ref .ppr-status { color: #854F0B; font-weight: 600; }
 
 /* lamination/finishing show their real status word */
 .ppr-statuslist { columns: 2; }

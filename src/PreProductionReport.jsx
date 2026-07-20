@@ -29,12 +29,20 @@ function build(b, lamRows, finRows, wcs, asmRows) {
   const lamBy = {}; for (const r of lamRows) if (r.boat_id === b.boat_id) lamBy[r.task_name] = r;
   const finBy = {}; for (const r of finRows) if (r.boat_id === b.boat_id) finBy[r.task_name] = r;
 
-  // Lamination — Transducer is a mold reference, never build work, so it's excluded.
   const lam = LAM_TASKS.map(t => {
     const r = lamBy[t];
     if (!r) return null;
     return { name: t, na: !!r.na, done: lamDone(t, r.status), status: r.status || 'Not Started' };
   }).filter(Boolean);
+  // "Transducer Type" records WHICH transducer mold this boat uses (and whether it's
+  // available) — a spec you need when planning a build, which is why Ken wants it here.
+  // It is never built or completed, so it shows as a reference row and is excluded
+  // from the step counts (counting it would cap every boat below 100% forever).
+  const td = lamBy['Transducer Type'];
+  if (td) lam.push({
+    name: 'Transducer Type', ref: true, done: false, na: !!td.na,
+    status: td.status || '—', note: td.notes || '',
+  });
 
   const fin = FIN_TASKS.map(t => {
     const r = finBy[t];
@@ -60,7 +68,11 @@ function build(b, lamRows, finRows, wcs, asmRows) {
       return list.length ? { label: w.name || titleCase(w.id), items: list } : null;
     }).filter(Boolean);
 
-  const count = (arr) => ({ done: arr.filter(i => i.done && !i.na).length, total: arr.filter(i => !i.na).length });
+  // Reference rows (Transducer Type) and N/A never count as build steps.
+  const count = (arr) => ({
+    done: arr.filter(i => i.done && !i.na && !i.ref).length,
+    total: arr.filter(i => !i.na && !i.ref).length,
+  });
   const lc = count(lam), fc = count(fin);
   const ccDone = cc.reduce((n, g) => n + g.items.filter(i => i.done).length, 0);
   const ccTotal = cc.reduce((n, g) => n + g.items.length, 0);
@@ -203,10 +215,12 @@ function StatusList({ items }) {
   return (
     <ul className="ppr-list ppr-statuslist">
       {items.map((it, i) => (
-        <li key={i} className={it.na ? 'na' : it.done ? 'done' : ''}>
-          <span className="ppr-box">{it.done ? '✓' : it.na ? '–' : ''}</span>
+        <li key={i} className={it.ref ? 'ref' : it.na ? 'na' : it.done ? 'done' : ''}>
+          <span className="ppr-box">{it.ref ? 'i' : it.done ? '✓' : it.na ? '–' : ''}</span>
           {it.name}
-          <span className="ppr-status">{it.na ? 'N/A' : it.status}</span>
+          <span className="ppr-status">
+            {it.ref ? `${it.status}${it.note ? ` · ${it.note}` : ''}` : it.na ? 'N/A' : it.status}
+          </span>
         </li>
       ))}
     </ul>

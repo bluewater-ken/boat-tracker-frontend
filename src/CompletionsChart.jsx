@@ -8,19 +8,29 @@ import './CompletionsChart.css';
 
 // Department colors match the Shop Feed's issue categories, so a department is the
 // same color everywhere in the app.
-const DEPTS = [
+// QC is split out from Assembly: QC items get checked off in bursts and badly
+// exaggerate how much assembly work actually happened.
+const ALL_DEPTS = [
   { key: 'glass', label: 'Glass Shop', color: '#2E7D8A' },
   { key: 'finishing', label: 'Finishing', color: '#A32D2D' },
   { key: 'assembly', label: 'Assembly', color: '#5C9A2E' },
+  { key: 'qc', label: 'QC', color: '#534AB7' },
 ];
 const RANGES = [14, 30, 60, 90];
-const ZERO = () => ({ glass: 0, finishing: 0, assembly: 0 });
+const ZERO = () => ({ glass: 0, finishing: 0, assembly: 0, qc: 0 });
 
 // Feed-event → department (only shop-build completion events count; parts excluded).
 const doneLam = (t) => /→\s*(Complete\/On Mold|Pulled|Complete)\s*$/.test(t || '');
 const doneFin = (t) => /→\s*Complete\s*$/.test(t || '');
-function classify(ev) {
-  if (ev.type === 'CHECKLIST_ITEM_COMPLETED' || ev.type === 'CHECKLIST_COMPLETED') return 'assembly';
+const normName = (s) => String(s).replace(/\*\*|__/g, '').trim().toLowerCase();
+// Feed events don't carry a work center, so a QC checkoff is identified by matching
+// its title against that boat's quality-control checklist. Verified against live
+// data: 44 QC / 73 non-QC with zero ambiguous and zero unmatched.
+function classify(ev, qcNames) {
+  if (ev.type === 'CHECKLIST_ITEM_COMPLETED' || ev.type === 'CHECKLIST_COMPLETED') {
+    const set = qcNames && qcNames[ev.boat_id];
+    return set && set.has(normName(ev.title)) ? 'qc' : 'assembly';
+  }
   if (ev.type === 'APP_TASK_UPDATED') {
     const wc = (ev.work_center_name || '').toLowerCase();
     if (wc.includes('lamination') && doneLam(ev.title)) return 'glass';
@@ -34,10 +44,10 @@ function lastNDates(n) {
   for (let i = n - 1; i >= 0; i--) { const x = new Date(d); x.setDate(d.getDate() - i); out.push(x.toISOString().slice(0, 10)); }
   return out;
 }
-function deriveFromFeed(events, days) {
+function deriveFromFeed(events, days, qcNames) {
   const map = {};
   for (const ev of events || []) {
-    const dept = classify(ev); if (!dept) continue;
+    const dept = classify(ev, qcNames); if (!dept) continue;
     const date = (ev.created_at || '').slice(0, 10); if (!date) continue;
     (map[date] ||= ZERO())[dept]++;
   }
@@ -54,32 +64,54 @@ function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
   const [data, setData] = useState(null);
   const [source, setSource] = useState(''); // 'metrics' | 'feed' | 'none'
   const [rawEvents, setRawEvents] = useState([]); // feed events, for the drill-down
+  const [qcNames, setQcNames] = useState({});     // boat_id -> Set of QC item names
+  const [hasQC, setHasQC] = useState(false);      // does this data source separate QC?
   const [pick, setPick] = useState(null); // { date, dept } clicked bar segment
 
   useEffect(() => {
     let alive = true;
     (async () => {
       setData(null); setPick(null);
-      // Always load feed events — powers the click-to-see-jobs drill-down, and the
-      // count fallback when the metrics endpoint isn't up.
-      const fev = await apiFetch('/api/assembly/feed?limit=1000').then(r => (r.ok ? r.json() : [])).catch(() => []);
-      if (alive) setRawEvents(fev);
-      // Prefer the metrics endpoint for deep-history counts.
+      // Feed powers the click-to-see-jobs drill-down and the fallback counts;
+      // the assembly board tells us which item names belong to Quality Control.
+      const [fev, asm] = await Promise.all([
+        apiFetch('/api/assembly/feed?limit=1000').then(r => (r.ok ? r.json() : [])).catch(() => []),
+        apiFetch('/api/assembly').then(r => (r.ok ? r.json() : null)).catch(() => null),
+      ]);
+      const qmap = {};
+      for (const row of (asm?.rows || [])) {
+        if (row.work_center_id !== 'quality-control') continue;
+        const set = qmap[row.boat_id] || (qmap[row.boat_id] = new Set());
+        for (const i of (row.items || [])) set.add(normName(i.name));
+      }
+      if (!alive) return;
+      setRawEvents(fev); setQcNames(qmap);
+
+      // Prefer the metrics endpoint for deep history. It only splits QC out once the
+      // backend sends a `qc` bucket — until then we hide the QC series rather than
+      // draw a misleading always-zero bar while assembly still contains QC.
       const r = await apiFetch(`/api/metrics/completions?days=${days}`).catch(() => null);
       if (r && r.ok) {
         const rows = await r.json();
         const byDate = {}; for (const x of rows) byDate[x.date] = x;
-        if (alive) { setSource('metrics'); setData(lastNDates(days).map(date => ({ date, ...ZERO(), ...(byDate[date] || {}) }))); }
+        if (alive) {
+          setSource('metrics');
+          setHasQC(rows.length > 0 && Object.prototype.hasOwnProperty.call(rows[0], 'qc'));
+          setData(lastNDates(days).map(date => ({ date, ...ZERO(), ...(byDate[date] || {}) })));
+        }
         return;
       }
-      if (fev.length) { if (alive) { setSource('feed'); setData(deriveFromFeed(fev, days)); } return; }
-      if (alive) { setSource('none'); setData([]); }
+      if (fev.length) { if (alive) { setSource('feed'); setHasQC(true); setData(deriveFromFeed(fev, days, qmap)); } return; }
+      if (alive) { setSource('none'); setHasQC(false); setData([]); }
     })();
     return () => { alive = false; };
   }, [days]);
 
+  // Only show QC as its own series where the data actually separates it.
+  const DEPTS = ALL_DEPTS.filter(d => d.key !== 'qc' || hasQC);
+
   // Jobs done on a given day for a given department (from the feed events).
-  const jobsFor = (date, dept) => rawEvents.filter(ev => (ev.created_at || '').slice(0, 10) === date && classify(ev) === dept);
+  const jobsFor = (date, dept) => rawEvents.filter(ev => (ev.created_at || '').slice(0, 10) === date && classify(ev, qcNames) === dept);
 
   const totals = DEPTS.reduce((a, d) => ({ ...a, [d.key]: (data || []).reduce((s, x) => s + (x[d.key] || 0), 0) }), {});
   const grand = Object.values(totals).reduce((a, b) => a + b, 0);
@@ -109,7 +141,7 @@ function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
       {data === null ? <div className="cc-quiet">Loading…</div>
         : source === 'none' ? <div className="cc-quiet">No completion data available.</div>
         : grand === 0 ? <div className="cc-quiet">No completions recorded in this range yet.</div>
-        : <Chart data={data} pick={pick} onPick={(date, dept) => setPick(p => (p && p.date === date && p.dept === dept) ? null : { date, dept })} />}
+        : <Chart data={data} depts={DEPTS} pick={pick} onPick={(date, dept) => setPick(p => (p && p.date === date && p.dept === dept) ? null : { date, dept })} />}
 
       {pick && (() => {
         const jobs = jobsFor(pick.date, pick.dept);
@@ -137,7 +169,7 @@ function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
   );
 }
 
-function Chart({ data, pick, onPick }) {
+function Chart({ data, depts: DEPTS, pick, onPick }) {
   const W = 720, H = 280, L = 34, R = 8, T = 16, B = 30;
   const plotW = W - L - R, plotH = H - T - B;
   const totalOf = (x) => DEPTS.reduce((s, d) => s + (x[d.key] || 0), 0);

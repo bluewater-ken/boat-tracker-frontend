@@ -32,7 +32,7 @@
 .ppr-head-right img { margin-bottom: 6px; }
 .ppr-week { font-size: 13px; font-weight: 700; color: #1B2B22; }
 
-.ppr-tiles { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 12px 0 14px; }
+.ppr-tiles { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; margin: 12px 0 14px; }
 .ppr-tile { border-radius: 8px; padding: 8px 10px; background: #F4F3EE; }
 .ppr-tile-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #8A867A; }
 .ppr-tile-value { font-size: 18px; font-weight: 700; color: #2C2C2A; margin-top: 2px; }
@@ -65,6 +65,18 @@
 .ppr-list li.ref { color: #633806; }
 .ppr-list li.ref .ppr-box { background: #FAC775; border-color: #EF9F27; color: #633806; font-style: italic; font-weight: 700; }
 .ppr-list li.ref .ppr-status { color: #854F0B; font-weight: 600; }
+
+/* Key Parts — spec + flags matter here, so give the rows a bit more room. */
+.ppr-partlist { columns: 2; }
+.ppr-partmain { min-width: 0; }
+.ppr-spec { color: #5F6B73; font-style: italic; }
+.ppr-tag {
+  display: inline-block; margin-left: 5px; padding: 0 5px; border-radius: 3px;
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; vertical-align: 1px;
+}
+.ppr-tag-asap { background: #FCEBEB; color: #A32D2D; }
+.ppr-tag-late { background: #FAEEDA; color: #854F0B; }
+.ppr-tag-partial { background: #DBE08A; color: #4E5308; }
 
 /* lamination/finishing show their real status word */
 .ppr-statuslist { columns: 2; }

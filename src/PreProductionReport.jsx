@@ -24,8 +24,26 @@ function cleanItem(raw) {
 }
 
 const titleCase = (id) => String(id || '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+const fmtDate = (d) => { if (!d) return ''; const [, m, day] = String(d).slice(0, 10).split('-'); return `${+m}/${+day}`; };
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const isLate = (p) => p.status !== 'Received' && (!!p.flag_late ||
+  (!!p.expected_delivery && String(p.expected_delivery).slice(0, 10) < todayStr()));
 
-function build(b, lamRows, finRows, wcs, asmRows) {
+// One part → the line the shop reads: where it stands and the date that matters.
+function partLine(name, p) {
+  const st = p.status || 'Not Ordered';
+  const when = st === 'Received' ? `rec ${fmtDate(p.actual_delivery || p.received_at) || '—'}`
+    : st === 'Ordered' ? `exp ${fmtDate(p.expected_delivery) || '—'}`
+    : 'not ordered';
+  const tags = [];
+  if (st !== 'Received' && p.order_asap) tags.push({ t: 'ORDER ASAP', c: 'asap' });
+  if (isLate(p)) tags.push({ t: 'LATE', c: 'late' });
+  if (p.flag_backordered) tags.push({ t: 'BACKORDER', c: 'late' });
+  if (p.flag_partial && st !== 'Received') tags.push({ t: 'PARTIAL', c: 'partial' });
+  return { name, done: st === 'Received', na: !!p.na, status: st, when, spec: p.description || '', tags };
+}
+
+function build(b, lamRows, finRows, wcs, asmRows, parts, std) {
   const lamBy = {}; for (const r of lamRows) if (r.boat_id === b.boat_id) lamBy[r.task_name] = r;
   const finBy = {}; for (const r of finRows) if (r.boat_id === b.boat_id) finBy[r.task_name] = r;
 
@@ -69,11 +87,20 @@ function build(b, lamRows, finRows, wcs, asmRows) {
     }).filter(Boolean);
 
   // Reference rows (Transducer Type) and N/A never count as build steps.
+  // Key Parts — standard list first (in the shop's order), then this boat's customs.
+  const prows = parts.filter(p => p.boat_id === b.boat_id);
+  const partList = [];
+  for (const name of std) {
+    const p = prows.find(x => x.part_name === name && !x.is_custom);
+    if (p) partList.push(partLine(name, p));
+  }
+  for (const p of prows.filter(x => x.is_custom)) partList.push(partLine(p.part_name, p));
+
   const count = (arr) => ({
     done: arr.filter(i => i.done && !i.na && !i.ref).length,
     total: arr.filter(i => !i.na && !i.ref).length,
   });
-  const lc = count(lam), fc = count(fin);
+  const lc = count(lam), fc = count(fin), pc = count(partList);
   const ccDone = cc.reduce((n, g) => n + g.items.filter(i => i.done).length, 0);
   const ccTotal = cc.reduce((n, g) => n + g.items.length, 0);
 
@@ -86,9 +113,9 @@ function build(b, lamRows, finRows, wcs, asmRows) {
   return {
     boat_id: b.boat_id, customer: b.customer_name, model: b.boat_model, hull: b.hull_color,
     engines: engineStr, is_spare: b.is_spare, seq: b.sequence_number, stage: b.global_status,
-    lam, fin, cc,
-    totals: { done: lc.done + fc.done + ccDone, total: lc.total + fc.total + ccTotal },
-    lc, fc, ccDone, ccTotal,
+    lam, fin, cc, parts: partList,
+    totals: { done: lc.done + fc.done + pc.done + ccDone, total: lc.total + fc.total + pc.total + ccTotal },
+    lc, fc, pc, ccDone, ccTotal,
   };
 }
 
@@ -105,16 +132,18 @@ function PreProductionReport({ boatIds, onClose }) {
     let live = true;
     (async () => {
       try {
-        const [all, lam, fin, asm] = await Promise.all([
+        const [all, lam, fin, asm, parts, std] = await Promise.all([
           apiFetch('/api/boats').then(r => r.json()),
           apiFetch('/api/lamination').then(r => (r.ok ? r.json() : [])).catch(() => []),
           apiFetch('/api/finishing').then(r => (r.ok ? r.json() : [])).catch(() => []),
           apiFetch('/api/assembly').then(r => (r.ok ? r.json() : null)).catch(() => null),
+          apiFetch('/api/parts').then(r => (r.ok ? r.json() : [])).catch(() => []),
+          apiFetch('/api/parts/standard').then(r => (r.ok ? r.json() : [])).catch(() => []),
         ]);
         const wcs = (asm?.work_centers || []).slice().sort((a, b2) => (a.sort_order || 0) - (b2.sort_order || 0));
         const byId = {}; for (const b of all) byId[b.boat_id] = b;
         const built = boatIds.map(id => byId[id]).filter(Boolean)
-          .map(b => build(b, lam || [], fin || [], wcs, asm?.rows || []));
+          .map(b => build(b, lam || [], fin || [], wcs, asm?.rows || [], parts || [], std || []));
         if (live) setBoats(built);
       } catch (e) { if (live) setError(true); }
     })();
@@ -172,10 +201,30 @@ function Page({ b, dateLabel }) {
         <Tile label="Total steps" value={b.totals.total} />
         <Tile label="Done" value={b.totals.done} tone="done" />
         <Tile label="Remaining" value={left} tone={left ? 'todo' : 'done'} />
+        <Tile label="Key Parts" value={`${b.pc.done}/${b.pc.total}`} />
         <Tile label="Lamination" value={`${b.lc.done}/${b.lc.total}`} />
         <Tile label="Finishing" value={`${b.fc.done}/${b.fc.total}`} />
         <Tile label="Assembly" value={`${b.ccDone}/${b.ccTotal}`} />
       </div>
+
+      {/* Parts first — lead times gate everything else in pre-production. */}
+      <Section title={`Key Parts · ${b.pc.done}/${b.pc.total} received`}>
+        {b.parts.length ? (
+          <ul className="ppr-list ppr-partlist">
+            {b.parts.map((p, i) => (
+              <li key={i} className={p.na ? 'na' : p.done ? 'done' : ''}>
+                <span className="ppr-box">{p.done ? '✓' : p.na ? '–' : ''}</span>
+                <span className="ppr-partmain">
+                  {p.name}
+                  {p.spec && <span className="ppr-spec"> — {p.spec}</span>}
+                  {p.tags.map((t, j) => <span key={j} className={`ppr-tag ppr-tag-${t.c}`}>{t.t}</span>)}
+                </span>
+                <span className="ppr-status">{p.na ? 'N/A' : p.when}</span>
+              </li>
+            ))}
+          </ul>
+        ) : <div className="ppr-quiet">No parts tracked for this boat.</div>}
+      </Section>
 
       <Section title={`Lamination · ${b.lc.done}/${b.lc.total}`}>
         {b.lam.length ? <StatusList items={b.lam} /> : <div className="ppr-quiet">No lamination tasks.</div>}

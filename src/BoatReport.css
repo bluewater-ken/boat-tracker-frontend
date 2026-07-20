@@ -126,6 +126,9 @@
 
 @media print {
   @page { size: letter portrait; margin: 0.5in; }
+  /* Portaled to <body>, so it's a SIBLING of #root. Hiding .app alone leaves #root's
+     min-height:100vh printing as a blank first page ahead of the report. */
+  body.boat-report-open #root { display: none !important; }
   body.boat-report-open .app { display: none !important; }
   .br-overlay { position: static; background: #fff; display: block; overflow: visible; }
   .no-print { display: none !important; }

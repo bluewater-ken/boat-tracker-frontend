@@ -40,6 +40,7 @@ function partLine(name, p) {
   if (isLate(p)) tags.push({ t: 'LATE', c: 'late' });
   if (p.flag_backordered) tags.push({ t: 'BACKORDER', c: 'late' });
   if (p.flag_partial && st !== 'Received') tags.push({ t: 'PARTIAL', c: 'partial' });
+  if (p.flag_unsatisfactory) tags.push({ t: 'UGLY', c: 'late' });
   return { name, done: st === 'Received', na: !!p.na, status: st, when, spec: p.description || '', tags };
 }
 
@@ -50,7 +51,15 @@ function build(b, lamRows, finRows, wcs, asmRows, parts, std) {
   const lam = LAM_TASKS.map(t => {
     const r = lamBy[t];
     if (!r) return null;
-    return { name: t, na: !!r.na, done: lamDone(t, r.status), status: r.status || 'Not Started' };
+    return {
+      name: t, na: !!r.na, done: lamDone(t, r.status), status: r.status || 'Not Started',
+      note: r.notes || '', color: r.color || '',
+      tags: [
+        r.flag_issue && { t: 'ISSUE', c: 'asap' },
+        r.flag_rework && { t: 'REWORK', c: 'asap' },
+        r.flag_unsatisfactory && { t: 'UGLY', c: 'late' },
+      ].filter(Boolean),
+    };
   }).filter(Boolean);
   // "Transducer Type" records WHICH transducer mold this boat uses (and whether it's
   // available) — a spec you need when planning a build, which is why Ken wants it here.
@@ -65,7 +74,12 @@ function build(b, lamRows, finRows, wcs, asmRows, parts, std) {
   const fin = FIN_TASKS.map(t => {
     const r = finBy[t];
     if (!r) return null;
-    return { name: t, na: !!r.na || r.status === 'Not Available', done: r.status === 'Complete', status: r.status || 'Not Started' };
+    return {
+      name: t, na: !!r.na || r.status === 'Not Available',
+      done: r.status === 'Complete', status: r.status || 'Not Started',
+      note: '', color: '',
+      tags: [r.asap && { t: 'ASAP', c: 'asap' }].filter(Boolean),
+    };
   }).filter(Boolean);
 
   // Every CompanyCam work center except QC, in board order.
@@ -266,7 +280,12 @@ function StatusList({ items }) {
       {items.map((it, i) => (
         <li key={i} className={it.ref ? 'ref' : it.na ? 'na' : it.done ? 'done' : ''}>
           <span className="ppr-box">{it.ref ? 'i' : it.done ? '✓' : it.na ? '–' : ''}</span>
-          {it.name}
+          <span className="ppr-partmain">
+            {it.name}
+            {it.color && <span className="ppr-spec"> — {it.color}</span>}
+            {!it.ref && it.note && <span className="ppr-note"> ({it.note})</span>}
+            {(it.tags || []).map((t, j) => <span key={j} className={`ppr-tag ppr-tag-${t.c}`}>{t.t}</span>)}
+          </span>
           <span className="ppr-status">
             {it.ref ? `${it.status}${it.note ? ` · ${it.note}` : ''}` : it.na ? 'N/A' : it.status}
           </span>

@@ -70,6 +70,8 @@
 .ppr-partlist { columns: 2; }
 .ppr-partmain { min-width: 0; }
 .ppr-spec { color: #5F6B73; font-style: italic; }
+/* free-text note on a lamination task ("Tear", "XL TBD", "Circle (No Pocket)") */
+.ppr-note { color: #854F0B; font-weight: 600; }
 .ppr-tag {
   display: inline-block; margin-left: 5px; padding: 0 5px; border-radius: 3px;
   font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; vertical-align: 1px;

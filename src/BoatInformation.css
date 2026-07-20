@@ -136,6 +136,8 @@
   cursor: pointer;
 }
 .btn-report:hover { background: #dcecc9; }
+.btn-preprod { color: #0C447C; background: #E6F1FB; border-color: #B5D4F4; }
+.btn-preprod:hover { background: #d5e7f8; }
 @media (max-width: 1024px) {
   .boat-information { grid-template-columns: 1fr; height: auto; }
 }

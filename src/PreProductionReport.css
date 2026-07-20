@@ -1,0 +1,82 @@
+/* Pre-Production Report — printable full build traveler for one boat. */
+
+.ppr-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: #525659; overflow: auto;
+  display: flex; flex-direction: column; align-items: center;
+}
+.ppr-toolbar {
+  position: sticky; top: 0; align-self: stretch;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; background: #2C2C2A;
+}
+.ppr-toolbar-label { color: #C9C7BE; font-size: 13px; font-weight: 600; margin-right: auto; }
+.ppr-print, .ppr-close { border: none; border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.ppr-print { background: #9CCB62; color: #1F3D07; }
+.ppr-close { background: #4A4A47; color: #F4F3EE; }
+.ppr-loading { padding: 60px; text-align: center; color: #8A969E; font-size: 15px; }
+
+.ppr-doc {
+  width: 8.5in; margin: 18px 0; background: #fff;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  color: #26332C; font-size: 12px; line-height: 1.5;
+}
+.ppr-page { padding: 0.5in; }
+.ppr-page + .ppr-page { border-top: 6px solid #E6E9EC; }
+
+.ppr-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.ppr-title { font-size: 19px; font-weight: 700; color: #1B2B22; display: flex; align-items: center; gap: 8px; }
+.ppr-sub { font-size: 12.5px; color: #5F6B63; margin-top: 2px; }
+.ppr-kicker { font-size: 11px; color: #8A969E; margin-top: 3px; }
+.ppr-head-right { display: flex; flex-direction: column; align-items: flex-end; flex: 0 0 auto; }
+.ppr-head-right img { margin-bottom: 6px; }
+.ppr-week { font-size: 13px; font-weight: 700; color: #1B2B22; }
+
+.ppr-tiles { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 12px 0 14px; }
+.ppr-tile { border-radius: 8px; padding: 8px 10px; background: #F4F3EE; }
+.ppr-tile-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #8A867A; }
+.ppr-tile-value { font-size: 18px; font-weight: 700; color: #2C2C2A; margin-top: 2px; }
+.ppr-t-done { background: #EAF3DE; } .ppr-t-done .ppr-tile-value { color: #27500A; }
+.ppr-t-todo { background: #FAEEDA; } .ppr-t-todo .ppr-tile-value { color: #633806; }
+
+.ppr-section { margin-bottom: 13px; break-inside: avoid; page-break-inside: avoid; }
+.ppr-section-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: #1B2B22; background: #F4F3EE; padding: 4px 8px; border-radius: 4px; margin-bottom: 6px;
+}
+.ppr-quiet { font-size: 11px; color: #9B998F; font-style: italic; }
+
+.ppr-list { margin: 0; padding: 0; list-style: none; columns: 2; column-gap: 22px; }
+.ppr-list li {
+  display: flex; align-items: flex-start; gap: 6px;
+  font-size: 11px; color: #33424C; line-height: 1.35; padding: 2px 0;
+  break-inside: avoid; page-break-inside: avoid;
+}
+.ppr-list li.done { color: #A6B79A; text-decoration: line-through; }
+.ppr-list li.na { color: #B4B2A9; }
+.ppr-box {
+  flex: 0 0 auto; width: 11px; height: 11px; margin-top: 1px;
+  border: 1px solid #B9C2C9; border-radius: 3px;
+  font-size: 8px; line-height: 10px; text-align: center; color: #fff;
+}
+.ppr-list li.done .ppr-box { background: #3B6D11; border-color: #3B6D11; }
+.ppr-list li.na .ppr-box { background: #E4E4E7; border-color: #D2D2D6; color: #7A7A80; }
+
+/* lamination/finishing show their real status word */
+.ppr-statuslist { columns: 2; }
+.ppr-status { margin-left: auto; padding-left: 8px; font-size: 9.5px; color: #8A969E; white-space: nowrap; }
+
+.ppr-foot { margin-top: 14px; padding-top: 7px; border-top: 1px solid #E6E9EC; font-size: 9px; color: #8A969E; text-align: center; }
+
+@media print {
+  @page { size: letter portrait; margin: 0.5in; }
+  body.ppr-open .app { display: none !important; }
+  .ppr-overlay { position: static; background: #fff; display: block; overflow: visible; }
+  .no-print { display: none !important; }
+  .ppr-doc { width: auto; margin: 0; box-shadow: none; }
+  .ppr-page { padding: 0; }
+  .ppr-page + .ppr-page { border-top: none; break-before: page; page-break-before: always; }
+  .ppr-tile, .ppr-section-title, .ppr-box {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+}

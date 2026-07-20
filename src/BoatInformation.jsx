@@ -3,6 +3,7 @@ import { apiFetch } from './api';
 import { colorOptions } from './colors';
 import SmartInput from './SmartInput';
 import BoatReport from './BoatReport';
+import PreProductionReport from './PreProductionReport';
 import './BoatInformation.css';
 
 const EMPTY = { boat_id:'', customer_name:'', customer_phone:'', customer_email:'', customer_address:'', boat_model:'', engine_brand_1:'', engine_choice_1:'', engine_brand_2:'', engine_choice_2:'', engine_brand_3:'', engine_choice_3:'', hull_color:'', is_spare:false };
@@ -18,6 +19,7 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
   const [linkProj, setLinkProj] = useState('');
   const [linking, setLinking] = useState(false);
   const [reportIds, setReportIds] = useState(null); // boat status report, when open
+  const [ppIds, setPpIds] = useState(null);         // pre-production report, when open
 
   useEffect(() => { fetchBoats(); }, [refreshTrigger]);
   // Load CompanyCam projects once, for the manual link picker.
@@ -153,12 +155,16 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
               <button onClick={() => setReportIds([formData.boat_id])} className="btn-report">📄 Status Report</button>
             )}
             {!isNewBoat && formData.boat_id && (
+              <button onClick={() => setPpIds([formData.boat_id])} className="btn-report btn-preprod">🔧 Pre-Production</button>
+            )}
+            {!isNewBoat && formData.boat_id && (
               <button onClick={handleDelete} className="btn-delete-boat">Delete Boat…</button>
             )}
           </div>
         </div>
       </div>
       {reportIds && <BoatReport boatIds={reportIds} onClose={() => setReportIds(null)} />}
+      {ppIds && <PreProductionReport boatIds={ppIds} onClose={() => setPpIds(null)} />}
     </div>
   );
 }

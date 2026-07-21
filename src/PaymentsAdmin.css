@@ -1,0 +1,74 @@
+/* Admin → Payments (Ken-only). */
+.pay { padding: 4px 0; max-width: 1100px; }
+.pay-off { font-size: 13px; color: #5F6B73; background: #fff; border: 1px solid #E2E6EA; border-radius: 10px; padding: 18px; }
+.pay-topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.pay-intro { font-size: 12px; color: #8A969E; margin: 0; }
+.pay-export { padding: 9px 16px; font-size: 13px; font-weight: 700; color: #1F3D07; background: #9CCB62; border: none; border-radius: 7px; cursor: pointer; }
+.pay-export:hover { background: #8fbf55; }
+
+/* due / overdue strip */
+.pay-alerts { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.pay-alert { text-align: left; font-size: 12px; padding: 7px 11px; border-radius: 7px; cursor: pointer; border: 1px solid; }
+.pay-alert b { margin-right: 6px; }
+.pay-alert-over { background: #FCEBEB; border-color: #F0C4C4; color: #A32D2D; }
+.pay-alert-due { background: #FAEEDA; border-color: #EDD4A8; color: #854F0B; }
+
+.pay-split { display: grid; grid-template-columns: 300px 1fr; gap: 14px; align-items: start; }
+@media (max-width: 900px) { .pay-split { grid-template-columns: 1fr; } }
+
+.pay-list { display: flex; flex-direction: column; gap: 6px; }
+.pay-boat {
+  text-align: left; background: #fff; border: 1px solid #E2E6EA; border-radius: 8px;
+  padding: 9px 12px; cursor: pointer; position: relative;
+}
+.pay-boat.on { border-color: #2E92D6; box-shadow: 0 0 0 1px #2E92D6; }
+.pay-boat-id { display: block; font-size: 13px; font-weight: 700; color: #173A5E; }
+.pay-boat-sub { display: block; font-size: 11px; color: #7A857D; margin-top: 1px; }
+.pay-badge { position: absolute; top: 9px; right: 10px; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 9px; }
+.pay-badge-over { background: #A32D2D; color: #fff; }
+.pay-badge-due { background: #FAC775; color: #633806; }
+.pay-badge-paid { background: #EAF3DE; color: #27500A; }
+
+.pay-editor { background: #fff; border: 1px solid #E2E6EA; border-radius: 10px; padding: 14px 16px; }
+.pay-editor h3 { font-size: 15px; color: #173A5E; margin: 0 0 12px; }
+.pay-model { font-size: 12px; color: #8A969E; font-weight: 500; }
+.pay-quiet { font-size: 13px; color: #8A969E; }
+
+.pay-planrow { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.pay-planrow label { font-size: 11px; font-weight: 700; color: #5F6B73; display: flex; flex-direction: column; gap: 4px; }
+.pay-planrow input { padding: 8px 10px; font-size: 13px; border: 1px solid #C7D2DB; border-radius: 7px; width: 160px; }
+
+.pay-templates { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 12px; font-size: 11px; color: #5F6B73; font-weight: 700; }
+.pay-templates button {
+  padding: 6px 12px; font-size: 12px; font-weight: 600; color: #0C447C;
+  background: #E6F1FB; border: 1px solid #B5D4F4; border-radius: 7px; cursor: pointer;
+}
+.pay-templates button:hover { background: #d5e7f8; }
+
+.pay-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pay-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #8A969E; padding: 4px 6px; border-bottom: 1px solid #E6E9EC; }
+.pay-table td { padding: 6px; border-bottom: 1px solid #F0F2F4; vertical-align: middle; }
+.pay-in { padding: 6px 8px; font-size: 12px; border: 1px solid #D6DBE0; border-radius: 6px; }
+.pay-in-label { width: 200px; }
+.pay-in-pct { width: 58px; text-align: center; }
+.pay-in-off { width: 52px; text-align: center; }
+.pay-trig { white-space: nowrap; }
+.pay-trig select, .pay-trig input[type='date'] { padding: 6px; font-size: 11.5px; border: 1px solid #D6DBE0; border-radius: 6px; margin-right: 4px; max-width: 170px; }
+.pay-amt { font-weight: 700; color: #173A5E; white-space: nowrap; }
+.pay-exp { white-space: nowrap; font-weight: 600; }
+.pay-st { display: block; font-size: 9px; font-weight: 800; letter-spacing: 0.03em; }
+.pay-exp-paid .pay-st { color: #27500A; }
+.pay-exp-overdue { color: #A32D2D; } .pay-exp-overdue .pay-st { color: #A32D2D; }
+.pay-exp-due { color: #854F0B; } .pay-exp-due .pay-st { color: #854F0B; }
+.pay-exp-upcoming .pay-st { color: #8A969E; }
+.pay-exp-unscheduled { color: #9B998F; } .pay-exp-unscheduled .pay-st { color: #9B998F; }
+.pay-row-paid td { background: #FAFCF7; }
+.pay-paid { white-space: nowrap; }
+.pay-paid input[type='date'] { margin-left: 6px; padding: 5px; font-size: 11px; border: 1px solid #D6DBE0; border-radius: 6px; }
+.pay-del { background: none; border: none; color: #9AA5AD; cursor: pointer; font-size: 13px; }
+.pay-del:hover { color: #A32D2D; }
+
+.pay-msfoot { display: flex; align-items: center; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
+.pay-add { padding: 7px 14px; font-size: 12px; font-weight: 700; color: #fff; background: #2E92D6; border: none; border-radius: 7px; cursor: pointer; }
+.pay-sum { font-size: 12px; font-weight: 700; color: #27500A; }
+.pay-sum.off { color: #A32D2D; }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
+import { hasFullAccess } from './access';
 import UsersAdmin from './UsersAdmin';
 import RulesAdmin from './RulesAdmin';
 import TimelineAdmin from './TimelineAdmin';
@@ -22,9 +23,10 @@ const SECTIONS = [
 function AdminPanel() {
   const [section, setSection] = useState('users');
   const { user } = useAuth();
-  // Payments is Ken-only (money) — the section is hidden for everyone else, and the
-  // backend routes are independently ken-gated so this isn't just a UI courtesy.
-  const isKen = (user?.username || '').toLowerCase() === 'ken';
+  // Payments is owner-level (money) — Ken + Kelly only (see access.js). The section
+  // is hidden for everyone else, and the backend routes are independently gated to
+  // the same allowlist so this isn't just a UI courtesy.
+  const isKen = hasFullAccess(user);
   const sections = isKen ? [...SECTIONS, { key: 'payments', label: 'Payments' }] : SECTIONS;
   return (
     <div className="admin">

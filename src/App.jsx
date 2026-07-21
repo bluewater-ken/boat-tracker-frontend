@@ -4,6 +4,7 @@ import Login from './Login';
 import Logo from './Logo';
 import { useAuth } from './AuthContext';
 import { isDemoUser } from './api';
+import { hasFullAccess } from './access';
 import './App.css';
 
 // Other tabs load only when opened — keeps the initial download small.
@@ -58,8 +59,8 @@ function App() {
   const roleLabel = user?.role === 'ops' ? 'Ops' : user?.role === 'shop' ? 'Shop' : '';
   const isOps = user?.role === 'ops';
   const isDemo = isDemoUser(user);
-  // Timeline is Ken-only for now — hidden from every other account (incl. other Ops).
-  const isKen = (user?.username || '').toLowerCase() === 'ken';
+  // Timeline + Payments are owner-level — Ken and Kelly only (not other Ops). See access.js.
+  const isKen = hasFullAccess(user);
   const tabs = (isOps ? [...BASE_TABS, { key: 'admin', label: 'Admin' }] : BASE_TABS)
     .filter(t => t.key !== 'gantt' || isKen);
 

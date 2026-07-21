@@ -233,7 +233,7 @@ function PaymentsAdmin() {
 
   if (loading) return <div className="loading">Loading payments...</div>;
   if (data === 'off') return (
-    <div className="pay"><p className="pay-off">Payments backend isn't set up yet — run <b>BACKEND_PAYMENTS_BRIEF.md</b> on the server first. (Routes are Ken-gated; a 403 here means you're not logged in as ken.)</p></div>
+    <div className="pay"><p className="pay-off">Payments data didn't load. The routes are gated to the owner allowlist (Ken + Kelly) on the server — a 403 means your account isn't on it yet (run <b>BACKEND_PAYMENTS_ALLOWLIST_BRIEF.md</b>), and a fresh install needs <b>BACKEND_PAYMENTS_BRIEF.md</b>.</p></div>
   );
 
   const plans = {}; for (const p of (data.plans || [])) plans[p.boat_id] = p;

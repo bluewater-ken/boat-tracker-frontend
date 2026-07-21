@@ -13,6 +13,30 @@
 .pay-alert-over { background: #FCEBEB; border-color: #F0C4C4; color: #A32D2D; }
 .pay-alert-due { background: #FAEEDA; border-color: #EDD4A8; color: #854F0B; }
 
+/* cash-flow chart */
+.pay-chart { background: #fff; border: 1px solid #E2E6EA; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+.pay-chart-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+.pay-chart-title { font-size: 13px; font-weight: 700; color: #173A5E; }
+.pay-chart-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: #5F6B73; }
+.pay-chart-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.pay-chart-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.pay-chart-legend i.pay-cumline { width: 14px; height: 0; border-top: 2px solid #534AB7; border-radius: 0; }
+.pay-chart-zoom { margin-left: auto; display: flex; gap: 4px; }
+.pay-chart-zoom button { padding: 4px 12px; font-size: 12px; font-weight: 600; color: #5F6B73; background: #fff; border: 1px solid #C7D2DB; border-radius: 7px; cursor: pointer; }
+.pay-chart-zoom button.on { background: #173A5E; color: #fff; border-color: #173A5E; }
+.pay-svg { width: 100%; height: auto; display: block; }
+.pay-chart-detail { margin-top: 8px; border-top: 1px solid #F0F2F4; padding-top: 8px; }
+.pay-chart-detail-head { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: #173A5E; margin-bottom: 5px; }
+.pay-chart-detail-head button { background: none; border: none; color: #9AA5AD; cursor: pointer; font-size: 13px; }
+.pay-chart-drow { display: grid; grid-template-columns: 62px 150px 1fr auto 74px; gap: 10px; align-items: center; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid #F5F6F8; padding: 5px 2px; cursor: pointer; font-size: 12px; color: #33424C; }
+.pay-chart-drow:hover { background: #F7FAFC; }
+.pay-drow-label { color: #5F6B73; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pay-drow-amt { font-weight: 700; color: #173A5E; text-align: right; }
+.pay-drow-st { font-size: 9px; font-weight: 800; letter-spacing: 0.03em; text-align: right; color: #8A969E; }
+.pay-drow-overdue .pay-drow-st { color: #A32D2D; }
+.pay-drow-due .pay-drow-st { color: #854F0B; }
+.pay-drow-paid .pay-drow-st { color: #27500A; }
+
 .pay-split { display: grid; grid-template-columns: 300px 1fr; gap: 14px; align-items: start; }
 @media (max-width: 900px) { .pay-split { grid-template-columns: 1fr; } }
 

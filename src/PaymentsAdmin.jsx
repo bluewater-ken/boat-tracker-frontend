@@ -105,12 +105,98 @@ function effectiveRows(ms, price) {
 }
 const pctOf = (amount, price) => (price && amount != null ? Math.round((amount / price) * 10000) / 100 : null);
 
+// ---- cash-flow chart: bucket resolved milestones by week (or month) ----
+const CHART_CATS = [
+  { key: 'received', label: 'Received', color: '#9CCB62' },
+  { key: 'overdue', label: 'Overdue', color: '#E24B4A' },
+  { key: 'due', label: 'Due soon', color: '#FAC775' },
+  { key: 'upcoming', label: 'Expected', color: '#173A5E' },
+];
+const catOf = (r) => (r.status === 'paid' ? 'received' : r.status === 'overdue' ? 'overdue' : r.status === 'due' ? 'due' : 'upcoming');
+// Money lands in the week it was RECEIVED (paid rows) or is EXPECTED (everything else).
+const rowDate = (r) => (r.status === 'paid' && r.m.paid_at ? String(r.m.paid_at).slice(0, 10) : r.exp);
+const mondayOf = (iso) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
+const nextWeek = (iso) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); };
+
+function buildBuckets(rows, mode) {
+  const dated = rows.filter(r => r.amount != null && rowDate(r)).map(r => ({ r, d: rowDate(r), cat: catOf(r) }));
+  if (!dated.length) return { keys: [], by: {}, niceMax: 5, total: 0 };
+  const keyer = mode === 'weeks' ? (d) => mondayOf(d) : (d) => d.slice(0, 7);
+  const dates = dated.map(x => x.d).concat([todayStr()]).sort();
+  let min = keyer(dates[0]), max = keyer(dates[dates.length - 1]);
+  const keys = [];
+  if (mode === 'weeks') { let c = min; while (c <= max) { keys.push(c); c = nextWeek(c); } }
+  else { let [y, m] = min.split('-').map(Number); const [ey, em] = max.split('-').map(Number); while (y < ey || (y === ey && m <= em)) { keys.push(`${y}-${String(m).padStart(2, '0')}`); if (++m > 12) { m = 1; y++; } } }
+  const by = {}; for (const k of keys) by[k] = { received: 0, overdue: 0, due: 0, upcoming: 0, rows: [] };
+  for (const x of dated) { const k = keyer(x.d); if (!by[k]) continue; by[k][x.cat] += x.r.amount; by[k].rows.push(x.r); }
+  const barMax = Math.max(1, ...keys.map(k => CHART_CATS.reduce((s, c) => s + by[k][c.key], 0)));
+  const step = Math.pow(10, Math.floor(Math.log10(barMax)));
+  const niceMax = Math.ceil(barMax / step) * step;
+  const total = dated.reduce((s, x) => s + x.r.amount, 0);
+  return { keys, by, niceMax, total };
+}
+
+function PayChart({ rows, mode, pick, onPick }) {
+  const { keys, by, niceMax, total } = buildBuckets(rows, mode);
+  if (!keys.length) return <div className="pay-quiet" style={{ padding: '10px 2px' }}>No dated payments to chart yet — set prices and schedules below.</div>;
+  const W = 760, H = 210, L = 52, R = 54, T = 12, B = 34;
+  const plotW = W - L - R, plotH = H - T - B;
+  const slot = plotW / keys.length;
+  const bw = Math.max(3, Math.min(30, slot * 0.68));
+  const x = (i) => L + slot * (i + 0.5);
+  const y = (v) => T + plotH - (plotH * v) / niceMax;
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(niceMax * f));
+  const kMoney = (v) => (v >= 1000 ? `$${Math.round(v / 1000)}k` : `$${Math.round(v)}`);
+  // cumulative "cash booked by then" line, on its own right-side scale.
+  let run = 0; const cum = keys.map(k => (run += CHART_CATS.reduce((s, c) => s + by[k][c.key], 0)));
+  const cumMax = Math.max(1, total);
+  const yc = (v) => T + plotH - (plotH * v) / cumMax;
+  const linePts = keys.map((k, i) => `${x(i)},${yc(cum[i])}`).join(' ');
+  const step = Math.ceil(keys.length / 12);
+  const label = (k) => mode === 'weeks' ? (() => { const [, m, d] = k.split('-'); return `${+m}/${+d}`; })() : (() => { const [yy, mm] = k.split('-'); return new Date(+yy, +mm - 1, 1).toLocaleDateString('en-US', { month: 'short' }); })();
+  const todayKey = mode === 'weeks' ? mondayOf(todayStr()) : todayStr().slice(0, 7);
+  const todayI = keys.indexOf(todayKey);
+
+  return (
+    <svg className="pay-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Payments by period">
+      {ticks.map((t, i) => (
+        <g key={i}>
+          <line x1={L} y1={y(t)} x2={W - R} y2={y(t)} stroke="#EEF1F4" />
+          <text x={L - 6} y={y(t) + 3} textAnchor="end" fontSize="9" fill="#8A969E">{kMoney(t)}</text>
+        </g>
+      ))}
+      {todayI >= 0 && <line x1={x(todayI) - slot / 2} y1={T} x2={x(todayI) - slot / 2} y2={T + plotH} stroke="#2E92D6" strokeDasharray="3 3" />}
+      {keys.map((k, i) => {
+        let yTop = y(0); const on = pick === k;
+        return (
+          <g key={k}>
+            {CHART_CATS.map(c => {
+              const v = by[k][c.key]; if (!v) return null;
+              const h = (plotH * v) / niceMax; yTop -= h;
+              return <rect key={c.key} x={x(i) - bw / 2} y={yTop} width={bw} height={h} fill={c.color}
+                stroke={on ? '#173A5E' : 'none'} strokeWidth={on ? 1.5 : 0} style={{ cursor: 'pointer' }}
+                onClick={() => onPick(pick === k ? null : k)}><title>{`${label(k)} — ${c.label}: ${money(v)}`}</title></rect>;
+            })}
+            {i % step === 0 && <text x={x(i)} y={H - 12} textAnchor="middle" fontSize="8.5" fill="#8A969E">{label(k)}</text>}
+          </g>
+        );
+      })}
+      {keys.length > 1 && <polyline points={linePts} fill="none" stroke="#534AB7" strokeWidth="2" strokeLinejoin="round" />}
+      <circle cx={x(keys.length - 1)} cy={yc(cum[cum.length - 1])} r="3" fill="#534AB7" />
+      <text x={W - R + 4} y={yc(cum[cum.length - 1]) + 3} fontSize="9" fontWeight="700" fill="#534AB7">{kMoney(total)}</text>
+      <line x1={L} y1={y(0)} x2={W - R} y2={y(0)} stroke="#D6DBE0" />
+    </svg>
+  );
+}
+
 function PaymentsAdmin() {
   const [data, setData] = useState(null);     // { plans, milestones, delivered } | 'off'
   const [boats, setBoats] = useState([]);
   const [tl, setTl] = useState(null);
   const [sel, setSel] = useState(null);       // selected boat_id
   const [loading, setLoading] = useState(true);
+  const [chartMode, setChartMode] = useState('weeks'); // weeks | months
+  const [chartPick, setChartPick] = useState(null);    // bucket key clicked
 
   useEffect(() => { init(); }, []);
   const init = async () => {
@@ -226,6 +312,43 @@ function PaymentsAdmin() {
               <b>DUE</b> {r.boat.boat_id} · {r.boat.customer_name} · {r.m.label} · {money(r.amount)} — {fmtD(r.exp)}
             </button>
           ))}
+        </div>
+      )}
+
+      {allRows.some(r => r.amount != null && rowDate(r)) && (
+        <div className="pay-chart">
+          <div className="pay-chart-head">
+            <span className="pay-chart-title">Cash flow — {chartMode === 'weeks' ? 'weekly' : 'monthly'}</span>
+            <span className="pay-chart-legend">
+              {CHART_CATS.map(c => <span key={c.key}><i style={{ background: c.color }} />{c.label}</span>)}
+              <span><i className="pay-cumline" />Cumulative</span>
+            </span>
+            <span className="pay-chart-zoom">
+              <button className={chartMode === 'weeks' ? 'on' : ''} onClick={() => { setChartMode('weeks'); setChartPick(null); }}>Weeks</button>
+              <button className={chartMode === 'months' ? 'on' : ''} onClick={() => { setChartMode('months'); setChartPick(null); }}>Months</button>
+            </span>
+          </div>
+          <PayChart rows={allRows} mode={chartMode} pick={chartPick} onPick={setChartPick} />
+          {chartPick && (() => {
+            const inBucket = allRows.filter(r => r.amount != null && rowDate(r) &&
+              (chartMode === 'weeks' ? mondayOf(rowDate(r)) === chartPick : rowDate(r).slice(0, 7) === chartPick))
+              .sort((a, b) => rowDate(a).localeCompare(rowDate(b)));
+            const sum = inBucket.reduce((s, r) => s + r.amount, 0);
+            return (
+              <div className="pay-chart-detail">
+                <div className="pay-chart-detail-head">{inBucket.length} payment{inBucket.length === 1 ? '' : 's'} · {money(sum)}<button onClick={() => setChartPick(null)}>✕</button></div>
+                {inBucket.map((r, i) => (
+                  <button key={i} className={`pay-chart-drow pay-drow-${r.status}`} onClick={() => setSel(r.boat.boat_id)}>
+                    <span>{fmtD(rowDate(r))}</span>
+                    <span>{r.boat.boat_id} · {r.boat.customer_name}</span>
+                    <span className="pay-drow-label">{r.m.label}</span>
+                    <span className="pay-drow-amt">{money(r.amount)}</span>
+                    <span className="pay-drow-st">{STATUS_LABEL[r.status]}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
 

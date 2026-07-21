@@ -25,7 +25,12 @@ function TimelineAdmin() {
       const r = await apiFetch('/api/timeline').catch(() => null);
       const d = r && r.ok ? await r.json() : null;
       setData(d);
-      if (d?.settings) setKnobs({ per: d.settings.tl_workload_per_items ?? 5, cap: d.settings.tl_workload_cap ?? 10 });
+      if (d?.settings) setKnobs({
+        per: d.settings.tl_workload_per_items ?? 5,
+        cap: d.settings.tl_workload_cap ?? 10,
+        glass: d.settings.tl_glass_concurrency ?? 1,
+        exempt: Array.isArray(d.settings.tl_capacity_exempt_models) ? d.settings.tl_capacity_exempt_models.join(', ') : (d.settings.tl_capacity_exempt_models || '36'),
+      });
       const sMap = {}; for (const n of (d?.norms || [])) sMap[`${n.model}|${n.stage}`] = n.seed_days ?? n.days;
       setSeeds(sMap);
     } finally { setLoading(false); }
@@ -67,13 +72,25 @@ function TimelineAdmin() {
   };
   const saveKnobs = async () => {
     try {
+      // Exempt models: comma-separated text → clean array (backend accepts either,
+      // but an array round-trips exactly). Validate client-side; server 400s too.
+      const exempt = String(knobs.exempt || '').split(',').map(s => s.trim()).filter(Boolean);
       const r = await apiFetch('/api/timeline/settings', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tl_workload_per_items: Math.max(1, +knobs.per || 5), tl_workload_cap: Math.max(0, +knobs.cap || 10) }),
+        body: JSON.stringify({
+          tl_workload_per_items: Math.max(1, +knobs.per || 5),
+          tl_workload_cap: Math.max(0, +knobs.cap || 10),
+          tl_glass_concurrency: Math.min(50, Math.max(1, Math.round(+knobs.glass) || 1)),
+          tl_capacity_exempt_models: exempt,
+        }),
       });
-      if (!r.ok) throw new Error();
+      if (!r.ok) {
+        const j = await r.json().catch(() => null);
+        throw new Error(j?.invalid ? `Rejected: ${JSON.stringify(j.invalid)}` : '');
+      }
       setSaved(true); setTimeout(() => setSaved(false), 1500);
-    } catch { alert('Failed to save.'); }
+      init();
+    } catch (e) { alert(`Failed to save.${e.message ? ` ${e.message}` : ''}`); }
   };
 
   if (loading) return <div className="loading">Loading timeline settings...</div>;
@@ -130,8 +147,12 @@ function TimelineAdmin() {
       </div>
 
       <div className="tla-section">
-        <h3>Workload adjustment</h3>
+        <h3>Capacity &amp; workload rules</h3>
         <div className="tla-knobs">
+          <span>Glass Shop runs <input className="tla-num" type="number" min="1" max="50" value={knobs?.glass ?? 1} onChange={e => setKnobs(k => ({ ...k, glass: e.target.value }))} /> boat(s) at a time,</span>
+          <span>except models <input className="tla-exempt" type="text" placeholder="36" value={knobs?.exempt ?? ''} onChange={e => setKnobs(k => ({ ...k, exempt: e.target.value }))} title="Comma-separated. These models are invisible to glass-shop capacity — they neither hold nor wait for the shop." /> (still projected, never block or wait).</span>
+        </div>
+        <div className="tla-knobs" style={{ marginTop: 8 }}>
           <span>Add/remove <input className="tla-num" type="number" min="1" value={knobs?.per ?? 5} onChange={e => setKnobs(k => ({ ...k, per: e.target.value }))} /> day per that many checklist items above/below the model's normal,</span>
           <span>capped at ± <input className="tla-num" type="number" min="0" value={knobs?.cap ?? 10} onChange={e => setKnobs(k => ({ ...k, cap: e.target.value }))} /> days.</span>
           <button className="tla-save" onClick={saveKnobs}>Save</button>

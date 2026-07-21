@@ -307,7 +307,10 @@ function AssemblyTracker() {
             {shownItems.map((it, i) => (
               <li key={i} className={`asm-check-item ${it.done ? 'done' : ''}`}>
                 <span className="asm-check-box">{it.done ? '✓' : ''}</span>
-                <span className="asm-check-name">{it.name}</span>
+                <span className="asm-check-name">
+                  {it.name}
+                  {it.description && <span className="asm-check-desc">{it.description}</span>}
+                </span>
                 {it.photo_count > 0 && (
                   <button className="asm-item-photos" disabled={loadingPhotos === it.item_id}
                     title={`${it.photo_count} photo${it.photo_count === 1 ? '' : 's'} for this item`}

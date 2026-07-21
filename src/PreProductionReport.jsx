@@ -90,7 +90,8 @@ function build(b, lamRows, finRows, wcs, asmRows, parts, std) {
       if (!row) return null;
       const items = (row.items || []).map(i => {
         const name = cleanItem(i.name);
-        return name ? { name, done: !!i.done } : null;
+        // description = the CompanyCam item's details (rigging specs, mount notes...)
+        return name ? { name, done: !!i.done, desc: String(i.description || '').trim() } : null;
       }).filter(Boolean);
       // Older/delivered boats have no items[] — fall back to the open list.
       const fallback = !items.length && (row.remaining || []).length
@@ -254,7 +255,13 @@ function Page({ b, dateLabel }) {
           <Section key={g.label} title={`${g.label} · ${g.items.filter(i => i.done).length}/${g.items.length}`}>
             <ul className="ppr-list">
               {g.items.map((it, i) => (
-                <li key={i} className={it.done ? 'done' : ''}><span className="ppr-box">{it.done ? '✓' : ''}</span>{it.name}</li>
+                <li key={i} className={it.done ? 'done' : ''}>
+                  <span className="ppr-box">{it.done ? '✓' : ''}</span>
+                  <span className="ppr-partmain">
+                    {it.name}
+                    {it.desc && <span className="ppr-desc">{it.desc}</span>}
+                  </span>
+                </li>
               ))}
             </ul>
           </Section>

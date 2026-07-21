@@ -16,13 +16,13 @@ const TRIGGERS = [
   { key: 'after_completion', label: 'Business days after completion' },
 ];
 // Ken's standard schedules — starting points; every boat's rows edit freely after.
-// (His example summed to 105%, so Standard Custom's balance is stored as 45%.)
+// Standard Custom: the pre-glass invoice is "25% less the deposit" → 20% of contract.
 const TEMPLATES = {
   'Standard Custom': [
     { label: 'Deposit — contract signing', percent: 5, trigger_type: 'manual' },
-    { label: '2 months before Glass Shop', percent: 25, trigger_type: 'before_stage', trigger_stage: 'Glass Shop', offset_days: 60 },
+    { label: '2 months before Glass Shop (25% less deposit)', percent: 20, trigger_type: 'before_stage', trigger_stage: 'Glass Shop', offset_days: 60 },
     { label: 'Back Line start', percent: 25, trigger_type: 'stage_start', trigger_stage: 'Back Line' },
-    { label: 'Balance on completion', percent: 45, trigger_type: 'completion' },
+    { label: 'Balance on completion', percent: 50, trigger_type: 'completion' },
   ],
   'Standard Dealer': [
     { label: 'In full — 7 business days after completion', percent: 100, trigger_type: 'after_completion', offset_days: 7 },

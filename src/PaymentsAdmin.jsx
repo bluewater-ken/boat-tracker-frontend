@@ -156,7 +156,7 @@ function PayChart({ rows, mode, pick, onPick }) {
   const x = (i) => L + slot * (i + 0.5);
   const y = (v) => T + plotH - (plotH * v) / niceMax;
   const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(niceMax * f));
-  const kMoney = (v) => (v >= 1000 ? `$${Math.round(v / 1000)}k` : `$${Math.round(v)}`);
+  const kMoney = (v) => (v >= 1000 ? `$${Math.round(v / 1000).toLocaleString()}k` : `$${Math.round(v)}`);
   const total = (k) => CHART_CATS.reduce((s, c) => s + by[k][c.key], 0);
   const overdueTotal = keys.reduce((s, k) => s + (k >= todayKey ? by[k].overdue : 0), 0);
 

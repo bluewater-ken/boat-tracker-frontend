@@ -115,6 +115,9 @@ const CHART_CATS = [
 const catOf = (r) => (r.status === 'paid' ? 'received' : r.status === 'overdue' ? 'overdue' : r.status === 'due' ? 'due' : 'upcoming');
 // Money lands in the week it was RECEIVED (paid rows) or is EXPECTED (everything else).
 const rowDate = (r) => (r.status === 'paid' && r.m.paid_at ? String(r.m.paid_at).slice(0, 10) : r.exp);
+// Where it stacks on the chart: overdue money is still coming, so roll it forward
+// to today (owed now) rather than leaving it in the past week it was due.
+const bucketDate = (r) => (r.status === 'overdue' ? todayStr() : rowDate(r));
 const mondayOf = (iso) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
 const nextWeek = (iso) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); };
 
@@ -132,7 +135,7 @@ function buildBuckets(rows, mode) {
   const by = {}; for (const k of keys) by[k] = { received: 0, overdue: 0, due: 0, upcoming: 0, rows: [] };
   let outFwd = 0; // expected money beyond the window's right edge (so the note can flag it)
   for (const r of rows) {
-    if (r.amount == null) continue; const d = rowDate(r); if (!d) continue;
+    if (r.amount == null) continue; const d = bucketDate(r); if (!d) continue;
     const k = keyer(d);
     if (!by[k]) { if (k > keys[keys.length - 1] && r.status !== 'paid') outFwd += r.amount; continue; }
     by[k][catOf(r)] += r.amount; by[k].rows.push(r);
@@ -347,9 +350,9 @@ function PaymentsAdmin() {
           </div>
           <PayChart rows={allRows} mode={chartMode} pick={chartPick} onPick={setChartPick} />
           {chartPick && (() => {
-            const inBucket = allRows.filter(r => r.amount != null && rowDate(r) &&
-              (chartMode === 'weeks' ? mondayOf(rowDate(r)) === chartPick : rowDate(r).slice(0, 7) === chartPick))
-              .sort((a, b) => rowDate(a).localeCompare(rowDate(b)));
+            const inBucket = allRows.filter(r => r.amount != null && bucketDate(r) &&
+              (chartMode === 'weeks' ? mondayOf(bucketDate(r)) === chartPick : bucketDate(r).slice(0, 7) === chartPick))
+              .sort((a, b) => (rowDate(a) || '').localeCompare(rowDate(b) || ''));
             const sum = inBucket.reduce((s, r) => s + r.amount, 0);
             return (
               <div className="pay-chart-detail">

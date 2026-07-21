@@ -218,12 +218,12 @@ function PaymentsAdmin() {
         <div className="pay-alerts">
           {overdue.map((r, i) => (
             <button key={'o' + i} className="pay-alert pay-alert-over" onClick={() => setSel(r.boat.boat_id)}>
-              <b>OVERDUE</b> {r.boat.boat_id} · {r.m.label} · {money(r.amount)} — expected {fmtD(r.exp)}
+              <b>OVERDUE</b> {r.boat.boat_id} · {r.boat.customer_name} · {r.m.label} · {money(r.amount)} — expected {fmtD(r.exp)}
             </button>
           ))}
           {dueSoon.map((r, i) => (
             <button key={'d' + i} className="pay-alert pay-alert-due" onClick={() => setSel(r.boat.boat_id)}>
-              <b>DUE</b> {r.boat.boat_id} · {r.m.label} · {money(r.amount)} — {fmtD(r.exp)}
+              <b>DUE</b> {r.boat.boat_id} · {r.boat.customer_name} · {r.m.label} · {money(r.amount)} — {fmtD(r.exp)}
             </button>
           ))}
         </div>

@@ -156,16 +156,22 @@ function PayChart({ rows, mode, pick, onPick }) {
   const y = (v) => T + plotH - (plotH * v) / niceMax;
   const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(niceMax * f));
   const kMoney = (v) => (v >= 1000 ? `$${Math.round(v / 1000)}k` : `$${Math.round(v)}`);
-  // Cumulative RESETS at today: left = cash collected to date, right = forward pipeline.
-  let lrun = 0, rrun = 0;
+  // Cumulative RESETS at today: left = cash collected to date; right = forward
+  // pipeline. Two forward lines: total (incl. the overdue you're still owed) and,
+  // underneath, on-time only — the gap between them is the overdue.
+  let lrun = 0, rAll = 0, rClean = 0;
   const cum = keys.map(k => {
     if (k < todayKey) { lrun += by[k].received; return { past: true, v: lrun }; }
-    rrun += CHART_CATS.reduce((s, c) => s + by[k][c.key], 0); return { past: false, v: rrun };
+    rAll += CHART_CATS.reduce((s, c) => s + by[k][c.key], 0);
+    rClean += by[k].due + by[k].upcoming; // excludes overdue
+    return { past: false, v: rAll, clean: rClean };
   });
-  const cumMax = Math.max(1, lrun, rrun);
+  const overdueTotal = keys.reduce((s, k) => s + (k >= todayKey ? by[k].overdue : 0), 0);
+  const cumMax = Math.max(1, lrun, rAll);
   const yc = (v) => T + plotH - (plotH * v) / cumMax;
   const pastPts = keys.map((k, i) => cum[i].past ? `${x(i)},${yc(cum[i].v)}` : null).filter(Boolean).join(' ');
   const fwdPts = keys.map((k, i) => !cum[i].past ? `${x(i)},${yc(cum[i].v)}` : null).filter(Boolean).join(' ');
+  const fwdCleanPts = keys.map((k, i) => !cum[i].past ? `${x(i)},${yc(cum[i].clean)}` : null).filter(Boolean).join(' ');
   const step = Math.ceil(keys.length / 12);
   const label = (k) => mode === 'weeks' ? (() => { const [, m, d] = k.split('-'); return `${+m}/${+d}`; })() : (() => { const [yy, mm] = k.split('-'); return new Date(+yy, +mm - 1, 1).toLocaleDateString('en-US', { month: 'short' }); })();
   const todayI = keys.indexOf(todayKey);
@@ -196,13 +202,17 @@ function PayChart({ rows, mode, pick, onPick }) {
             </g>
           );
         })}
-        {/* collected-to-date (teal), then reset → forward pipeline (purple) */}
+        {/* collected-to-date (teal), then reset → forward pipeline: total (solid
+            purple) with on-time (dashed) underneath; the gap is overdue. */}
         {pastPts && <polyline points={pastPts} fill="none" stroke="#1D9E75" strokeWidth="2" strokeLinejoin="round" />}
+        {overdueTotal > 0 && fwdCleanPts && <polyline points={fwdCleanPts} fill="none" stroke="#7F77DD" strokeWidth="1.6" strokeDasharray="4 3" strokeLinejoin="round" />}
         {fwdPts && <polyline points={fwdPts} fill="none" stroke="#534AB7" strokeWidth="2" strokeLinejoin="round" />}
         {lrun > 0 && todayI > 0 && <text x={x(todayI) - slot / 2 - 3} y={yc(lrun) - 4} textAnchor="end" fontSize="9" fontWeight="700" fill="#0F6E56">{kMoney(lrun)}</text>}
-        {rrun > 0 && <text x={x(lastI) + 4} y={yc(rrun) + 3} fontSize="9" fontWeight="700" fill="#534AB7">{kMoney(rrun)}</text>}
+        {rAll > 0 && <text x={x(lastI) + 4} y={yc(rAll) + 3} fontSize="9" fontWeight="700" fill="#534AB7">{kMoney(rAll)}</text>}
+        {overdueTotal > 0 && <text x={x(lastI) + 4} y={yc(rClean) + 3} fontSize="8.5" fontWeight="700" fill="#7F77DD">{kMoney(rClean)}</text>}
         <line x1={L} y1={y(0)} x2={W - R} y2={y(0)} stroke="#D6DBE0" />
       </svg>
+      {overdueTotal > 0 && <div className="pay-chart-note pay-note-over">{money(overdueTotal)} of the pipeline is <b>overdue</b> — the gap between the solid and dashed lines. On-time pipeline is {money(rClean)}.</div>}
       {outFwd > 0 && <div className="pay-chart-note">+ {money(outFwd)} expected beyond this window (past the 8-month view).</div>}
     </>
   );
@@ -341,7 +351,8 @@ function PaymentsAdmin() {
             <span className="pay-chart-legend">
               {CHART_CATS.map(c => <span key={c.key}><i style={{ background: c.color }} />{c.label}</span>)}
               <span><i className="pay-cumline pay-cum-collected" />Collected to date</span>
-              <span><i className="pay-cumline pay-cum-forward" />Forward pipeline</span>
+              <span><i className="pay-cumline pay-cum-forward" />Pipeline (with overdue)</span>
+              <span><i className="pay-cumline pay-cum-clean" />On-time only</span>
             </span>
             <span className="pay-chart-zoom">
               <button className={chartMode === 'weeks' ? 'on' : ''} onClick={() => { setChartMode('weeks'); setChartPick(null); }}>Weeks</button>

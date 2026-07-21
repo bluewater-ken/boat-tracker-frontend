@@ -236,12 +236,25 @@ function PaymentsAdmin() {
             const over = rows.some(r => r.status === 'overdue');
             const due = rows.some(r => r.status === 'due');
             const paid = rows.length > 0 && rows.every(r => r.status === 'paid');
+            const priced = plans[b.boat_id]?.contract_price != null;
+            // Next money in the door: earliest unpaid milestone (dated ones first).
+            const unpaid = rows.filter(r => r.status !== 'paid');
+            const next = unpaid.filter(r => r.exp).sort((x, y) => x.exp.localeCompare(y.exp))[0] || unpaid[0] || null;
             return (
               <button key={b.boat_id} className={`pay-boat ${sel === b.boat_id ? 'on' : ''}`} onClick={() => setSel(b.boat_id)}>
-                <span className="pay-boat-id">{b.boat_id} · {b.customer_name}</span>
-                <span className="pay-boat-sub">
-                  {plans[b.boat_id]?.contract_price != null ? money(plans[b.boat_id].contract_price) : 'no price'} · {rows.length ? `${rows.length} payments` : 'no schedule'}
+                <span className="pay-boat-id">
+                  {b.boat_id} · {b.customer_name}
+                  {priced && <span className="pay-priced" title="Contract price + schedule set">$ SET</span>}
                 </span>
+                <span className="pay-boat-sub">
+                  {priced ? money(plans[b.boat_id].contract_price) : 'no price'} · {rows.length ? `${rows.length} payments` : 'no schedule'}
+                </span>
+                {next && (
+                  <span className={`pay-boat-next pay-next-${next.status}`}>
+                    Next: {money(next.amount)}{next.exp ? ` · ${fmtD(next.exp)}` : ' · date TBD'}
+                    {next.status === 'overdue' ? ' — OVERDUE' : next.status === 'due' ? ' — due soon' : ''}
+                  </span>
+                )}
                 {over && <span className="pay-badge pay-badge-over">OVERDUE</span>}
                 {!over && due && <span className="pay-badge pay-badge-due">DUE</span>}
                 {paid && <span className="pay-badge pay-badge-paid">PAID ✓</span>}

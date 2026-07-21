@@ -24,6 +24,13 @@
 .pay-boat.on { border-color: #2E92D6; box-shadow: 0 0 0 1px #2E92D6; }
 .pay-boat-id { display: block; font-size: 13px; font-weight: 700; color: #173A5E; }
 .pay-boat-sub { display: block; font-size: 11px; color: #7A857D; margin-top: 1px; }
+/* price-entered tag — scannable "invoices are set up for this boat" */
+.pay-priced { margin-left: 6px; padding: 1px 6px; border-radius: 8px; font-size: 8.5px; font-weight: 800; letter-spacing: 0.03em; background: #EAF3DE; color: #27500A; border: 1px solid #C0DD97; vertical-align: 1px; }
+/* next unpaid payment + date, colored by urgency */
+.pay-boat-next { display: block; font-size: 11px; font-weight: 700; color: #173A5E; margin-top: 2px; }
+.pay-next-overdue { color: #A32D2D; }
+.pay-next-due { color: #854F0B; }
+.pay-next-unscheduled { color: #9B998F; font-weight: 600; }
 .pay-badge { position: absolute; top: 9px; right: 10px; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 9px; }
 .pay-badge-over { background: #A32D2D; color: #fff; }
 .pay-badge-due { background: #FAC775; color: #633806; }

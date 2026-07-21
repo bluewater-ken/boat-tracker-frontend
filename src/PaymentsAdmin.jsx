@@ -118,28 +118,34 @@ const rowDate = (r) => (r.status === 'paid' && r.m.paid_at ? String(r.m.paid_at)
 const mondayOf = (iso) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
 const nextWeek = (iso) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); };
 
+const addMonths = (d, n) => { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; };
+// Window: 3 months back, 8 forward from today (Ken's pick).
 function buildBuckets(rows, mode) {
-  const dated = rows.filter(r => r.amount != null && rowDate(r)).map(r => ({ r, d: rowDate(r), cat: catOf(r) }));
-  if (!dated.length) return { keys: [], by: {}, niceMax: 5, total: 0 };
-  const keyer = mode === 'weeks' ? (d) => mondayOf(d) : (d) => d.slice(0, 7);
-  const dates = dated.map(x => x.d).concat([todayStr()]).sort();
-  let min = keyer(dates[0]), max = keyer(dates[dates.length - 1]);
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const t = new Date(todayStr() + 'T00:00:00');
+  const sIso = iso(addMonths(t, -3)), eIso = iso(addMonths(t, 8));
+  const keyer = mode === 'weeks' ? mondayOf : (d) => d.slice(0, 7);
+  const todayKey = keyer(todayStr());
   const keys = [];
-  if (mode === 'weeks') { let c = min; while (c <= max) { keys.push(c); c = nextWeek(c); } }
-  else { let [y, m] = min.split('-').map(Number); const [ey, em] = max.split('-').map(Number); while (y < ey || (y === ey && m <= em)) { keys.push(`${y}-${String(m).padStart(2, '0')}`); if (++m > 12) { m = 1; y++; } } }
+  if (mode === 'weeks') { let c = mondayOf(sIso); const end = mondayOf(eIso); while (c <= end) { keys.push(c); c = nextWeek(c); } }
+  else { let [y, m] = sIso.slice(0, 7).split('-').map(Number); const [ey, em] = eIso.slice(0, 7).split('-').map(Number); while (y < ey || (y === ey && m <= em)) { keys.push(`${y}-${String(m).padStart(2, '0')}`); if (++m > 12) { m = 1; y++; } } }
   const by = {}; for (const k of keys) by[k] = { received: 0, overdue: 0, due: 0, upcoming: 0, rows: [] };
-  for (const x of dated) { const k = keyer(x.d); if (!by[k]) continue; by[k][x.cat] += x.r.amount; by[k].rows.push(x.r); }
+  let outFwd = 0; // expected money beyond the window's right edge (so the note can flag it)
+  for (const r of rows) {
+    if (r.amount == null) continue; const d = rowDate(r); if (!d) continue;
+    const k = keyer(d);
+    if (!by[k]) { if (k > keys[keys.length - 1] && r.status !== 'paid') outFwd += r.amount; continue; }
+    by[k][catOf(r)] += r.amount; by[k].rows.push(r);
+  }
   const barMax = Math.max(1, ...keys.map(k => CHART_CATS.reduce((s, c) => s + by[k][c.key], 0)));
   const step = Math.pow(10, Math.floor(Math.log10(barMax)));
-  const niceMax = Math.ceil(barMax / step) * step;
-  const total = dated.reduce((s, x) => s + x.r.amount, 0);
-  return { keys, by, niceMax, total };
+  return { keys, by, niceMax: Math.ceil(barMax / step) * step, todayKey, outFwd };
 }
 
 function PayChart({ rows, mode, pick, onPick }) {
-  const { keys, by, niceMax, total } = buildBuckets(rows, mode);
-  if (!keys.length) return <div className="pay-quiet" style={{ padding: '10px 2px' }}>No dated payments to chart yet — set prices and schedules below.</div>;
-  const W = 760, H = 210, L = 52, R = 54, T = 12, B = 34;
+  const { keys, by, niceMax, todayKey, outFwd } = buildBuckets(rows, mode);
+  if (!keys.length) return <div className="pay-quiet" style={{ padding: '10px 2px' }}>No dated payments to chart yet.</div>;
+  const W = 760, H = 210, L = 52, R = 58, T = 12, B = 34;
   const plotW = W - L - R, plotH = H - T - B;
   const slot = plotW / keys.length;
   const bw = Math.max(3, Math.min(30, slot * 0.68));
@@ -147,45 +153,55 @@ function PayChart({ rows, mode, pick, onPick }) {
   const y = (v) => T + plotH - (plotH * v) / niceMax;
   const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(niceMax * f));
   const kMoney = (v) => (v >= 1000 ? `$${Math.round(v / 1000)}k` : `$${Math.round(v)}`);
-  // cumulative "cash booked by then" line, on its own right-side scale.
-  let run = 0; const cum = keys.map(k => (run += CHART_CATS.reduce((s, c) => s + by[k][c.key], 0)));
-  const cumMax = Math.max(1, total);
+  // Cumulative RESETS at today: left = cash collected to date, right = forward pipeline.
+  let lrun = 0, rrun = 0;
+  const cum = keys.map(k => {
+    if (k < todayKey) { lrun += by[k].received; return { past: true, v: lrun }; }
+    rrun += CHART_CATS.reduce((s, c) => s + by[k][c.key], 0); return { past: false, v: rrun };
+  });
+  const cumMax = Math.max(1, lrun, rrun);
   const yc = (v) => T + plotH - (plotH * v) / cumMax;
-  const linePts = keys.map((k, i) => `${x(i)},${yc(cum[i])}`).join(' ');
+  const pastPts = keys.map((k, i) => cum[i].past ? `${x(i)},${yc(cum[i].v)}` : null).filter(Boolean).join(' ');
+  const fwdPts = keys.map((k, i) => !cum[i].past ? `${x(i)},${yc(cum[i].v)}` : null).filter(Boolean).join(' ');
   const step = Math.ceil(keys.length / 12);
   const label = (k) => mode === 'weeks' ? (() => { const [, m, d] = k.split('-'); return `${+m}/${+d}`; })() : (() => { const [yy, mm] = k.split('-'); return new Date(+yy, +mm - 1, 1).toLocaleDateString('en-US', { month: 'short' }); })();
-  const todayKey = mode === 'weeks' ? mondayOf(todayStr()) : todayStr().slice(0, 7);
   const todayI = keys.indexOf(todayKey);
+  const lastI = keys.length - 1;
 
   return (
-    <svg className="pay-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Payments by period">
-      {ticks.map((t, i) => (
-        <g key={i}>
-          <line x1={L} y1={y(t)} x2={W - R} y2={y(t)} stroke="#EEF1F4" />
-          <text x={L - 6} y={y(t) + 3} textAnchor="end" fontSize="9" fill="#8A969E">{kMoney(t)}</text>
-        </g>
-      ))}
-      {todayI >= 0 && <line x1={x(todayI) - slot / 2} y1={T} x2={x(todayI) - slot / 2} y2={T + plotH} stroke="#2E92D6" strokeDasharray="3 3" />}
-      {keys.map((k, i) => {
-        let yTop = y(0); const on = pick === k;
-        return (
-          <g key={k}>
-            {CHART_CATS.map(c => {
-              const v = by[k][c.key]; if (!v) return null;
-              const h = (plotH * v) / niceMax; yTop -= h;
-              return <rect key={c.key} x={x(i) - bw / 2} y={yTop} width={bw} height={h} fill={c.color}
-                stroke={on ? '#173A5E' : 'none'} strokeWidth={on ? 1.5 : 0} style={{ cursor: 'pointer' }}
-                onClick={() => onPick(pick === k ? null : k)}><title>{`${label(k)} — ${c.label}: ${money(v)}`}</title></rect>;
-            })}
-            {i % step === 0 && <text x={x(i)} y={H - 12} textAnchor="middle" fontSize="8.5" fill="#8A969E">{label(k)}</text>}
+    <>
+      <svg className="pay-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Payments by period">
+        {ticks.map((t, i) => (
+          <g key={i}>
+            <line x1={L} y1={y(t)} x2={W - R} y2={y(t)} stroke="#EEF1F4" />
+            <text x={L - 6} y={y(t) + 3} textAnchor="end" fontSize="9" fill="#8A969E">{kMoney(t)}</text>
           </g>
-        );
-      })}
-      {keys.length > 1 && <polyline points={linePts} fill="none" stroke="#534AB7" strokeWidth="2" strokeLinejoin="round" />}
-      <circle cx={x(keys.length - 1)} cy={yc(cum[cum.length - 1])} r="3" fill="#534AB7" />
-      <text x={W - R + 4} y={yc(cum[cum.length - 1]) + 3} fontSize="9" fontWeight="700" fill="#534AB7">{kMoney(total)}</text>
-      <line x1={L} y1={y(0)} x2={W - R} y2={y(0)} stroke="#D6DBE0" />
-    </svg>
+        ))}
+        {todayI >= 0 && <line x1={x(todayI) - slot / 2} y1={T} x2={x(todayI) - slot / 2} y2={T + plotH} stroke="#2E92D6" strokeDasharray="3 3" />}
+        {keys.map((k, i) => {
+          let yTop = y(0); const on = pick === k;
+          return (
+            <g key={k}>
+              {CHART_CATS.map(c => {
+                const v = by[k][c.key]; if (!v) return null;
+                const h = (plotH * v) / niceMax; yTop -= h;
+                return <rect key={c.key} x={x(i) - bw / 2} y={yTop} width={bw} height={h} fill={c.color}
+                  stroke={on ? '#173A5E' : 'none'} strokeWidth={on ? 1.5 : 0} style={{ cursor: 'pointer' }}
+                  onClick={() => onPick(pick === k ? null : k)}><title>{`${label(k)} — ${c.label}: ${money(v)}`}</title></rect>;
+              })}
+              {i % step === 0 && <text x={x(i)} y={H - 12} textAnchor="middle" fontSize="8.5" fill="#8A969E">{label(k)}</text>}
+            </g>
+          );
+        })}
+        {/* collected-to-date (teal), then reset → forward pipeline (purple) */}
+        {pastPts && <polyline points={pastPts} fill="none" stroke="#1D9E75" strokeWidth="2" strokeLinejoin="round" />}
+        {fwdPts && <polyline points={fwdPts} fill="none" stroke="#534AB7" strokeWidth="2" strokeLinejoin="round" />}
+        {lrun > 0 && todayI > 0 && <text x={x(todayI) - slot / 2 - 3} y={yc(lrun) - 4} textAnchor="end" fontSize="9" fontWeight="700" fill="#0F6E56">{kMoney(lrun)}</text>}
+        {rrun > 0 && <text x={x(lastI) + 4} y={yc(rrun) + 3} fontSize="9" fontWeight="700" fill="#534AB7">{kMoney(rrun)}</text>}
+        <line x1={L} y1={y(0)} x2={W - R} y2={y(0)} stroke="#D6DBE0" />
+      </svg>
+      {outFwd > 0 && <div className="pay-chart-note">+ {money(outFwd)} expected beyond this window (past the 8-month view).</div>}
+    </>
   );
 }
 
@@ -321,7 +337,8 @@ function PaymentsAdmin() {
             <span className="pay-chart-title">Cash flow — {chartMode === 'weeks' ? 'weekly' : 'monthly'}</span>
             <span className="pay-chart-legend">
               {CHART_CATS.map(c => <span key={c.key}><i style={{ background: c.color }} />{c.label}</span>)}
-              <span><i className="pay-cumline" />Cumulative</span>
+              <span><i className="pay-cumline pay-cum-collected" />Collected to date</span>
+              <span><i className="pay-cumline pay-cum-forward" />Forward pipeline</span>
             </span>
             <span className="pay-chart-zoom">
               <button className={chartMode === 'weeks' ? 'on' : ''} onClick={() => { setChartMode('weeks'); setChartPick(null); }}>Weeks</button>

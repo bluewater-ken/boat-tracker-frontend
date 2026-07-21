@@ -79,6 +79,32 @@ const statusOf = (m, exp) => {
 };
 const STATUS_LABEL = { paid: 'PAID', overdue: 'OVERDUE', due: 'DUE SOON', upcoming: 'Upcoming', unscheduled: 'No date yet' };
 
+// Effective dollar amount per milestone: an actual PAID amount beats everything,
+// a fixed $ override beats the %, and the LAST unpaid/un-fixed milestone
+// auto-balances so the schedule always sums to the contract price — "I get paid
+// an even $5,000 where 5% is $5,014; the balance should update."
+function effectiveRows(ms, price) {
+  const base = ms.map(m => ({
+    m,
+    fixed: m.amount_override != null,
+    amount: m.paid_at && m.paid_amount != null ? +m.paid_amount
+      : m.amount_override != null ? +m.amount_override
+      : price != null && m.percent != null ? Math.round(price * m.percent) / 100
+      : null,
+    isBalance: false,
+  }));
+  if (price != null && base.length > 1) {
+    const last = base[base.length - 1];
+    if (!last.m.paid_at && last.m.amount_override == null) {
+      const others = base.slice(0, -1).reduce((s, r) => s + (r.amount || 0), 0);
+      last.amount = Math.round((price - others) * 100) / 100;
+      last.isBalance = true;
+    }
+  }
+  return base;
+}
+const pctOf = (amount, price) => (price && amount != null ? Math.round((amount / price) * 10000) / 100 : null);
+
 function PaymentsAdmin() {
   const [data, setData] = useState(null);     // { plans, milestones, delivered } | 'off'
   const [boats, setBoats] = useState([]);
@@ -110,14 +136,18 @@ function PaymentsAdmin() {
   const tlBy = {}; for (const g of (tl?.groups || [])) if (g.kind === 'boat') tlBy[g.key] = g;
   const msFor = (id) => (data.milestones || []).filter(m => m.boat_id === id).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || a.id - b.id);
 
+  // The $-override column ships with BACKEND_PAYMENTS_AMOUNT_BRIEF.md; until the
+  // GET carries it, the amount inputs stay read-only rather than silently not saving.
+  const supportsOverride = (data.milestones || []).length === 0 ||
+    (data.milestones || []).some(m => 'amount_override' in m);
+
   // Every milestone across every boat, resolved — drives alerts + export.
   const allRows = [];
   for (const b of boats) {
     const plan = plans[b.boat_id];
-    for (const m of msFor(b.boat_id)) {
-      const exp = expectedDate(m, plan, tlBy[b.boat_id], delivered[b.boat_id]);
-      const amount = plan?.contract_price != null && m.percent != null ? Math.round(plan.contract_price * m.percent) / 100 : null;
-      allRows.push({ boat: b, m, exp, amount, status: statusOf(m, exp) });
+    for (const r of effectiveRows(msFor(b.boat_id), plan?.contract_price ?? null)) {
+      const exp = expectedDate(r.m, plan, tlBy[b.boat_id], delivered[b.boat_id]);
+      allRows.push({ boat: b, m: r.m, exp, amount: r.amount, fixed: r.fixed, isBalance: r.isBalance, status: statusOf(r.m, exp) });
     }
   }
   const overdue = allRows.filter(r => r.status === 'overdue').sort((a, b) => (a.exp || '').localeCompare(b.exp || ''));
@@ -152,8 +182,12 @@ function PaymentsAdmin() {
     const lines = [
       ['Boat', 'Customer', 'Model', 'Milestone', 'Percent', 'Amount', 'Trigger', 'Expected date', 'Status', 'Paid date', 'Paid amount', 'Contract price'].map(esc).join(','),
       ...rows.map(r => [
-        r.boat.boat_id, r.boat.customer_name, r.boat.boat_model, r.m.label,
-        r.m.percent != null ? `${r.m.percent}%` : '', r.amount != null ? r.amount.toFixed(2) : '',
+        r.boat.boat_id, r.boat.customer_name, r.boat.boat_model,
+        r.m.label + (r.fixed ? ' (fixed $)' : r.isBalance ? ' (balance)' : ''),
+        r.fixed || r.isBalance
+          ? (pctOf(r.amount, plans[r.boat.boat_id]?.contract_price) != null ? `${pctOf(r.amount, plans[r.boat.boat_id]?.contract_price)}%` : '')
+          : (r.m.percent != null ? `${r.m.percent}%` : ''),
+        r.amount != null ? r.amount.toFixed(2) : '',
         triggerText(r.m), r.exp || 'TBD', STATUS_LABEL[r.status],
         r.m.paid_at ? String(r.m.paid_at).slice(0, 10) : '', r.m.paid_amount ?? '',
         plans[r.boat.boat_id]?.contract_price ?? '',
@@ -240,16 +274,29 @@ function PaymentsAdmin() {
                 <table className="pay-table">
                   <thead><tr><th>Milestone</th><th>%</th><th>Amount</th><th>When</th><th>Expected</th><th>Paid</th><th /></tr></thead>
                   <tbody>
-                    {selMs.map(m => {
+                    {effectiveRows(selMs, selPlan.contract_price ?? null).map(({ m, amount, fixed, isBalance }) => {
                       const exp = expectedDate(m, selPlan, tlBy[sel], delivered[sel]);
-                      const amount = selPlan.contract_price != null && m.percent != null ? Math.round(selPlan.contract_price * m.percent) / 100 : null;
                       const st = statusOf(m, exp);
+                      // % shown = the stored percent, or the derived % when a $ figure rules.
+                      const pctShown = fixed || isBalance ? (pctOf(amount, selPlan.contract_price) ?? '') : (m.percent ?? '');
                       return (
                         <tr key={m.id} className={`pay-row-${st}`}>
                           <td><input className="pay-in pay-in-label" defaultValue={m.label} key={m.id + m.label} onBlur={e => e.target.value !== m.label && saveMs(m.id, { label: e.target.value })} /></td>
-                          <td><input className="pay-in pay-in-pct" type="number" min="0" max="100" defaultValue={m.percent ?? ''} key={m.id + 'pct' + m.percent}
-                            onBlur={e => saveMs(m.id, { percent: e.target.value === '' ? null : +e.target.value })} /></td>
-                          <td className="pay-amt">{money(amount)}</td>
+                          <td><input className="pay-in pay-in-pct" type="number" min="0" max="100" step="0.01" defaultValue={pctShown} key={m.id + 'pct' + pctShown}
+                            title={fixed ? 'Derived from the fixed $ amount — editing switches this back to a %' : isBalance ? 'Derived — this row auto-balances' : ''}
+                            onBlur={e => { const v = e.target.value === '' ? null : +e.target.value; if (v !== m.percent || fixed) saveMs(m.id, { percent: v, amount_override: null }); }} /></td>
+                          <td className="pay-amtcell">
+                            <input className="pay-in pay-in-amt" type="number" min="0" step="1" defaultValue={amount ?? ''} key={m.id + 'amt' + amount + fixed}
+                              disabled={!supportsOverride}
+                              title={!supportsOverride ? 'Run BACKEND_PAYMENTS_AMOUNT_BRIEF.md to enable fixed $ amounts' : 'Type an exact dollar figure (e.g. an even 5000) — the balance row absorbs the difference'}
+                              onBlur={e => {
+                                const v = e.target.value === '' ? null : +e.target.value;
+                                if (v === amount) return;               // unchanged (incl. balance display)
+                                saveMs(m.id, { amount_override: v });   // null clears back to %
+                              }} />
+                            {fixed && <span className="pay-tag pay-tag-fixed">$ fixed</span>}
+                            {isBalance && <span className="pay-tag pay-tag-bal">auto balance</span>}
+                          </td>
                           <td className="pay-trig">
                             <select value={m.trigger_type} onChange={e => saveMs(m.id, { trigger_type: e.target.value })}>
                               {TRIGGERS.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
@@ -276,6 +323,12 @@ function PaymentsAdmin() {
                               <input type="date" defaultValue={String(m.paid_at).slice(0, 10)} key={m.id + 'pd' + m.paid_at}
                                 onBlur={e => e.target.value && saveMs(m.id, { paid_at: e.target.value })} />
                             )}
+                            {m.paid_at && (
+                              <input className="pay-in pay-in-paidamt" type="number" min="0" step="1" placeholder="$ received"
+                                defaultValue={m.paid_amount ?? ''} key={m.id + 'pa' + m.paid_amount}
+                                title="Actual amount received (blank = as scheduled) — the balance row absorbs any difference"
+                                onBlur={e => saveMs(m.id, { paid_amount: e.target.value === '' ? null : +e.target.value })} />
+                            )}
                           </td>
                           <td><button className="pay-del" onClick={() => delMs(m.id)}>✕</button></td>
                         </tr>
@@ -287,12 +340,16 @@ function PaymentsAdmin() {
 
               <div className="pay-msfoot">
                 <button className="pay-add" onClick={() => addMs(sel, { label: 'Payment', percent: null, trigger_type: 'manual' }, selMs.length)}>+ Add payment</button>
-                {selMs.length > 0 && (
-                  <span className={`pay-sum ${Math.abs(pctSum - 100) > 0.01 ? 'off' : ''}`}>
-                    Total {pctSum}%{Math.abs(pctSum - 100) > 0.01 ? ' — should be 100%' : ' ✓'}
-                    {selPlan.contract_price != null && <> · {money(selMs.reduce((s, m) => s + (selPlan.contract_price * (+m.percent || 0)) / 100, 0))}</>}
-                  </span>
-                )}
+                {selMs.length > 0 && (() => {
+                  // With a price set, judge the schedule in dollars (overrides + auto
+                  // balance included); % only matters when there's no price yet.
+                  if (selPlan.contract_price != null) {
+                    const tot = effectiveRows(selMs, selPlan.contract_price).reduce((s, r) => s + (r.amount || 0), 0);
+                    const off = Math.abs(tot - selPlan.contract_price) > 0.01;
+                    return <span className={`pay-sum ${off ? 'off' : ''}`}>Schedule {money(tot)} of {money(selPlan.contract_price)}{off ? " — doesn't match the contract" : ' ✓'}</span>;
+                  }
+                  return <span className={`pay-sum ${Math.abs(pctSum - 100) > 0.01 ? 'off' : ''}`}>Total {pctSum}%{Math.abs(pctSum - 100) > 0.01 ? ' — should be 100%' : ' ✓'}</span>;
+                })()}
               </div>
             </>
           )}

@@ -55,6 +55,13 @@
 .pay-trig { white-space: nowrap; }
 .pay-trig select, .pay-trig input[type='date'] { padding: 6px; font-size: 11.5px; border: 1px solid #D6DBE0; border-radius: 6px; margin-right: 4px; max-width: 170px; }
 .pay-amt { font-weight: 700; color: #173A5E; white-space: nowrap; }
+.pay-amtcell { white-space: nowrap; }
+.pay-in-amt { width: 92px; text-align: right; font-weight: 700; color: #173A5E; }
+.pay-in-amt:disabled { background: #F4F3EE; color: #9B998F; font-weight: 500; }
+.pay-in-paidamt { width: 88px; text-align: right; margin-left: 6px; }
+.pay-tag { display: inline-block; margin-left: 5px; padding: 1px 6px; border-radius: 8px; font-size: 8.5px; font-weight: 800; letter-spacing: 0.03em; vertical-align: 1px; }
+.pay-tag-fixed { background: #E6F1FB; color: #0C447C; }
+.pay-tag-bal { background: #EAF3DE; color: #27500A; }
 .pay-exp { white-space: nowrap; font-weight: 600; }
 .pay-st { display: block; font-size: 9px; font-weight: 800; letter-spacing: 0.03em; }
 .pay-exp-paid .pay-st { color: #27500A; }

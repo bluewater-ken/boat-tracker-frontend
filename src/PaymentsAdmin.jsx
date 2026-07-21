@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
+import { isDelivered } from './boatFilter';
 import './PaymentsAdmin.css';
 
 // Admin → Payments (Ken-only) — per-boat payment schedules tied to build milestones.
@@ -250,6 +251,7 @@ function PaymentsAdmin() {
   const [sel, setSel] = useState(null);       // selected boat_id
   const [loading, setLoading] = useState(true);
   const [chartMode, setChartMode] = useState('weeks'); // weeks | months
+  const [showCompleted, setShowCompleted] = useState(false); // reveal rolled-off boats
   const [cumMode, setCumMode] = useState('today');     // today | quarter (cumulative reset)
   const [chartPick, setChartPick] = useState(null);    // bucket key clicked
 
@@ -342,7 +344,32 @@ function PaymentsAdmin() {
     URL.revokeObjectURL(a.href);
   };
 
-  const sortedBoats = boats.slice().sort((a, b) => (a.sequence_number || 999) - (b.sequence_number || 999));
+  // List behavior: unpaid/active boats on top (by build order); fully-paid boats
+  // sink to the bottom, newest first; and a paid boat ROLLS OFF once its latest
+  // payment is older than the chart's 3-month lookback (unless "Show completed").
+  const windowStart = (() => { const d = new Date(todayStr() + 'T00:00:00'); d.setMonth(d.getMonth() - 3); return d.toISOString().slice(0, 10); })();
+  const boatMeta = {};
+  for (const b of boats) {
+    const rows = allRows.filter(r => r.boat.boat_id === b.boat_id);
+    const dates = rows.map(r => rowDate(r)).filter(Boolean).sort();
+    boatMeta[b.boat_id] = { last: dates.length ? dates[dates.length - 1] : null, hasUnpaid: rows.some(r => r.status !== 'paid'), hasSchedule: rows.length > 0 };
+  }
+  // Keep a boat unless it's finished (paid/no-owe) AND its activity has aged out.
+  const keepBoat = (b) => {
+    const m = boatMeta[b.boat_id];
+    if (m.hasUnpaid) return true;            // still owes money
+    if (!isDelivered(b)) return true;        // active build — always relevant
+    return !!(m.last && m.last >= windowStart); // delivered + settled: keep only if recent
+  };
+  const orderedBoats = boats.slice().sort((a, b) => {
+    const ma = boatMeta[a.boat_id], mb = boatMeta[b.boat_id];
+    const pa = ma.hasUnpaid ? 0 : 1, pb = mb.hasUnpaid ? 0 : 1;
+    if (pa !== pb) return pa - pb;                                  // unpaid first, paid last
+    if (pa === 1) return (mb.last || '').localeCompare(ma.last || ''); // paid group: newest first
+    return (a.sequence_number || 999) - (b.sequence_number || 999);    // unpaid: build order
+  });
+  const rolledOff = orderedBoats.length - orderedBoats.filter(keepBoat).length;
+  const sortedBoats = showCompleted ? orderedBoats : orderedBoats.filter(keepBoat);
   const selBoat = sel ? boats.find(b => b.boat_id === sel) : null;
   const selPlan = sel ? (plans[sel] || {}) : null;
   const selMs = sel ? msFor(sel) : [];
@@ -442,6 +469,11 @@ function PaymentsAdmin() {
               </button>
             );
           })}
+          {(rolledOff > 0 || showCompleted) && (
+            <button className="pay-showcompleted" onClick={() => setShowCompleted(v => !v)}>
+              {showCompleted ? '▲ Hide completed' : `▾ Show ${rolledOff} completed (rolled off)`}
+            </button>
+          )}
         </div>
 
         <div className="pay-editor">

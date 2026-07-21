@@ -65,6 +65,8 @@
 .pay-badge-over { background: #A32D2D; color: #fff; }
 .pay-badge-due { background: #FAC775; color: #633806; }
 .pay-badge-paid { background: #EAF3DE; color: #27500A; }
+.pay-showcompleted { margin-top: 4px; padding: 7px; font-size: 12px; font-weight: 600; color: #5F6B73; background: none; border: 1px dashed #C7D2DB; border-radius: 8px; cursor: pointer; }
+.pay-showcompleted:hover { background: #F7FAFC; }
 
 .pay-editor { background: #fff; border: 1px solid #E2E6EA; border-radius: 10px; padding: 14px 16px; }
 .pay-editor h3 { font-size: 15px; color: #173A5E; margin: 0 0 12px; }

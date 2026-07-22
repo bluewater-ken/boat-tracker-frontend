@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
+import { canEdit } from './permissions';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { FlagIcons, STANDARD_FLAGS } from './flags';
 import { colorOptions } from './colors';
@@ -76,7 +77,7 @@ const shownColor = (row, task, boat) => {
 
 function LaminationTracker() {
   const { user } = useAuth();
-  const isOps = user?.role === 'ops';
+  const isOps = canEdit(user, 'lamination'); // "can edit this tab" per user permissions
 
   const isMobile = useIsMobile();
   const [boats, setBoats] = useState([]);
@@ -171,7 +172,7 @@ function LaminationTracker() {
   const setNotes = (boatId, task, val) => save(boatId, task, { notes: val || null });
   const toggleFlag = (boatId, task, key) => save(boatId, task, { [key]: !getRow(boatId, task)[key] });
 
-  const openMenu = (e, boatId, task) => setMenu({ boatId, task, x: e.clientX, y: e.clientY });
+  const openMenu = (e, boatId, task) => { if (!isOps) return; setMenu({ boatId, task, x: e.clientX, y: e.clientY }); };
 
   // Shared, growing color list (White pinned first, then alphabetical) — BRD §7c.
   const colorList = () => {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
+import { canEdit } from './permissions';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { KEYPARTS_FLAGS } from './flags';
 import { colorOptions } from './colors';
@@ -83,7 +84,7 @@ const DUMMY_SPEC_OPTIONS = {
 
 function KeyPartsTracker() {
   const { user } = useAuth();
-  const isOps = user?.role === 'ops';
+  const isOps = canEdit(user, 'parts'); // "can edit this tab" per user permissions
   const isMobile = useIsMobile();
 
   const [boats, setBoats] = useState([]);

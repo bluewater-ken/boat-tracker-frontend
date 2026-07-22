@@ -5,6 +5,7 @@ import Logo from './Logo';
 import { useAuth } from './AuthContext';
 import { isDemoUser } from './api';
 import { hasFullAccess } from './access';
+import { canView, PERM_KEYS } from './permissions';
 import './App.css';
 
 // Other tabs load only when opened — keeps the initial download small.
@@ -62,7 +63,11 @@ function App() {
   // Timeline + Payments are owner-level — Ken and Kelly only (not other Ops). See access.js.
   const isKen = hasFullAccess(user);
   const tabs = (isOps ? [...BASE_TABS, { key: 'admin', label: 'Admin' }] : BASE_TABS)
-    .filter(t => t.key !== 'gantt' || isKen);
+    .filter(t => t.key !== 'gantt' || isKen)
+    // Per-user permissions can hide a tab entirely (legacy users see all — permOf falls back to role).
+    .filter(t => !PERM_KEYS.has(t.key) || canView(user, t.key));
+  // If the active tab got hidden by permissions, show the first visible one instead.
+  const shownTab = tabs.some(t => t.key === activeTab) ? activeTab : tabs[0]?.key;
 
   return (
     <>
@@ -88,19 +93,19 @@ function App() {
         </header>
         <nav className="tab-navigation">
           {tabs.map(t => (
-            <button key={t.key} className={`tab-button ${activeTab === t.key ? 'active' : ''}`} onClick={() => setActiveTab(t.key)}>{t.label}</button>
+            <button key={t.key} className={`tab-button ${shownTab === t.key ? 'active' : ''}`} onClick={() => setActiveTab(t.key)}>{t.label}</button>
           ))}
         </nav>
         <main className="app-content">
           <Suspense fallback={<div className="loading">Loading…</div>}>
-            {activeTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onManageBoats={() => setManageBoats(true)} onShopReport={() => setShopReport(true)} />}
-            {activeTab === 'parts' && <KeyPartsTracker />}
-            {activeTab === 'lamination' && <LaminationTracker />}
-            {activeTab === 'finishing' && <FinishingTracker />}
-            {activeTab === 'assembly' && <AssemblyTracker />}
-            {activeTab === 'gantt' && isKen && <GanttChart />}
-            {activeTab === 'feed' && <ShopFeed initialView="issues" initialPostingOpen={reportIssueOpen} />}
-            {activeTab === 'admin' && isOps && <AdminPanel />}
+            {shownTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onManageBoats={() => setManageBoats(true)} onShopReport={() => setShopReport(true)} />}
+            {shownTab === 'parts' && <KeyPartsTracker />}
+            {shownTab === 'lamination' && <LaminationTracker />}
+            {shownTab === 'finishing' && <FinishingTracker />}
+            {shownTab === 'assembly' && <AssemblyTracker />}
+            {shownTab === 'gantt' && isKen && <GanttChart />}
+            {shownTab === 'feed' && <ShopFeed initialView="issues" initialPostingOpen={reportIssueOpen} />}
+            {shownTab === 'admin' && isOps && <AdminPanel />}
           </Suspense>
         </main>
       </div>

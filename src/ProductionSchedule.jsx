@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
+import { canEdit } from './permissions';
 import { FlagTags, SCHEDULE_FLAGS } from './flags';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { applyDeliveredFilter, isDelivered, ShowDeliveredToggle, inProduction } from './boatFilter';
@@ -37,7 +38,7 @@ const stagePct = (boat, stageIdx, stageName) => {
 function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const isOps = user?.role === 'ops';
+  const isOps = canEdit(user, 'schedule'); // "can edit this tab" per user permissions
   // On the phone (employee view) reordering and adding boats stay desktop-only — it's a
   // view + advance/step-back/flag tool. `canReorder` also gates the drag handle + Move up/down.
   const canReorder = isOps && !isMobile;
@@ -149,6 +150,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
   // persist() re-syncs on failure. Refetching here raced the PUT and could pull back the
   // OLD status before the save landed — which made buttons appear to need two presses.
   const advance = (boat) => {
+    if (!isOps) return; // view-only users can't change status
     const i = STATUSES.indexOf(boat.global_status);
     if (i < 0 || i >= STATUSES.length - 1) return;
     const next = STATUSES[i + 1];
@@ -157,6 +159,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
   };
 
   const stepBack = (boat) => {
+    if (!isOps) return; // view-only users can't change status
     const i = STATUSES.indexOf(boat.global_status);
     if (i <= 0) return;
     const prev = STATUSES[i - 1];
@@ -249,7 +252,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
           if (isMobile) {
             return (
               <div key={boat.boat_id} className="sched-row-mobile"
-                onClick={(e) => setMenu({ boatId: boat.boat_id, x: e.clientX, y: e.clientY })}>
+                onClick={(e) => isOps && setMenu({ boatId: boat.boat_id, x: e.clientX, y: e.clientY })}>
                 <div className="sched-mobile-header">
                   <div className="sched-mobile-boat">
                     <div className="sched-id">{boat.sequence_number || idx + 1}. {boat.boat_id} · {boat.customer_name} {boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>}</div>
@@ -295,7 +298,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => handleDrop(idx)}
               style={{ opacity: draggedIndex === idx ? 0.6 : 1 }}
-              onClick={(e) => setMenu({ boatId: boat.boat_id, x: e.clientX, y: e.clientY })}>
+              onClick={(e) => isOps && setMenu({ boatId: boat.boat_id, x: e.clientX, y: e.clientY })}>
               {/* The grip is the ONE drag zone — the rest of the row stays click-for-menu. */}
               {canReorder && (
                 <div className="sched-grip" title="Drag to reorder" draggable

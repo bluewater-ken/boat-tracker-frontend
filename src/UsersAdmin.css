@@ -63,3 +63,14 @@
 @media (max-width: 1024px) {
   .users { grid-template-columns: 1fr; }
 }
+
+/* Per-tab permission grid */
+.perm-grid { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
+.perm-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.perm-tab { font-size: 13px; color: #33424C; }
+.perm-seg { display: inline-flex; border: 1px solid #C7D2DB; border-radius: 7px; overflow: hidden; flex: 0 0 auto; }
+.perm-btn { padding: 5px 12px; font-size: 12px; font-weight: 600; color: #5F6B73; background: #fff; border: none; border-left: 1px solid #E6E9EC; cursor: pointer; }
+.perm-btn:first-child { border-left: none; }
+.perm-btn.on.hidden { background: #E4E4E7; color: #5F5E5A; }
+.perm-btn.on.view { background: #E6F1FB; color: #0C447C; }
+.perm-btn.on.edit { background: #EAF3DE; color: #1F3D07; }

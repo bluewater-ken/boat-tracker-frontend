@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
+import { PERM_TABS, PERM_LEVELS, permOf } from './permissions';
 import './UsersAdmin.css';
 
 // Ops-only screen to manage logins. Talks to the existing backend user routes:
 // GET/POST/PUT/DELETE /api/users (see CLAUDE.md / BRD §9c).
-const EMPTY = { username: '', display_name: '', password: '', role: 'shop' };
+const EMPTY = { username: '', display_name: '', password: '', role: 'shop', permissions: {} };
+const LEVEL_LABEL = { hidden: 'Hidden', view: 'View', edit: 'Edit' };
 
 function UsersAdmin() {
   const { user } = useAuth();
@@ -29,7 +31,7 @@ function UsersAdmin() {
   };
 
   const startNew = () => { setMode('new'); setForm(EMPTY); setError(''); };
-  const startEdit = (u) => { setMode(u.id); setForm({ username: u.username, display_name: u.display_name || '', password: '', role: u.role }); setError(''); };
+  const startEdit = (u) => { setMode(u.id); setForm({ username: u.username, display_name: u.display_name || '', password: '', role: u.role, permissions: u.permissions || {} }); setError(''); };
   const cancel = () => { setMode(null); setError(''); };
   const change = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
@@ -43,10 +45,10 @@ function UsersAdmin() {
       if (mode === 'new') {
         res = await apiFetch('/api/users', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: form.username.trim(), display_name: form.display_name.trim(), password: form.password, role: form.role }),
+          body: JSON.stringify({ username: form.username.trim(), display_name: form.display_name.trim(), password: form.password, role: form.role, permissions: form.permissions }),
         });
       } else {
-        const body = { display_name: form.display_name.trim(), role: form.role };
+        const body = { display_name: form.display_name.trim(), role: form.role, permissions: form.permissions };
         if (form.password) body.password = form.password; // only reset if a new one was typed
         res = await apiFetch(`/api/users/${mode}`, {
           method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -112,6 +114,30 @@ function UsersAdmin() {
                 <option value="shop">Shop — floor updates only</option>
                 <option value="ops">Ops — full access</option>
               </select>
+              <div className="form-hint">The role sets the starting point; per-tab permissions below override it.</div>
+            </div>
+
+            <div className="form-group">
+              <label>Tab permissions</label>
+              <div className="perm-grid">
+                {PERM_TABS.map(t => {
+                  const level = form.permissions?.[t.key] ?? permOf({ role: form.role }, t.key);
+                  return (
+                    <div key={t.key} className="perm-row">
+                      <span className="perm-tab">{t.label}</span>
+                      <span className="perm-seg">
+                        {PERM_LEVELS.map(lv => (
+                          <button key={lv} type="button" className={`perm-btn ${level === lv ? 'on ' + lv : ''}`}
+                            onClick={() => setForm(f => ({ ...f, permissions: { ...f.permissions, [t.key]: lv } }))}>
+                            {LEVEL_LABEL[lv]}
+                          </button>
+                        ))}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="form-hint">Hidden = tab not shown · View = read-only · Edit = can change. Assembly is read-only source data, so View and Edit behave the same there.</div>
             </div>
             <div className="users-actions">
               <button className="users-save" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>

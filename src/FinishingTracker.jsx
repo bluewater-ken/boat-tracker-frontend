@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
+import { canEdit } from './permissions';
 import ActionMenu, { MenuBtn, MenuLabel, MenuToggle } from './ActionMenu';
 import { GRADES } from './flags';
 import { colorOptions } from './colors';
@@ -37,7 +38,7 @@ const gradeOf = (row) => GRADES.find(g => g.key === row.grade);
 
 function FinishingTracker() {
   const { user } = useAuth();
-  const isOps = user?.role === 'ops';
+  const isOps = canEdit(user, 'finishing'); // "can edit this tab" per user permissions
 
   const isMobile = useIsMobile();
   const [boats, setBoats] = useState([]);
@@ -113,7 +114,7 @@ function FinishingTracker() {
   // Grade is pick-one: click the active grade again to clear it.
   const setGrade = (boatId, task, key) => save(boatId, task, { grade: getRow(boatId, task).grade === key ? null : key });
 
-  const openMenu = (e, boatId, task) => setMenu({ boatId, task, x: e.clientX, y: e.clientY });
+  const openMenu = (e, boatId, task) => { if (!isOps) return; setMenu({ boatId, task, x: e.clientX, y: e.clientY }); };
 
   // Shared, growing color list (White pinned first, then alphabetical).
   const colorList = () => {

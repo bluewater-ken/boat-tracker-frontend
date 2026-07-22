@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch, API_URL } from './api';
 import { useAuth } from './AuthContext';
+import { canEdit } from './permissions';
 import { isDelivered } from './boatFilter';
 import PhotoLightbox from './PhotoLightbox';
 import './ShopFeed.css';
@@ -175,7 +176,7 @@ const ageLabel = (iso) => {
 
 function ShopFeed({ initialView = 'activity', initialPostingOpen = false }) {
   const { user } = useAuth();
-  const isOps = user?.role === 'ops';
+  const isOps = canEdit(user, 'feed'); // "can edit this tab" per user permissions
 
   const [view, setView] = useState(initialView); // which column shows on NARROW screens
   const [items, setItems] = useState([]);

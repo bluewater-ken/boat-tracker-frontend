@@ -3,6 +3,8 @@
 // record (see BACKEND_PERMISSIONS_BRIEF). Until that ships, users have no
 // permissions map and we fall back to the legacy role behavior, so nothing changes.
 
+import { hasFullAccess } from './access';
+
 export const PERM_TABS = [
   { key: 'schedule', label: 'Production Schedule' },
   { key: 'parts', label: 'Key Parts' },
@@ -10,6 +12,7 @@ export const PERM_TABS = [
   { key: 'finishing', label: 'Finishing' },
   { key: 'assembly', label: 'Assembly (read-only)' },
   { key: 'feed', label: 'Shop Feed' },
+  { key: 'gantt', label: 'Timeline' },
 ];
 export const PERM_KEYS = new Set(PERM_TABS.map(t => t.key));
 export const PERM_LEVELS = ['hidden', 'view', 'edit'];
@@ -21,6 +24,10 @@ const LEGACY_SHOP = { schedule: 'edit', lamination: 'edit', finishing: 'edit', p
 export function permOf(user, tab) {
   const p = user?.permissions?.[tab];
   if (p) return p;
+  // Timeline is owner-only by default: hidden for everyone (even ops) until it's
+  // explicitly granted, and always on for the owner allowlist (Ken + Kelly). This
+  // keeps today's "only Ken/Kelly see Timeline" behavior while making it grantable.
+  if (tab === 'gantt') return hasFullAccess(user) ? 'edit' : 'hidden';
   if (user?.role === 'ops') return 'edit';
   return LEGACY_SHOP[tab] || 'view';
 }

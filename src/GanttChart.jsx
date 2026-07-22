@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
+import { canEdit } from './permissions';
 import './GanttChart.css';
 
 // Timeline — the self-maintaining production Gantt (see TIMELINE_SPEC.md).
@@ -36,7 +37,8 @@ function deliveryStatus(g) {
 
 function GanttChart() {
   const { user } = useAuth();
-  const isOps = user?.role === 'ops';
+  // Timeline edit controls (drag/pin/hold, add slot) require gantt = Edit.
+  const isOps = canEdit(user, 'gantt');
 
   const [data, setData] = useState(null);     // saved payload (null = backend not set up)
   const [preview, setPreview] = useState(null); // draft payload from POST /preview

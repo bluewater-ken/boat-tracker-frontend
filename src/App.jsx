@@ -4,7 +4,6 @@ import Login from './Login';
 import Logo from './Logo';
 import { useAuth } from './AuthContext';
 import { isDemoUser } from './api';
-import { hasFullAccess } from './access';
 import { canView, PERM_KEYS } from './permissions';
 import './App.css';
 
@@ -60,11 +59,9 @@ function App() {
   const roleLabel = user?.role === 'ops' ? 'Ops' : user?.role === 'shop' ? 'Shop' : '';
   const isOps = user?.role === 'ops';
   const isDemo = isDemoUser(user);
-  // Timeline + Payments are owner-level — Ken and Kelly only (not other Ops). See access.js.
-  const isKen = hasFullAccess(user);
   const tabs = (isOps ? [...BASE_TABS, { key: 'admin', label: 'Admin' }] : BASE_TABS)
-    .filter(t => t.key !== 'gantt' || isKen)
-    // Per-user permissions can hide a tab entirely (legacy users see all — permOf falls back to role).
+    // Per-user permissions can hide a tab entirely (legacy users see all — permOf falls back
+    // to role). Timeline (gantt) is here too: owner-only by default, grantable per user.
     .filter(t => !PERM_KEYS.has(t.key) || canView(user, t.key));
   // If the active tab got hidden by permissions, show the first visible one instead.
   const shownTab = tabs.some(t => t.key === activeTab) ? activeTab : tabs[0]?.key;
@@ -103,7 +100,7 @@ function App() {
             {shownTab === 'lamination' && <LaminationTracker />}
             {shownTab === 'finishing' && <FinishingTracker />}
             {shownTab === 'assembly' && <AssemblyTracker />}
-            {shownTab === 'gantt' && isKen && <GanttChart />}
+            {shownTab === 'gantt' && canView(user, 'gantt') && <GanttChart />}
             {shownTab === 'feed' && <ShopFeed initialView="issues" initialPostingOpen={reportIssueOpen} />}
             {shownTab === 'admin' && isOps && <AdminPanel />}
           </Suspense>

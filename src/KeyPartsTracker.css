@@ -215,6 +215,12 @@
 .kpt-titem-edit:hover { background: #f2f8fc; }
 .kpt-titem-del { flex: 0 0 auto; font-size: 12px; padding: 2px 6px; border: none; background: none; border-radius: 5px; cursor: pointer; color: #9AA5AD; }
 .kpt-titem-del:hover { color: #A32D2D; background: #FCEBEB; }
+/* Standard / Custom type tag on each pool item — click toggles (Ops). */
+.kpt-typetag { flex: 0 0 auto; font-size: 9px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; padding: 2px 7px; border-radius: 9px; cursor: pointer; }
+.kpt-typetag.std { background: #EAF3DE; color: #27500A; }
+.kpt-typetag.cust { background: #EEF1F4; color: #7A857D; }
+.kpt-addstd { margin-left: 8px; font-size: 10px; font-weight: 700; color: #1F3D07; background: #EAF3DE; border: 1px solid #C0DD97; border-radius: 6px; padding: 2px 8px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+.kpt-addstd:hover { background: #dcecc9; }
 .kpt-tempty { font-size: 12px; color: #8A969E; padding: 14px; text-align: center; }
 .kpt-tadd { display: flex; gap: 6px; padding: 8px; border-top: 1px solid #eef1f4; }
 .kpt-tadd input { flex: 1; min-width: 0; padding: 7px 9px; font-size: 12px; border: 1px solid #D6DBE0; border-radius: 6px; }

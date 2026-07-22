@@ -90,6 +90,8 @@ function KeyPartsTracker() {
   const [standardParts, setStandardParts] = useState([]);
   const [partData, setPartData] = useState({});
   const [customNames, setCustomNames] = useState([]);
+  const [customStd, setCustomStd] = useState(new Set()); // names flagged "standard"
+  const [supportsStd, setSupportsStd] = useState(false); // backend sends the flag?
   const [view, setView] = useState(() => isMobile ? 'boat' : 'table'); // table (default) | boat
   const [mobileView, setMobileView] = useState('list'); // phone master→detail: list | detail
   const [selectedBoat, setSelectedBoat] = useState(null);
@@ -116,7 +118,12 @@ function KeyPartsTracker() {
       ]);
       setBoats(b);
       setStandardParts(sp);
-      setCustomNames(cn);
+      // custom-names may arrive as plain strings (legacy) or {name, is_standard}
+      // objects once BACKEND_CUSTOM_STANDARD_BRIEF ships. Normalize both.
+      const names = (cn || []).map(x => (typeof x === 'string' ? x : x.name));
+      setCustomNames(names);
+      setCustomStd(new Set((cn || []).filter(x => typeof x !== 'string' && x.is_standard).map(x => x.name)));
+      setSupportsStd((cn || []).some(x => typeof x !== 'string'));
       const map = {};
       const opts = { ...DUMMY_SPEC_OPTIONS };
       for (const row of all) {
@@ -214,9 +221,28 @@ function KeyPartsTracker() {
   };
   const availableForBoat = (boatId) => {
     const onBoat = new Set(customForBoat(boatId).map(p => p.part_name));
-    return customNames.filter(n => !onBoat.has(n)).sort((a, b) => a.localeCompare(b));
+    // Standard-flagged parts sort to the top so they're quick to add.
+    return customNames.filter(n => !onBoat.has(n))
+      .sort((a, b) => (customStd.has(b) - customStd.has(a)) || a.localeCompare(b));
   };
   const moveToBoat = (name) => { if (selectedBoat) { save(selectedBoat.boat_id, name, true, { status: 'Not Ordered' }); setCustomSel(null); } };
+  // Drop every standard-flagged part (not already on the boat) onto it at once.
+  const addAllStandard = () => {
+    if (!selectedBoat) return;
+    for (const n of availableForBoat(selectedBoat.boat_id)) if (customStd.has(n)) save(selectedBoat.boat_id, n, true, { status: 'Not Ordered' });
+    setCustomSel(null);
+  };
+  // Toggle a custom name's "standard" flag (Ops). Needs the backend brief.
+  const toggleStandard = async (name) => {
+    const next = !customStd.has(name);
+    setCustomStd(prev => { const s = new Set(prev); next ? s.add(name) : s.delete(name); return s; });
+    try {
+      const r = await apiFetch(`/api/parts/custom-names/${encodeURIComponent(name)}/standard`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_standard: next }),
+      });
+      if (!r.ok) throw new Error();
+    } catch (e) { alert('Marking a part standard needs the backend update (BACKEND_CUSTOM_STANDARD_BRIEF.md).'); init(); }
+  };
   const removeFromBoat = async (boatId, partName) => {
     setCustomSel(null);
     setPartData(prev => { const next = { ...prev }; if (next[boatId]) { const c = { ...next[boatId] }; delete c[partName]; next[boatId] = c; } return next; });
@@ -476,15 +502,27 @@ function KeyPartsTracker() {
             {isOps && !isMobile ? (
               <div className="kpt-transfer">
                 <div className="kpt-tbox">
-                  <div className="kpt-tbox-title">All custom parts</div>
+                  <div className="kpt-tbox-title">
+                    All custom parts
+                    {supportsStd && availableForBoat(selectedBoat.boat_id).some(n => customStd.has(n)) &&
+                      <button className="kpt-addstd" title="Add every part marked Standard to this boat" onClick={addAllStandard}>+ Add all standard</button>}
+                  </div>
                   <div className="kpt-tbox-list">
-                    {availableForBoat(selectedBoat.boat_id).map(n => (
-                      <div key={n} className={`kpt-titem ${customSel?.side === 'all' && customSel.name === n ? 'sel' : ''}`}
-                        onClick={() => setCustomSel({ side: 'all', name: n })} onDoubleClick={() => moveToBoat(n)}>
-                        <span className="kpt-titem-name">{n}</span>
-                        <button className="kpt-titem-del" title={`Delete "${n}" from the list`} onClick={(e) => { e.stopPropagation(); deleteCustomName(n); }}>✕</button>
-                      </div>
-                    ))}
+                    {availableForBoat(selectedBoat.boat_id).map(n => {
+                      const std = customStd.has(n);
+                      return (
+                        <div key={n} className={`kpt-titem ${customSel?.side === 'all' && customSel.name === n ? 'sel' : ''}`}
+                          onClick={() => setCustomSel({ side: 'all', name: n })} onDoubleClick={() => moveToBoat(n)}>
+                          <span className="kpt-titem-name">{n}</span>
+                          <span className={`kpt-typetag ${std ? 'std' : 'cust'}`}
+                            title={supportsStd ? (std ? 'Standard — click to make custom' : 'Custom — click to mark standard') : 'Marking standard needs the server update'}
+                            onClick={(e) => { e.stopPropagation(); if (supportsStd) toggleStandard(n); }}>
+                            {std ? 'Standard' : 'Custom'}
+                          </span>
+                          <button className="kpt-titem-del" title={`Delete "${n}" from the list`} onClick={(e) => { e.stopPropagation(); deleteCustomName(n); }}>✕</button>
+                        </div>
+                      );
+                    })}
                     {availableForBoat(selectedBoat.boat_id).length === 0 && <div className="kpt-tempty">All added to this boat.</div>}
                   </div>
                   <div className="kpt-tadd">

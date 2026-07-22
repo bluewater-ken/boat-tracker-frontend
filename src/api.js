@@ -92,8 +92,13 @@ export async function login({ username, password }) {
 }
 
 // GET /api/auth/me -> current user. Uses apiFetch so the token is attached.
+// The endpoint wraps the user as { user: {...} }; older code returned it flat.
+// Unwrap so callers always get the user object itself (username/role/permissions
+// at the top level) — a wrapped object would leave role/username undefined and
+// silently drop Ops/owner features (Timeline, Admin) on refresh.
 export async function fetchMe() {
   const res = await apiFetch('/api/auth/me');
   if (!res.ok) throw new Error('Not authenticated');
-  return res.json();
+  const data = await res.json();
+  return data && data.user ? data.user : data;
 }

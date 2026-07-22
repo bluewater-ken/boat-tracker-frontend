@@ -24,10 +24,10 @@ const LEGACY_SHOP = { schedule: 'edit', lamination: 'edit', finishing: 'edit', p
 export function permOf(user, tab) {
   const p = user?.permissions?.[tab];
   if (p) return p;
-  // Timeline is owner-only by default: hidden for everyone (even ops) until it's
-  // explicitly granted, and always on for the owner allowlist (Ken + Kelly). This
-  // keeps today's "only Ken/Kelly see Timeline" behavior while making it grantable.
-  if (tab === 'gantt') return hasFullAccess(user) ? 'edit' : 'hidden';
+  // Timeline: everyone can see it read-only by default; only the owner allowlist
+  // (Ken + Kelly) can edit (drag/pin/hold/slots). Ken can override per user on the
+  // Users screen — grant Edit, or set Hidden to take the tab away entirely.
+  if (tab === 'gantt') return hasFullAccess(user) ? 'edit' : 'view';
   if (user?.role === 'ops') return 'edit';
   return LEGACY_SHOP[tab] || 'view';
 }

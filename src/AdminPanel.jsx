@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
 import { hasFullAccess } from './access';
+import { canEdit } from './permissions';
 import UsersAdmin from './UsersAdmin';
 import RulesAdmin from './RulesAdmin';
 import TimelineAdmin from './TimelineAdmin';
@@ -25,9 +26,14 @@ function AdminPanel() {
   const [section, setSection] = useState('rules');
   const { user } = useAuth();
   const isKen = hasFullAccess(user); // owner allowlist — Ken + Kelly
+  // The Timeline section edits the projector rules (norms/blackouts/settings), which
+  // the backend gates on gantt-edit. Only show it to users who can edit the timeline,
+  // so nobody sees a rules editor whose every save would 403.
+  const canTimeline = canEdit(user, 'gantt');
+  const opsSections = OPS_SECTIONS.filter(s => s.key !== 'timeline' || canTimeline);
   const sections = isKen
-    ? [{ key: 'users', label: 'Users' }, ...OPS_SECTIONS, { key: 'payments', label: 'Payments' }]
-    : OPS_SECTIONS;
+    ? [{ key: 'users', label: 'Users' }, ...opsSections, { key: 'payments', label: 'Payments' }]
+    : opsSections;
   // If the chosen section isn't available to this user, show the first one that is.
   const shown = sections.some(s => s.key === section) ? section : sections[0]?.key;
   return (
@@ -40,7 +46,7 @@ function AdminPanel() {
       <div className="admin-body">
         {shown === 'users' && isKen && <UsersAdmin />}
         {shown === 'rules' && <RulesAdmin />}
-        {shown === 'timeline' && <TimelineAdmin />}
+        {shown === 'timeline' && canTimeline && <TimelineAdmin />}
         {shown === 'throughput' && <CompletionsChart />}
         {shown === 'reports' && <BoatReportsAdmin />}
         {shown === 'payments' && isKen && <PaymentsAdmin />}

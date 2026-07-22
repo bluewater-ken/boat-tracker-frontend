@@ -409,12 +409,17 @@ function KeyPartsTracker() {
                     // WHICH extras a boat carries. Click still opens the editor list.
                     const rows = sortedCustom(boat.boat_id);
                     const { received, total } = customRollup(boat.boat_id);
+                    // Cap the chips so a boat with many extras doesn't blow up the row
+                    // height — the rest are a click away in the drill-down popup.
+                    const CAP = 5;
+                    const shown = rows.slice(0, CAP);
+                    const extra = rows.length - shown.length;
                     return (
                       <td className={`kpt-customcell ${isOps ? '' : 'readonly'}`} onClick={(e) => isOps && setCustomList({ boatId: boat.boat_id, x: e.clientX, y: e.clientY })}>
                         {rows.length === 0 ? <span className="kpt-chip chip-none">—</span> : (
                           <>
                             <div className="kpt-customlist">
-                              {rows.map(row => {
+                              {shown.map(row => {
                                 const st = statusOf(row);
                                 const c = CELL[cellStatusOf(row)];
                                 return (
@@ -425,6 +430,7 @@ function KeyPartsTracker() {
                                   </span>
                                 );
                               })}
+                              {extra > 0 && <span className="kpt-custommore">+{extra} more</span>}
                             </div>
                             <span className="kpt-customcount">{received}/{total}{received === total ? ' ✓' : ''}</span>
                           </>

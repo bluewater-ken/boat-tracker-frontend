@@ -126,8 +126,7 @@ const DEMO_BOAT_DETAIL = {
   flags: [{ t: 'QC PUNCH LIST', c: 'warn' }],
 };
 
-const STAGE_FLOW = ['Backlog', 'Pre-Production', 'Glass Shop', 'Back Line', 'Front Line', 'QC', 'Delivered'];
-const STATUS_MARK = { done: '✓', received: '✓', ordered: '◐', progress: '◐', not: '·' };
+const STATUS_MARK = { done: '✓', received: '✓', ordered: '◐', progress: '◐', not: '○' };
 const STATUS_CLS = { done: 'ok', received: 'ok', ordered: 'wip', progress: 'wip', not: 'off' };
 const countDone = (arr) => arr.filter(i => i.s === 'done' || i.s === 'received').length;
 
@@ -256,17 +255,11 @@ function KioskView({ demo }) {
   };
 
   // The pipeline is the always-on main page; each in-production boat adds a
-  // Traveler then a Status page reachable with the arrows. The live feed is NOT a
-  // page — it runs as a horizontal ticker along the bottom of every screen.
+  // Build Traveler page reachable with the arrows. The live feed is NOT a page —
+  // it runs as a horizontal ticker along the bottom of every screen.
   const pages = ['pipeline'];
-  if (demo) {
-    pages.push({ v: 'traveler', b: DEMO_BOAT_DETAIL }, { v: 'status', b: DEMO_BOAT_DETAIL });
-  } else if (aux) {
-    inProd.forEach(b => {
-      const d = buildBoatDetail(b, aux);
-      pages.push({ v: 'traveler', b: d }, { v: 'status', b: d });
-    });
-  }
+  if (demo) pages.push({ v: 'traveler', b: DEMO_BOAT_DETAIL });
+  else if (aux) inProd.forEach(b => pages.push({ v: 'traveler', b: buildBoatDetail(b, aux) }));
   const cur = pages[Math.min(panel, pages.length - 1)];
 
   const step = (dir) => { setManual(true); setPanel(p => (p + dir + pages.length) % pages.length); };
@@ -282,8 +275,7 @@ function KioskView({ demo }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const pageLabel = (p) => p === 'pipeline' ? 'PRODUCTION PIPELINE'
-    : `${p.b.boat_id} · ${p.v === 'traveler' ? 'BUILD TRAVELER' : 'STATUS'}`;
+  const pageLabel = (p) => p === 'pipeline' ? 'PRODUCTION PIPELINE' : `${p.b.boat_id} · BUILD TRAVELER`;
 
   const clock = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   const day = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -356,10 +348,8 @@ function KioskView({ demo }) {
               );
             })}
           </section>
-        ) : cur.v === 'traveler' ? (
-          <KioskTraveler b={cur.b} />
         ) : (
-          <KioskStatus b={cur.b} />
+          <KioskTraveler b={cur.b} />
         )}
       </main>
 
@@ -421,9 +411,13 @@ function BoatHead({ b }) {
 }
 
 function StatList({ title, items }) {
+  const left = items.filter(i => i.s !== 'done' && i.s !== 'received').length;
   return (
     <div className="kio-bcol">
-      <div className="kio-bcol-head">{title}<em>{countDone(items)}/{items.length}</em></div>
+      <div className="kio-bcol-head">
+        <span>{title}</span>
+        {left > 0 ? <em className="kio-left">{left} LEFT</em> : <em className="kio-alldone">✓ DONE</em>}
+      </div>
       <div className="kio-bcol-list">
         {items.map(it => (
           <div key={it.n} className={`kio-bitem ${STATUS_CLS[it.s]}`}>
@@ -446,7 +440,11 @@ function KioskTraveler({ b }) {
         <StatList title="LAMINATION" items={b.lamination} />
         <StatList title="FINISHING" items={b.finishing} />
         <div className="kio-bcol">
-          <div className="kio-bcol-head">WORK CENTERS</div>
+          <div className="kio-bcol-head">
+            <span>WORK CENTERS</span>
+            {(() => { const left = b.workcenters.filter(w => w.done < w.total).length;
+              return left > 0 ? <em className="kio-left">{left} LEFT</em> : <em className="kio-alldone">✓ DONE</em>; })()}
+          </div>
           <div className="kio-bcol-list">
             {b.workcenters.map(w => {
               const pct = Math.round((w.done / w.total) * 100);
@@ -460,37 +458,6 @@ function KioskTraveler({ b }) {
           </div>
         </div>
       </div>
-    </section>
-  );
-}
-
-// Variant B — high-level status (Boat Status Report style).
-function KioskStatus({ b }) {
-  const idx = STAGE_FLOW.indexOf(b.global_status);
-  const parts = b.keyParts || [];
-  return (
-    <section className="kio-panel kio-boat kio-status">
-      <BoatHead b={b} />
-      <div className="kio-flow">
-        {STAGE_FLOW.map((s, i) => (
-          <div key={s} className={`kio-flow-step ${i < idx ? 'past' : ''} ${i === idx ? 'now' : ''}`}>
-            <span className="kio-flow-dot" />
-            <span className="kio-flow-name">{s === 'Pre-Production' ? 'Pre-Prod' : s}</span>
-            {i === idx && b.stageFill != null && <span className="kio-flow-pct">{b.stageFill}%</span>}
-          </div>
-        ))}
-      </div>
-      <div className="kio-sgrid">
-        <div className="kio-stat"><span className="kio-stat-n">{countDone(parts)}/{parts.length}</span><span className="kio-stat-l">KEY PARTS IN</span></div>
-        <div className="kio-stat"><span className="kio-stat-n">{b.stageFill}%</span><span className="kio-stat-l">{b.global_status} DONE</span></div>
-        <div className="kio-stat"><span className="kio-stat-n">{b.target}</span><span className="kio-stat-l">TARGET DELIVERY</span></div>
-        <div className="kio-stat kio-stat-flag">
-          <span className="kio-stat-n">{b.flags?.length || 0}</span><span className="kio-stat-l">OPEN FLAGS</span>
-        </div>
-      </div>
-      {b.flags?.length > 0 && (
-        <div className="kio-flags">{b.flags.map(f => <span key={f.t} className="kio-flagchip">{f.t}</span>)}</div>
-      )}
     </section>
   );
 }

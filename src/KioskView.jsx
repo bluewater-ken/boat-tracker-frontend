@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from './api';
 import Logo from './Logo';
 import CompletionsChart from './CompletionsChart';
-import { GlassGrid, computeGlassRows, DEMO_GLASS_ROWS } from './KioskGlassShop';
+import { GlassGrid, computeGlassRows, computeUpcoming, DEMO_GLASS_ROWS, DEMO_UPCOMING } from './KioskGlassShop';
 import './KioskView.css';
 
 // Department tag colors (match the app's Shop Feed / throughput palette).
@@ -415,6 +415,7 @@ function KioskView({ demo }) {
 
   const daily = demo ? DEMO_DAILY : computeDaily(feed, aux, now);
   const glassRows = demo ? DEMO_GLASS_ROWS : computeGlassRows(boats, aux?.lam);
+  const glassUpcoming = demo ? DEMO_UPCOMING : computeUpcoming(boats, 5);
 
   const step = (dir) => { setManual(true); setPanel(p => (p + dir + pages.length) % pages.length); };
   const stepRef = useRef(step); stepRef.current = step;
@@ -534,7 +535,7 @@ function KioskView({ demo }) {
         ) : cur === 'throughput' ? (
           <ThroughputScreen doneToday={daily.completed.length} />
         ) : cur === 'glass' ? (
-          <GlassGrid rows={glassRows} />
+          <GlassGrid rows={glassRows} upcoming={glassUpcoming} />
         ) : (
           <KioskTraveler b={cur.b} />
         )}
@@ -579,27 +580,36 @@ function AutoScroll({ className, children }) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    let raf, pos = 0, pauseUntil = 0, resetting = false, last = performance.now();
-    const SPEED = 16, PAUSE = 2200; // px/sec, ms paused at top + bottom
+    let raf, pos = 0, last = performance.now();
+    const SPEED = 20; // px/sec, constant upward
     const tick = (now) => {
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
-      const max = el.scrollHeight - el.clientHeight;
-      if (max > 4) {
-        if (now >= pauseUntil) {
-          if (resetting) { pos = 0; el.scrollTop = 0; resetting = false; pauseUntil = now + PAUSE; }
-          else {
-            pos += SPEED * dt; // always upward; jump back to top and repeat at the end
-            if (pos >= max) { pos = max; el.scrollTop = max; resetting = true; pauseUntil = now + PAUSE; }
-            else el.scrollTop = pos;
-          }
+      const a = el.children[0], b = el.children[1];
+      if (a) {
+        const overflow = a.scrollHeight > el.clientHeight + 2;
+        if (!overflow) { if (b) b.style.display = 'none'; if (el.scrollTop) el.scrollTop = 0; pos = 0; }
+        else {
+          if (b) b.style.display = 'flex';
+          const wrap = b ? b.offsetTop : a.scrollHeight; // one copy's height incl. seam gap
+          pos += SPEED * dt;
+          if (pos >= wrap) pos -= wrap; // seamless: the 2nd copy sits exactly where the 1st was
+          el.scrollTop = pos;
         }
-      } else if (el.scrollTop) { el.scrollTop = pos = 0; }
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, []);
-  return <div ref={ref} className={className}>{children}</div>;
+  // Two identical copies stacked; the loop scrolls up and wraps by one copy's
+  // height, so it appears to run forever with no jump. The 2nd copy is hidden
+  // until the content actually overflows (see the loop).
+  return (
+    <div ref={ref} className={className}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'inherit' }}>{children}</div>
+      <div aria-hidden="true" style={{ display: 'none', flexDirection: 'column', gap: 'inherit' }}>{children}</div>
+    </div>
+  );
 }
 
 // A color-coded department chip.

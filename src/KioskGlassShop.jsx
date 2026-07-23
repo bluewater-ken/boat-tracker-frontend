@@ -39,21 +39,37 @@ export function computeGlassRows(boats, lam) {
     .filter(inGlass)
     .sort((a, b) => (STAGE_ORDER.indexOf(a.global_status) - STAGE_ORDER.indexOf(b.global_status)) || ((a.sequence_number || 999) - (b.sequence_number || 999)))
     .map(b => ({
-      boat_id: b.boat_id, customer: b.customer_name, stage: STAGE_SHORT[b.global_status] || b.global_status,
+      boat_id: b.boat_id, customer: b.customer_name, stage: STAGE_SHORT[b.global_status] || b.global_status, hull: b.hull_color,
       cells: GS_PARTS.map(p => { const r = lamBy[b.boat_id] && lamBy[b.boat_id][p]; return cellOf(r && r.status, r && r.na); }),
     }));
 }
 
+// The next boats queued to enter (Backlog, by build order) — shown as a "Next up" strip.
+export function computeUpcoming(boats, n = 5) {
+  return (boats || [])
+    .filter(b => b.global_status === 'Backlog')
+    .sort((a, b) => (a.sequence_number || 999) - (b.sequence_number || 999))
+    .slice(0, n)
+    .map(b => ({ boat_id: b.boat_id, customer: b.customer_name, hull: b.hull_color }));
+}
+
 const DEMO_CODE = { P: 'Pulled', OM: 'Complete/On Mold', C: 'Complete', W: 'In Progress', O: 'Mold Open' };
 export const DEMO_GLASS_ROWS = [
-  ['25T072', 'Ferro', 'Pre-Prod', ['OM', 'W', 'O', '_', '_', '_', '_', '_', '_', '_', '_', '_']],
-  ['30S009', '7 Sports', 'Pre-Prod', ['C', 'OM', 'W', 'O', '_', '_', '_', '_', '_', '_', '_', '_']],
-  ['26F031', 'Scituate #1', 'Glass', ['P', 'P', 'P', 'OM', 'OM', 'OM', 'OM', 'OM', 'O', 'W', '_', '_']],
-  ['26F033', 'Halloran', 'Glass', ['P', 'OM', 'OM', 'W', 'W', 'O', '_', 'W', '_', '_', '_', '_']],
-  ['28225', 'Trey', 'Back Line', ['P', 'P', 'OM', 'P', 'OM', 'OM', 'W', 'OM', 'O', 'W', '_', '_']],
-].map(([id, cust, stage, st]) => ({ boat_id: id, customer: cust, stage, cells: st.map(c => cellOf(c === '_' ? null : DEMO_CODE[c], false)) }));
+  ['25T072', 'Ferro', 'Pre-Prod', 'navy', ['OM', 'W', 'O', '_', '_', '_', '_', '_', '_', '_', '_', '_']],
+  ['30S009', '7 Sports', 'Pre-Prod', 'seagreen', ['C', 'OM', 'W', 'O', '_', '_', '_', '_', '_', '_', '_', '_']],
+  ['26F031', 'Scituate #1', 'Glass', 'firebrick', ['P', 'P', 'P', 'OM', 'OM', 'OM', 'OM', 'OM', 'O', 'W', '_', '_']],
+  ['26F033', 'Halloran', 'Glass', 'goldenrod', ['P', 'OM', 'OM', 'W', 'W', 'O', '_', 'W', '_', '_', '_', '_']],
+  ['28225', 'Trey', 'Back Line', 'slategray', ['P', 'P', 'OM', 'P', 'OM', 'OM', 'W', 'OM', 'O', 'W', '_', '_']],
+].map(([id, cust, stage, hull, st]) => ({ boat_id: id, customer: cust, stage, hull, cells: st.map(c => cellOf(c === '_' ? null : DEMO_CODE[c], false)) }));
+export const DEMO_UPCOMING = [
+  { boat_id: '25T074', customer: 'Whitaker', hull: 'teal' },
+  { boat_id: '26F035', customer: 'Nguyen', hull: 'darkred' },
+  { boat_id: '30S011', customer: 'Costa', hull: '#4B6CB7' },
+  { boat_id: '25T077', customer: 'Bianchi', hull: 'sienna' },
+  { boat_id: '28C014', customer: 'Ortiz', hull: 'darkslateblue' },
+];
 
-export function GlassGrid({ rows }) {
+export function GlassGrid({ rows, upcoming }) {
   return (
     <section className="kio-panel kio-glass">
       <div className="gs-toolbar">
@@ -67,8 +83,11 @@ export function GlassGrid({ rows }) {
         {rows.map(r => (
           <div key={r.boat_id} className="gs-row">
             <div className="gs-boat">
-              <span className="gs-id">{r.boat_id}</span>
-              <span className="gs-cust">{r.customer}</span>
+              <div className="gs-boat-top">
+                <span className="gs-id">{r.boat_id}</span>
+                {r.hull && <span className="gs-chip" style={{ background: r.hull }} title={r.hull} />}
+              </div>
+              <span className="gs-cust">{r.customer}{r.hull ? ` · ${r.hull}` : ''}</span>
               {r.stage && <span className="gs-stage">{r.stage}</span>}
             </div>
             {r.cells.map((c, i) => <div key={i} className={`gs-cell ${c.cls}`}>{c.label}</div>)}
@@ -76,6 +95,17 @@ export function GlassGrid({ rows }) {
         ))}
         {rows.length === 0 && <div className="gs-empty">No boats in the glass shop right now.</div>}
       </div>
+      {upcoming && upcoming.length > 0 && (
+        <div className="gs-upcoming">
+          <span className="gs-up-label">Next up</span>
+          {upcoming.map(u => (
+            <span key={u.boat_id} className="gs-up-chip">
+              {u.hull && <i className="gs-chip" style={{ background: u.hull }} title={u.hull} />}
+              <b>{u.boat_id}</b><em>{u.customer}</em>
+            </span>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

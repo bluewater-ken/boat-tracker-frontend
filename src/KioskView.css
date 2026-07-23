@@ -1,0 +1,138 @@
+/* ===== Bluewater shop-floor kiosk — high-tech dark board for a wall TV ===== */
+.kio {
+  position: fixed; inset: 0; overflow: hidden;
+  background: #05070D; color: #E8F1FA;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  display: flex; flex-direction: column;
+  --edge: #0E1726;
+}
+.kio * { box-sizing: border-box; }
+
+/* animated background: deep radial glows + faint grid */
+.kio-bg {
+  position: absolute; inset: -20%;
+  background:
+    radial-gradient(60% 50% at 18% 12%, rgba(34,211,238,0.16), transparent 60%),
+    radial-gradient(55% 55% at 85% 20%, rgba(45,212,191,0.12), transparent 60%),
+    radial-gradient(70% 60% at 60% 110%, rgba(91,141,239,0.14), transparent 60%);
+  animation: kioDrift 18s ease-in-out infinite alternate;
+}
+@keyframes kioDrift { from { transform: translate3d(-2%, -1%, 0) scale(1); } to { transform: translate3d(2%, 1%, 0) scale(1.06); } }
+.kio::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(120,170,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120,170,255,0.05) 1px, transparent 1px);
+  background-size: 46px 46px; mask-image: radial-gradient(120% 100% at 50% 0%, #000 55%, transparent 100%);
+}
+/* slow scanline sweep for the "monitor" feel */
+.kio-scan {
+  position: absolute; left: 0; right: 0; height: 220px; pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(34,211,238,0.06), transparent);
+  animation: kioSweep 7s linear infinite;
+}
+@keyframes kioSweep { 0% { top: -220px; } 100% { top: 100%; } }
+
+.kio > * { position: relative; z-index: 1; }
+
+/* ---------- top bar ---------- */
+.kio-top { display: flex; align-items: center; gap: 24px; padding: 22px 34px 14px; }
+.kio-brand { display: flex; flex-direction: column; gap: 2px; }
+.kio-logo {
+  font-size: 30px; font-weight: 900; letter-spacing: 6px; color: #fff;
+  text-shadow: 0 0 18px rgba(34,211,238,0.55);
+}
+.kio-sub { font-size: 11px; letter-spacing: 5px; color: #22D3EE; font-weight: 700; }
+
+.kio-kpis { display: flex; gap: 14px; margin-left: auto; }
+.kio-kpi {
+  min-width: 128px; padding: 10px 18px; border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-top: 2px solid var(--accent);
+  box-shadow: 0 0 24px -6px var(--accent), inset 0 0 20px rgba(0,0,0,0.4);
+  display: flex; flex-direction: column; align-items: center;
+}
+.kio-kpi-n { font-size: 40px; font-weight: 900; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; text-shadow: 0 0 16px var(--accent); }
+.kio-kpi-l { font-size: 10px; letter-spacing: 2.5px; color: #8FA6BC; margin-top: 5px; font-weight: 700; }
+
+.kio-clock { display: flex; flex-direction: column; align-items: flex-end; margin-left: 12px; }
+.kio-live { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 800; letter-spacing: 3px; color: #34E4B0; }
+.kio-live i { width: 9px; height: 9px; border-radius: 50%; background: #34E4B0; box-shadow: 0 0 12px #34E4B0; animation: kioPulse 1.4s ease-in-out infinite; }
+@keyframes kioPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
+.kio-time { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 1px; color: #fff; }
+.kio-day { font-size: 12px; letter-spacing: 2px; color: #7E93A8; text-transform: uppercase; }
+
+/* ---------- rotation dots ---------- */
+.kio-rot { display: flex; gap: 10px; justify-content: center; padding: 4px 0 10px; }
+.kio-dot { width: 46px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; }
+.kio-dot.on { background: rgba(34,211,238,0.25); }
+.kio-dot-fill { display: block; height: 100%; background: #22D3EE; box-shadow: 0 0 10px #22D3EE; }
+
+/* ---------- stage / panels ---------- */
+.kio-stage { flex: 1; min-height: 0; padding: 6px 28px 26px; }
+.kio-panel { height: 100%; animation: kioFade 0.6s ease; }
+@keyframes kioFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* pipeline columns */
+.kio-pipeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+.kio-col {
+  display: flex; flex-direction: column; min-height: 0;
+  border-radius: 16px; padding: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.kio-col-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.kio-col-name { font-size: 15px; font-weight: 800; letter-spacing: 2px; color: var(--accent); text-shadow: 0 0 12px var(--accent); }
+.kio-col-count {
+  font-size: 15px; font-weight: 900; min-width: 30px; height: 30px; padding: 0 8px;
+  display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent); color: #fff;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.kio-col-body { display: flex; flex-direction: column; gap: 10px; overflow: hidden; padding-top: 12px; flex: 1; }
+
+.kio-card {
+  border-radius: 12px; padding: 12px 13px;
+  background: linear-gradient(180deg, rgba(10,18,30,0.9), rgba(8,14,24,0.9));
+  border: 1px solid rgba(255,255,255,0.09);
+  border-left: 3px solid var(--accent);
+  box-shadow: 0 6px 20px -10px #000, 0 0 22px -14px var(--accent);
+  animation: kioRise 0.5s ease backwards;
+}
+.kio-card:nth-child(2) { animation-delay: 0.05s; }
+.kio-card:nth-child(3) { animation-delay: 0.1s; }
+.kio-card:nth-child(4) { animation-delay: 0.15s; }
+@keyframes kioRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.kio-card-top { display: flex; align-items: center; justify-content: space-between; }
+.kio-hull { font-size: 22px; font-weight: 900; color: #fff; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+.kio-chip { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); background: currentColor; box-shadow: 0 0 8px rgba(255,255,255,0.25); }
+.kio-cust { font-size: 15px; font-weight: 700; color: #D6E4F2; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kio-model { font-size: 12px; color: #7E93A8; letter-spacing: 1px; text-transform: uppercase; }
+.kio-prog { position: relative; height: 8px; border-radius: 5px; background: rgba(255,255,255,0.08); margin-top: 10px; overflow: hidden; }
+.kio-prog span { position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 60%, transparent), var(--accent)); box-shadow: 0 0 12px var(--accent); animation: kioGrow 1s ease; }
+.kio-prog em { position: absolute; right: -2px; top: -18px; font-size: 11px; font-weight: 800; font-style: normal; color: var(--accent); }
+@keyframes kioGrow { from { transform: scaleX(0); transform-origin: left; } to { transform: scaleX(1); } }
+.kio-empty { color: rgba(255,255,255,0.15); font-size: 28px; text-align: center; padding: 24px 0; }
+
+/* activity ticker */
+.kio-activity { display: flex; flex-direction: column; }
+.kio-act-head { font-size: 16px; font-weight: 800; letter-spacing: 4px; color: #22D3EE; text-shadow: 0 0 12px rgba(34,211,238,0.5); padding: 2px 6px 14px; }
+.kio-ticker { position: relative; flex: 1; overflow: hidden; mask-image: linear-gradient(180deg, transparent, #000 6%, #000 92%, transparent); }
+.kio-ticker-track { display: flex; flex-direction: column; gap: 12px; animation: kioScroll linear infinite; }
+@keyframes kioScroll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+.kio-act-row {
+  display: flex; align-items: center; gap: 18px; padding: 16px 22px; border-radius: 14px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.07); border-left: 3px solid #22D3EE;
+}
+.kio-act-icon { font-size: 26px; width: 40px; text-align: center; filter: drop-shadow(0 0 8px rgba(34,211,238,0.4)); }
+.kio-act-main { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.kio-act-title { font-size: 20px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kio-act-sub { font-size: 14px; color: #8FA6BC; letter-spacing: 0.5px; }
+.kio-act-time { font-size: 14px; font-weight: 700; color: #34E4B0; white-space: nowrap; letter-spacing: 1px; }
+
+@media (max-width: 900px) {
+  .kio-pipeline { grid-template-columns: repeat(3, 1fr); }
+  .kio-kpis { display: none; }
+}

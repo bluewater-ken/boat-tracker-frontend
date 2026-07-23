@@ -18,6 +18,12 @@ const ShopFeed = lazy(() => import('./ShopFeed'));
 const AdminPanel = lazy(() => import('./AdminPanel'));
 const AskBoss = lazy(() => import('./AskBoss'));
 const ShopReport = lazy(() => import('./ShopReport'));
+const KioskView = lazy(() => import('./KioskView'));
+
+// Shop-floor wall display: ?kiosk=1 renders a full-screen board (needs login,
+// real data), ?kiosk=demo renders the same board with sample data and no login
+// (for previewing the look).
+const KIOSK = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('kiosk') : null;
 
 const BASE_TABS = [
   { key: 'schedule', label: 'Production Schedule' },
@@ -52,9 +58,16 @@ function App() {
     if (activeTab !== 'feed') setReportIssueOpen(false);
   }, [activeTab]);
 
+  // Demo kiosk: sample data, no login required — just for previewing the board.
+  if (KIOSK === 'demo') return <Suspense fallback={<div className="loading">Loading…</div>}><KioskView demo /></Suspense>;
+
   // Gate the whole app behind login.
   if (status === 'loading') return <div className="loading">Loading…</div>;
   if (status === 'anon') return <Login />;
+
+  // Kiosk mode: once logged in, a wall display loads ?kiosk=1 for the full-screen
+  // board with no header/tabs. Read-only; Esc returns to the normal app.
+  if (KIOSK === '1') return <Suspense fallback={<div className="loading">Loading…</div>}><KioskView /></Suspense>;
 
   const roleLabel = user?.role === 'ops' ? 'Ops' : user?.role === 'shop' ? 'Shop' : '';
   const isOps = user?.role === 'ops';

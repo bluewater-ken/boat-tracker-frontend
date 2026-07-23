@@ -140,6 +140,37 @@ const DEMO_BOAT_DETAIL = {
   ],
   flags: [{ t: 'QC PUNCH LIST', c: 'warn' }],
 };
+const DEMO_DAILY = {
+  completed: [
+    { title: 'Advanced to QC', boat_id: '25T060', actor: 'Ryan', at: new Date(Date.now() - 8 * 60000).toISOString() },
+    { title: 'Motors received — Twin Yamaha 300', boat_id: '26F031', actor: 'Kelly', at: new Date(Date.now() - 44 * 60000).toISOString() },
+    { title: 'Console rigging complete', boat_id: '36C004', actor: 'Jacob', at: new Date(Date.now() - 96 * 60000).toISOString() },
+    { title: 'Deck mated to hull', boat_id: '28C012', actor: 'Trey', at: new Date(Date.now() - 130 * 60000).toISOString() },
+    { title: 'Gelcoat received', boat_id: '25T043', actor: 'Kelly', at: new Date(Date.now() - 180 * 60000).toISOString() },
+    { title: 'Advanced to Front Line', boat_id: '25T043', actor: 'Ryan', at: new Date(Date.now() - 220 * 60000).toISOString() },
+    { title: 'Livewell plumbed', boat_id: '36C004', actor: 'Jacob', at: new Date(Date.now() - 260 * 60000).toISOString() },
+    { title: 'Hardtop fitted', boat_id: '28C012', actor: 'Trey', at: new Date(Date.now() - 300 * 60000).toISOString() },
+  ],
+  asap: [
+    { boat_id: '30S009', label: 'Gelcoat' }, { boat_id: '26F032', label: 'Steering' },
+    { boat_id: '25T043', label: 'Bracket' }, { boat_id: '28C012', label: 'Electronics' }, { boat_id: '30S009', label: 'Transducer' },
+  ],
+  missing: [
+    { boat_id: '30S009', part: 'Gelcoat', backorder: true }, { boat_id: '25T043', part: 'Trailer', late: true },
+    { boat_id: '26F032', part: 'Steering', late: true }, { boat_id: '28C012', part: 'Electronics' },
+    { boat_id: '25T060', part: 'Upholstery' }, { boat_id: '26F031', part: 'Wallabys Tanks' }, { boat_id: '25T050', part: 'Bracket' },
+  ],
+  notes: [
+    { text: 'Which transducer on the 30 Sport?', boat_id: '30S009' },
+    { text: 'Confirm hull color for Ferro build', boat_id: '25T071' },
+    { text: 'Customer wants extra rod holders — check with office', boat_id: '36C004' },
+    { text: 'Trailer vendor backordered until next week', boat_id: '25T043' },
+  ],
+  throughput: [
+    { label: '7/14', count: 6 }, { label: '7/15', count: 9 }, { label: '7/16', count: 4 }, { label: '7/17', count: 11 },
+    { label: '7/18', count: 8 }, { label: '7/21', count: 13 }, { label: '7/22', count: 7 }, { label: '7/23', count: 8, today: true },
+  ],
+};
 
 const STATUS_MARK = { done: '✓', received: '✓', ordered: '◐', progress: '◐', not: '○' };
 const STATUS_CLS = { done: 'ok', received: 'ok', ordered: 'wip', progress: 'wip', not: 'off' };
@@ -211,6 +242,30 @@ function buildBoatDetail(b, aux) {
   };
 }
 
+// Daily overview data from the live feed/parts/issues.
+function computeDaily(feed, aux, now) {
+  const today = now.toISOString().slice(0, 10);
+  const isToday = (iso) => iso && String(iso).slice(0, 10) === today;
+  const completed = (feed || []).filter(it => COMPLETION_TYPES.has(it.type) && isToday(it.created_at))
+    .map(it => ({ title: it.title, boat_id: it.boat_id, actor: it.actor_name, at: it.created_at }));
+  const parts = aux?.parts || [];
+  const asap = [];
+  parts.forEach(p => { if (p.order_asap && p.status !== 'Received' && !p.na) asap.push({ boat_id: p.boat_id, label: p.part_name }); });
+  (aux?.fin || []).forEach(r => { if (r.asap && r.status !== 'Complete' && !r.na) asap.push({ boat_id: r.boat_id, label: r.task_name }); });
+  const missing = parts.filter(p => p.status !== 'Received' && !p.na).map(p => ({
+    boat_id: p.boat_id, part: p.part_name,
+    late: !!(p.flag_late || (p.expected_delivery && String(p.expected_delivery).slice(0, 10) < today)),
+    backorder: !!p.flag_backordered,
+  })).sort((a, b) => (b.backorder - a.backorder) || (b.late - a.late));
+  const notes = (aux?.issues || []).map(i => ({ text: i.title || i.text || i.question || '', boat_id: i.boat_id, at: i.created_at })).filter(n => n.text);
+  const days = [];
+  for (let i = 9; i >= 0; i--) { const dt = new Date(now); dt.setDate(dt.getDate() - i); days.push(dt.toISOString().slice(0, 10)); }
+  const counts = {}; days.forEach(d => { counts[d] = 0; });
+  (feed || []).forEach(it => { if (COMPLETION_TYPES.has(it.type)) { const d = String(it.created_at).slice(0, 10); if (d in counts) counts[d]++; } });
+  const throughput = days.map(d => ({ label: `${+d.slice(5, 7)}/${+d.slice(8, 10)}`, count: counts[d], today: d === today }));
+  return { completed, asap, missing, notes, throughput };
+}
+
 function KioskView({ demo }) {
   const [boats, setBoats] = useState(demo ? DEMO_BOATS : []);
   const [feed, setFeed] = useState(demo ? DEMO_FEED : []);
@@ -218,21 +273,24 @@ function KioskView({ demo }) {
   const [panel, setPanel] = useState(0);   // index into `pages` (0 = pipeline)
   const [manual, setManual] = useState(false); // arrows browse boat pages
   const now = useClock();
+  const AUTO = 2;          // first two pages (pipeline, daily) auto-rotate
+  const ROTATE_MS = 22000;
   const RESUME_MS = 60000; // after a manual move, return to the pipeline when idle this long
   const seenRef = useRef(null); // feed ids seen so far — a new completion drops the bomb
 
   // --- data load + refresh ---
   const load = async () => {
     try {
-      const [bRes, tlRes, fRes, lamRes, finRes, asmRes, partsRes, stdRes] = await Promise.all([
+      const [bRes, tlRes, fRes, lamRes, finRes, asmRes, partsRes, stdRes, issRes] = await Promise.all([
         apiFetch('/api/boats').catch(() => null),
         apiFetch('/api/timeline').catch(() => null),
-        apiFetch('/api/assembly/feed?limit=80').catch(() => null),
+        apiFetch('/api/assembly/feed?limit=200').catch(() => null),
         apiFetch('/api/lamination').catch(() => null),
         apiFetch('/api/finishing').catch(() => null),
         apiFetch('/api/assembly').catch(() => null),
         apiFetch('/api/parts').catch(() => null),
         apiFetch('/api/parts/standard').catch(() => null),
+        apiFetch('/api/issues').catch(() => null),
       ]);
       let bs = bRes && bRes.ok ? await bRes.json() : [];
       if (tlRes && tlRes.ok) {
@@ -257,12 +315,20 @@ function KioskView({ demo }) {
         fin: finRes && finRes.ok ? await finRes.json() : [],
         parts: partsRes && partsRes.ok ? await partsRes.json() : [],
         std: stdRes && stdRes.ok ? await stdRes.json() : [],
+        issues: issRes && issRes.ok ? await issRes.json() : [],
         asm,
         wcs: (asm?.work_centers || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
       });
     } catch { /* keep last good data on the wall */ }
   };
   useEffect(() => { if (demo) return; load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, [demo]);
+
+  // Auto-rotate the pipeline <-> daily overview (paused while browsing boats).
+  useEffect(() => {
+    if (manual || panel >= AUTO) return;
+    const t = setTimeout(() => setPanel(p => (p + 1) % AUTO), ROTATE_MS);
+    return () => clearTimeout(t);
+  }, [manual, panel]);
 
   // After browsing boat pages with the arrows, return to the pipeline when idle.
   useEffect(() => {
@@ -301,10 +367,12 @@ function KioskView({ demo }) {
   // The pipeline is the always-on main page; each in-production boat adds a
   // Build Traveler page reachable with the arrows. The live feed is NOT a page —
   // it runs as a horizontal ticker along the bottom of every screen.
-  const pages = ['pipeline'];
+  const pages = ['pipeline', 'daily'];
   if (demo) pages.push({ v: 'traveler', b: DEMO_BOAT_DETAIL });
   else if (aux) inProd.forEach(b => pages.push({ v: 'traveler', b: buildBoatDetail(b, aux) }));
   const cur = pages[Math.min(panel, pages.length - 1)];
+
+  const daily = demo ? DEMO_DAILY : computeDaily(feed, aux, now);
 
   const step = (dir) => { setManual(true); setPanel(p => (p + dir + pages.length) % pages.length); };
   const stepRef = useRef(step); stepRef.current = step;
@@ -349,8 +417,8 @@ function KioskView({ demo }) {
 
       <div className="kio-rot">
         <button className="kio-nav" onClick={() => step(-1)} aria-label="Previous page">‹</button>
-        {cur === 'pipeline' ? (
-          <span className="kio-rot-label">PRODUCTION PIPELINE{manual && <em> · paused</em>}</span>
+        {typeof cur === 'string' ? (
+          <span className="kio-rot-label">{cur === 'pipeline' ? 'PRODUCTION PIPELINE' : 'DAILY OVERVIEW'}{manual && <em> · paused</em>}</span>
         ) : (
           <div className="kio-rot-boat">
             <span className="kio-rb-hull">{cur.b.boat_id}</span>
@@ -363,12 +431,16 @@ function KioskView({ demo }) {
           </div>
         )}
         <div className="kio-dots">
-          {pages.map((p, i) => (
-            <span key={i} className={`kio-dot ${i === panel ? 'on' : ''} ${p === 'pipeline' ? 'overview' : 'boat'}`}
-              title={p === 'pipeline' ? 'Overview' : p.b.boat_id}>
-              {p === 'pipeline' ? '▦' : '🚤'}
-            </span>
-          ))}
+          {pages.map((p, i) => {
+            const kind = p === 'pipeline' ? 'overview' : p === 'daily' ? 'daily' : 'boat';
+            const icon = p === 'pipeline' ? '▦' : p === 'daily' ? '☀' : '🚤';
+            return (
+              <span key={i} className={`kio-dot ${i === panel ? 'on' : ''} ${kind}`}
+                title={typeof p === 'string' ? (p === 'pipeline' ? 'Overview' : 'Daily') : p.b.boat_id}>
+                {icon}
+              </span>
+            );
+          })}
         </div>
         <button className="kio-nav" onClick={() => step(1)} aria-label="Next page">›</button>
       </div>
@@ -415,6 +487,8 @@ function KioskView({ demo }) {
               );
             })}
           </section>
+        ) : cur === 'daily' ? (
+          <DailyOverview d={daily} />
         ) : (
           <KioskTraveler b={cur.b} />
         )}
@@ -475,6 +549,74 @@ function AutoScroll({ className, children }) {
     return () => cancelAnimationFrame(raf);
   }, []);
   return <div ref={ref} className={className}>{children}</div>;
+}
+
+// Daily Overview page: completed-today, ASAP, missing parts, notes, throughput.
+function DailyOverview({ d }) {
+  const max = Math.max(1, ...d.throughput.map(t => t.count));
+  return (
+    <section className="kio-panel kio-daily">
+      <div className="kio-dcol">
+        <div className="kio-dhead green"><span>✅ COMPLETED TODAY</span><em>{d.completed.length}</em></div>
+        <AutoScroll className="kio-dlist">
+          {d.completed.map((c, i) => (
+            <div key={i} className="kio-ditem done">
+              <span className="kio-dt-title">{c.title}</span>
+              <span className="kio-dt-sub">{c.boat_id}{c.actor ? ` · ${c.actor}` : ''} · {timeAgo(c.at)}</span>
+            </div>
+          ))}
+          {d.completed.length === 0 && <div className="kio-dempty">Nothing completed yet today.</div>}
+        </AutoScroll>
+      </div>
+
+      <div className="kio-dcol">
+        <div className="kio-dsub">
+          <div className="kio-dhead red"><span>🔴 ASAP</span><em>{d.asap.length}</em></div>
+          <AutoScroll className="kio-dlist">
+            {d.asap.map((a, i) => (
+              <div key={i} className="kio-ditem asap"><span className="kio-dt-title">{a.label}</span><span className="kio-dt-sub">{a.boat_id}</span></div>
+            ))}
+            {d.asap.length === 0 && <div className="kio-dempty">No ASAP items.</div>}
+          </AutoScroll>
+        </div>
+        <div className="kio-dsub">
+          <div className="kio-dhead amber"><span>📦 MISSING PARTS</span><em>{d.missing.length}</em></div>
+          <AutoScroll className="kio-dlist">
+            {d.missing.map((m, i) => (
+              <div key={i} className={`kio-ditem ${m.backorder ? 'back' : m.late ? 'late' : 'miss'}`}>
+                <span className="kio-dt-title">{m.part}</span>
+                <span className="kio-dt-sub">{m.boat_id}{m.backorder ? ' · BACKORDER' : m.late ? ' · LATE' : ''}</span>
+              </div>
+            ))}
+            {d.missing.length === 0 && <div className="kio-dempty">All parts in.</div>}
+          </AutoScroll>
+        </div>
+      </div>
+
+      <div className="kio-dcol">
+        <div className="kio-dsub">
+          <div className="kio-dhead"><span>📝 NOTES</span><em>{d.notes.length}</em></div>
+          <AutoScroll className="kio-dlist">
+            {d.notes.map((n, i) => (
+              <div key={i} className="kio-ditem note"><span className="kio-dt-title">{n.text}</span>{n.boat_id && <span className="kio-dt-sub">{n.boat_id}</span>}</div>
+            ))}
+            {d.notes.length === 0 && <div className="kio-dempty">No open notes.</div>}
+          </AutoScroll>
+        </div>
+        <div className="kio-dsub kio-dthru">
+          <div className="kio-dhead"><span>📈 THROUGHPUT</span><em>per day</em></div>
+          <div className="kio-chart">
+            {d.throughput.map((t, i) => (
+              <div key={i} className={`kio-bar ${t.today ? 'today' : ''}`}>
+                <span className="kio-bar-fill" style={{ height: `${Math.max(4, (t.count / max) * 100)}%` }}><em>{t.count}</em></span>
+                <span className="kio-bar-lbl">{t.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function Kpi({ n, label, accent }) {

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from './api';
 import Logo from './Logo';
 import CompletionsChart from './CompletionsChart';
+import { GlassGrid, computeGlassRows, DEMO_GLASS_ROWS } from './KioskGlassShop';
 import './KioskView.css';
 
 // Department tag colors (match the app's Shop Feed / throughput palette).
@@ -313,7 +314,7 @@ function KioskView({ demo }) {
   const [panel, setPanel] = useState(0);   // index into `pages` (0 = pipeline)
   const [manual, setManual] = useState(false); // arrows browse boat pages
   const now = useClock();
-  const AUTO = 3;          // pipeline, daily, throughput auto-rotate
+  const AUTO = 4;          // pipeline, daily, throughput, glass shop auto-rotate
   const ROTATE_MS = 22000;
   const RESUME_MS = 60000; // after a manual move, return to the pipeline when idle this long
   const seenRef = useRef(null); // feed ids seen so far — a new completion drops the bomb
@@ -407,12 +408,13 @@ function KioskView({ demo }) {
   // The pipeline is the always-on main page; each in-production boat adds a
   // Build Traveler page reachable with the arrows. The live feed is NOT a page —
   // it runs as a horizontal ticker along the bottom of every screen.
-  const pages = ['pipeline', 'daily', 'throughput'];
+  const pages = ['pipeline', 'daily', 'throughput', 'glass'];
   if (demo) pages.push({ v: 'traveler', b: DEMO_BOAT_DETAIL });
   else if (aux) inProd.forEach(b => pages.push({ v: 'traveler', b: buildBoatDetail(b, aux) }));
   const cur = pages[Math.min(panel, pages.length - 1)];
 
   const daily = demo ? DEMO_DAILY : computeDaily(feed, aux, now);
+  const glassRows = demo ? DEMO_GLASS_ROWS : computeGlassRows(boats, aux?.lam);
 
   const step = (dir) => { setManual(true); setPanel(p => (p + dir + pages.length) % pages.length); };
   const stepRef = useRef(step); stepRef.current = step;
@@ -458,7 +460,7 @@ function KioskView({ demo }) {
       <div className="kio-rot">
         <button className="kio-nav" onClick={() => step(-1)} aria-label="Previous page">‹</button>
         {typeof cur === 'string' ? (
-          <span className="kio-rot-label">{cur === 'pipeline' ? 'PRODUCTION PIPELINE' : cur === 'daily' ? 'DAILY OVERVIEW' : 'THROUGHPUT'}{manual && <em> · paused</em>}</span>
+          <span className="kio-rot-label">{cur === 'pipeline' ? 'PRODUCTION PIPELINE' : cur === 'daily' ? 'DAILY OVERVIEW' : cur === 'throughput' ? 'THROUGHPUT' : 'GLASS SHOP'}{manual && <em> · paused</em>}</span>
         ) : (
           <div className="kio-rot-boat">
             <span className="kio-rb-hull">{cur.b.boat_id}</span>
@@ -472,8 +474,8 @@ function KioskView({ demo }) {
         )}
         <div className="kio-dots">
           {pages.map((p, i) => {
-            const kind = p === 'pipeline' ? 'overview' : p === 'daily' ? 'daily' : p === 'throughput' ? 'thru' : 'boat';
-            const icon = p === 'pipeline' ? '▦' : p === 'daily' ? '☀' : p === 'throughput' ? '📈' : '🚤';
+            const kind = p === 'pipeline' ? 'overview' : p === 'daily' ? 'daily' : p === 'throughput' ? 'thru' : p === 'glass' ? 'glass' : 'boat';
+            const icon = p === 'pipeline' ? '▦' : p === 'daily' ? '☀' : p === 'throughput' ? '📈' : p === 'glass' ? '◈' : '🚤';
             return (
               <span key={i} className={`kio-dot ${i === panel ? 'on' : ''} ${kind}`}
                 title={typeof p === 'string' ? p : p.b.boat_id}>
@@ -531,6 +533,8 @@ function KioskView({ demo }) {
           <DailyOverview d={daily} />
         ) : cur === 'throughput' ? (
           <ThroughputScreen doneToday={daily.completed.length} />
+        ) : cur === 'glass' ? (
+          <GlassGrid rows={glassRows} />
         ) : (
           <KioskTraveler b={cur.b} />
         )}

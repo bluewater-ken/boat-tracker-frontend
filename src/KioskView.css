@@ -121,6 +121,10 @@
 .kio-wc-top em { font-style: normal; color: #A3E635; }
 .kio-wc-bar { height: 8px; border-radius: 5px; background: rgba(255,255,255,0.08); overflow: hidden; }
 .kio-wc-bar span { display: block; height: 100%; background: linear-gradient(90deg, rgba(163,230,53,0.5), #A3E635); box-shadow: 0 0 10px #A3E635; }
+.kio-wc-tasks { display: flex; flex-direction: column; gap: 3px; padding: 3px 0 2px 4px; }
+.kio-wc-task { font-size: 15px; color: #F1F6FB; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kio-wc-task::before { content: '○'; color: #F0997B; font-weight: 800; margin-right: 8px; }
+.kio-wc-more { font-size: 13px; color: #8FA6BC; font-style: italic; padding-left: 4px; }
 
 /* status flow + stats */
 .kio-flow { display: flex; align-items: flex-start; justify-content: space-between; padding: 22px 6px; position: relative; }

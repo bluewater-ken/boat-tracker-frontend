@@ -121,7 +121,9 @@ const DEMO_BOAT_DETAIL = {
     { n: 'Rigging', s: 'progress' }, { n: 'Upholstery', s: 'not' }, { n: 'Detailing', s: 'not' },
   ],
   workcenters: [
-    { n: 'Back Line', done: 12, total: 12 }, { n: 'Front Line', done: 8, total: 10 }, { n: 'Console', done: 5, total: 6 },
+    { n: 'Back Line', done: 12, total: 12, open: [] },
+    { n: 'Front Line', done: 8, total: 10, open: ['Rig hydraulic steering', 'Mount electronics'] },
+    { n: 'Console', done: 5, total: 6, open: ['Install nav lights'] },
   ],
   flags: [{ t: 'QC PUNCH LIST', c: 'warn' }],
 };
@@ -129,6 +131,14 @@ const DEMO_BOAT_DETAIL = {
 const STATUS_MARK = { done: '✓', received: '✓', ordered: '◐', progress: '◐', not: '○' };
 const STATUS_CLS = { done: 'ok', received: 'ok', ordered: 'wip', progress: 'wip', not: 'off' };
 const countDone = (arr) => arr.filter(i => i.s === 'done' || i.s === 'received').length;
+
+// CompanyCam checklist items carry template cruft — strip it so only real tasks show.
+const KNOISE = [/template is a new format/i, /provide feedback/i, /^additional notes/i, /^approved by/i, /read carefully/i, /input pictures here/i];
+const cleanItem = (raw) => {
+  const s = String(raw || '').replace(/\*\*|__/g, '').trim();
+  if (!s || s.includes('🛑')) return null;
+  return KNOISE.some(re => re.test(s)) ? null : s;
+};
 
 // Per-boat detail mapping — mirrors PreProductionReport so the kiosk reads the same.
 const KLAM_TASKS = ['Glass Kit', 'Hull', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid', 'Other'];
@@ -164,9 +174,13 @@ function buildBoatDetail(b, aux) {
   const workcenters = (wcs || []).filter(w => w.id !== 'quality-control').map(w => {
     const row = (asm?.rows || []).find(r => r.boat_id === b.boat_id && r.work_center_id === w.id);
     if (!row) return null;
-    const total = (row.items || []).length || (row.remaining || []).length;
+    const items = (row.items || []).map(i => ({ name: cleanItem(i.name), done: !!i.done })).filter(i => i.name);
+    // Older/delivered boats have no items[] — fall back to the open "remaining" list.
+    const open = items.length ? items.filter(i => !i.done).map(i => i.name)
+      : (row.remaining || []).map(cleanItem).filter(Boolean);
+    const total = items.length || (row.remaining || []).length;
     if (!total) return null;
-    return { n: w.name || w.id, done: (row.items || []).filter(i => i.done).length, total };
+    return { n: w.name || w.id, done: items.filter(i => i.done).length, total, open };
   }).filter(Boolean);
   const today = new Date().toISOString().slice(0, 10);
   const flags = [];
@@ -448,10 +462,17 @@ function KioskTraveler({ b }) {
           <div className="kio-bcol-list">
             {b.workcenters.map(w => {
               const pct = Math.round((w.done / w.total) * 100);
+              const open = w.open || [];
               return (
                 <div key={w.n} className="kio-wc">
                   <div className="kio-wc-top"><span>{w.n}</span><em>{w.done}/{w.total}</em></div>
                   <div className="kio-wc-bar"><span style={{ width: `${pct}%` }} /></div>
+                  {open.length > 0 && (
+                    <div className="kio-wc-tasks">
+                      {open.slice(0, 3).map(t => <span key={t} className="kio-wc-task">{t}</span>)}
+                      {open.length > 3 && <span className="kio-wc-more">+{open.length - 3} more</span>}
+                    </div>
+                  )}
                 </div>
               );
             })}

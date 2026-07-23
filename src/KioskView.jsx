@@ -32,9 +32,10 @@ const FEED_ICON = {
 };
 // Feed events that count as "something got done" — a new one drops the bomb.
 const COMPLETION_TYPES = new Set(['CHECKLIST_ITEM_COMPLETED', 'CHECKLIST_COMPLETED', 'PART_RECEIVED', 'STAGE_CHANGED']);
-// Ticker = a shop news wire: milestones only, not every checklist-item check-off.
-const TICKER_TYPES = new Set(['STAGE_CHANGED', 'PART_RECEIVED', 'PART_DELAYED', 'PART_FLAGGED', 'QUESTION_POSTED', 'CHECKLIST_COMPLETED']);
-const TICKER_MAX_AGE_MS = 48 * 3600 * 1000; // only recent news
+// Ticker = a positive momentum wire: jobs completed, stage advances, parts
+// received, checklists done. No negatives (delays / flags / questions).
+const TICKER_TYPES = new Set(['CHECKLIST_ITEM_COMPLETED', 'CHECKLIST_COMPLETED', 'PART_RECEIVED', 'STAGE_CHANGED']);
+const TICKER_MAX_AGE_MS = 48 * 3600 * 1000; // only recent wins
 // Departments for the throughput stack + the per-item dept tags.
 const DEPTS = [
   { key: 'Assembly', color: '#22D3EE' },

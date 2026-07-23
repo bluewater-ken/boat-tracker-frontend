@@ -291,11 +291,21 @@
 .kio-exp { display: block; margin-top: 3px; font-size: 17px; font-weight: 800; color: #FBBF24; letter-spacing: 0.5px; }
 .kio-ditem.back .kio-exp { color: #F0997B; }
 .kio-dempty { color: #5A6b7a; font-size: 15px; padding: 10px 4px; }
-/* throughput = the Admin chart embedded in a light card so it looks native */
+/* throughput = the Admin chart (same rules) restyled for the dark board */
 .kio-dthru { flex: 0 0 auto; }
-.kio-thru-card { margin-top: 10px; background: #F6F9FC; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 8px 10px; }
-.kio-thru-card .cc { max-width: none; }
-.kio-thru-card .cc-svg { max-height: 200px; }
+.kio-thru-card { margin-top: 8px; }
+.kio-thru-card .cc { max-width: none; padding: 0; }
+.kio-thru-card .cc-svg { max-height: 190px; }
+.kio-thru-card .cc-sub { color: #7E93A8; }
+.kio-thru-card .cc-legend { color: #C7D6E4; margin: 8px 0 2px; }
+.kio-thru-card .cc-legend-item b, .kio-thru-card .cc-legend-total b { color: #fff; }
+.kio-thru-card .cc-legend-total { color: #8FA6BC; }
+.kio-thru-card .cc-legend-line { border-top-color: #EAF2FA; }
+.kio-thru-card .cc-quiet { color: #8FA6BC; }
+/* SVG: subtle gridlines, light text, light 7-day avg line (override inline attrs) */
+.kio-thru-card .cc-svg line { stroke: rgba(255,255,255,0.09) !important; }
+.kio-thru-card .cc-svg text { fill: #C7D6E4 !important; }
+.kio-thru-card .cc-svg polyline { stroke: #EAF2FA !important; }
 
 @media (max-width: 900px) {
   .kio-pipeline { grid-template-columns: repeat(3, 1fr); }

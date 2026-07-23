@@ -294,7 +294,7 @@ function StatusList({ items }) {
             {(it.tags || []).map((t, j) => <span key={j} className={`ppr-tag ppr-tag-${t.c}`}>{t.t}</span>)}
           </span>
           <span className="ppr-status">
-            {it.ref ? `${it.status}${it.note ? ` · ${it.note}` : ''}` : it.na ? 'N/A' : it.status}
+            {it.ref ? (it.note || '—') : it.na ? 'N/A' : it.status}
           </span>
         </li>
       ))}

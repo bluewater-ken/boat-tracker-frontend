@@ -1,7 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from './api';
 import Logo from './Logo';
+import CompletionsChart from './CompletionsChart';
 import './KioskView.css';
+
+// Department tag colors (match the app's Shop Feed / throughput palette).
+const DEPT_TAG = [
+  [/qc|quality/i, '#7C74E6'], [/glass|lamination/i, '#3FB3C4'], [/finish/i, '#E86A6A'],
+  [/part/i, '#8FCB4F'], [/front|back|assembly|console|rig/i, '#3FA9E8'], [/schedule|stage|deliver/i, '#E0A93B'],
+];
+const deptColor = (dept) => (DEPT_TAG.find(([re]) => re.test(dept || '')) || [, '#8FA6BC'])[1];
 
 // Full-screen, high-tech shop-floor board for a wall TV (Raspberry Pi kiosk).
 // Reached at ?kiosk=1 once a session is logged in. Read-only: it only GETs data,
@@ -162,11 +170,10 @@ const DEMO_DAILY = {
     { title: 'Hardtop fitted', boat_id: '28C012', actor: 'Trey', dept: 'Back Line', at: new Date(Date.now() - 300 * 60000).toISOString() },
   ],
   asap: [
-    { boat_id: '30S009', label: 'Gelcoat', dept: 'Key Parts', detail: 'Matterhorn White' },
-    { boat_id: '26F032', label: 'Steering', dept: 'Key Parts', detail: 'SeaStar hydraulic' },
-    { boat_id: '25T043', label: 'Bracket', dept: 'Key Parts', detail: '' },
-    { boat_id: '28C012', label: 'Electronics', dept: 'Key Parts', detail: 'Garmin 8612' },
     { boat_id: '30S009', label: 'Buckets', dept: 'Finishing', detail: '' },
+    { boat_id: '36C004', label: 'Console Face', dept: 'Finishing', detail: '' },
+    { boat_id: '26F031', label: 'T Top', dept: 'Glass Shop', detail: '' },
+    { boat_id: '28C012', label: 'Hard Top', dept: 'Finishing', detail: '' },
   ],
   missing: [
     { boat_id: '30S009', part: 'Gelcoat', dept: 'Key Parts', detail: 'Matterhorn White', status: 'Ordered', exp: 'Aug 2', backorder: true },
@@ -269,10 +276,10 @@ function computeDaily(feed, aux, now) {
   const completed = (feed || []).filter(it => COMPLETION_TYPES.has(it.type) && isToday(it.created_at))
     .map(it => ({ title: it.title, boat_id: it.boat_id, actor: it.actor_name, at: it.created_at, dept: it.work_center_name || deptOf(it) }));
   const parts = aux?.parts || [];
-  // Call-in priorities (ASAP) — with department + any spec detail.
+  // Shop priorities — shop-floor work flagged ASAP (NOT parts; parts are in Late/Delayed).
   const asap = [];
-  parts.forEach(p => { if (p.order_asap && p.status !== 'Received' && !p.na) asap.push({ boat_id: p.boat_id, label: p.part_name, dept: 'Key Parts', detail: p.description || '' }); });
   (aux?.fin || []).forEach(r => { if (r.asap && r.status !== 'Complete' && !r.na) asap.push({ boat_id: r.boat_id, label: r.task_name, dept: 'Finishing', detail: '' }); });
+  (aux?.lam || []).forEach(r => { if (r.asap && !r.na && !['Complete/On Mold', 'Pulled'].includes(r.status)) asap.push({ boat_id: r.boat_id, label: r.task_name, dept: 'Glass Shop', detail: '' }); });
   // Missing parts — status + expected date + spec detail.
   const missing = parts.filter(p => p.status !== 'Received' && !p.na).map(p => {
     const exp = p.expected_delivery ? String(p.expected_delivery).slice(0, 10) : null;
@@ -580,10 +587,14 @@ function AutoScroll({ className, children }) {
   return <div ref={ref} className={className}>{children}</div>;
 }
 
-// Daily Overview page: completed-today, call-in priorities, missing parts, notes, throughput.
+// A color-coded department chip.
+function DeptTag({ dept }) {
+  const c = deptColor(dept);
+  return <span className="kio-dept" style={{ color: c, background: `${c}22`, borderColor: `${c}66` }}>{dept}</span>;
+}
+
+// Daily Overview page: completed-today, shop priorities, late/delayed parts, notes, throughput.
 function DailyOverview({ d }) {
-  const BARH = 108;
-  const max = Math.max(1, ...d.throughput.map(t => t.total));
   return (
     <section className="kio-panel kio-daily">
       <div className="kio-dcol">
@@ -591,7 +602,7 @@ function DailyOverview({ d }) {
         <AutoScroll className="kio-dlist">
           {d.completed.map((c, i) => (
             <div key={i} className="kio-ditem done">
-              <span className="kio-dt-line"><span className="kio-dt-title">{c.title}</span>{c.dept && <span className="kio-dept">{c.dept}</span>}</span>
+              <span className="kio-dt-line"><span className="kio-dt-title">{c.title}</span>{c.dept && <DeptTag dept={c.dept} />}</span>
               <span className="kio-dt-sub">{c.boat_id}{c.actor ? ` · ${c.actor}` : ''} · {timeAgo(c.at)}</span>
             </div>
           ))}
@@ -601,30 +612,36 @@ function DailyOverview({ d }) {
 
       <div className="kio-dcol">
         <div className="kio-dsub">
-          <div className="kio-dhead red"><span>📞 CALL-IN PRIORITIES</span><em>{d.asap.length}</em></div>
+          <div className="kio-dhead red"><span>🎯 SHOP PRIORITIES</span><em>{d.asap.length}</em></div>
           <AutoScroll className="kio-dlist">
             {d.asap.map((a, i) => (
               <div key={i} className="kio-ditem asap">
-                <span className="kio-dt-line"><span className="kio-dt-title">{a.label}{a.detail ? <em className="kio-dt-spec"> — {a.detail}</em> : ''}</span>{a.dept && <span className="kio-dept">{a.dept}</span>}</span>
+                <span className="kio-dt-line"><span className="kio-dt-title">{a.label}{a.detail ? <em className="kio-dt-spec"> — {a.detail}</em> : ''}</span>{a.dept && <DeptTag dept={a.dept} />}</span>
                 <span className="kio-dt-sub">{a.boat_id}</span>
               </div>
             ))}
-            {d.asap.length === 0 && <div className="kio-dempty">No call-in priorities.</div>}
+            {d.asap.length === 0 && <div className="kio-dempty">No shop priorities.</div>}
           </AutoScroll>
         </div>
-        <div className="kio-dsub">
-          <div className="kio-dhead amber"><span>📦 MISSING PARTS</span><em>{d.missing.length}</em></div>
-          <AutoScroll className="kio-dlist">
-            {d.missing.map((m, i) => (
-              <div key={i} className={`kio-ditem ${m.backorder ? 'back' : m.late ? 'late' : 'miss'}`}>
-                <span className="kio-dt-line"><span className="kio-dt-title">{m.part}{m.detail ? <em className="kio-dt-spec"> — {m.detail}</em> : ''}</span>
-                  {m.backorder ? <span className="kio-tag red">BACKORDER</span> : m.late ? <span className="kio-tag amber">LATE</span> : null}</span>
-                <span className="kio-dt-sub">{m.boat_id} · {m.status}{m.exp ? ` · exp ${m.exp}` : ''}</span>
-              </div>
-            ))}
-            {d.missing.length === 0 && <div className="kio-dempty">All parts in.</div>}
-          </AutoScroll>
-        </div>
+        {(() => {
+          const late = d.missing.filter(m => m.late || m.backorder);
+          return (
+            <div className="kio-dsub">
+              <div className="kio-dhead amber"><span>⏱ LATE / DELAYED PARTS</span><em>{late.length}</em></div>
+              <AutoScroll className="kio-dlist">
+                {late.map((m, i) => (
+                  <div key={i} className={`kio-ditem ${m.backorder ? 'back' : 'late'}`}>
+                    <span className="kio-dt-line"><span className="kio-dt-title">{m.part}{m.detail ? <em className="kio-dt-spec"> — {m.detail}</em> : ''}</span>
+                      {m.backorder ? <span className="kio-tag red">BACKORDER</span> : <span className="kio-tag amber">LATE</span>}</span>
+                    <span className="kio-dt-sub">{m.boat_id} · {m.status}</span>
+                    {m.exp && <span className="kio-exp">expected {m.exp}</span>}
+                  </div>
+                ))}
+                {late.length === 0 && <div className="kio-dempty">Nothing late or delayed.</div>}
+              </AutoScroll>
+            </div>
+          );
+        })()}
       </div>
 
       <div className="kio-dcol">
@@ -638,22 +655,8 @@ function DailyOverview({ d }) {
           </AutoScroll>
         </div>
         <div className="kio-dsub kio-dthru">
-          <div className="kio-dhead"><span>📈 THROUGHPUT</span>
-            <span className="kio-legend">{DEPTS.map(dp => <span key={dp.key} className="kio-leg"><i style={{ background: dp.color }} />{dp.key}</span>)}</span>
-          </div>
-          <div className="kio-chart">
-            {d.throughput.map((t, i) => (
-              <div key={i} className={`kio-bar ${t.today ? 'today' : ''}`}>
-                <span className="kio-bar-total">{t.total}</span>
-                <span className="kio-bar-stack">
-                  {t.segs.filter(s => s.count > 0).map(s => (
-                    <i key={s.dept} style={{ height: `${(s.count / max) * BARH}px`, background: s.color }} title={`${s.dept}: ${s.count}`} />
-                  ))}
-                </span>
-                <span className="kio-bar-lbl">{t.label}</span>
-              </div>
-            ))}
-          </div>
+          <div className="kio-dhead"><span>📈 THROUGHPUT</span><em>14d</em></div>
+          <div className="kio-thru-card"><CompletionsChart embedded days={14} /></div>
         </div>
       </div>
     </section>

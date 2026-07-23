@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from './api';
+import Logo from './Logo';
 import './KioskView.css';
 
 // Full-screen, high-tech shop-floor board for a wall TV (Raspberry Pi kiosk).
@@ -294,8 +295,8 @@ function KioskView({ demo }) {
 
       <header className="kio-top">
         <div className="kio-brand">
-          <span className="kio-logo">BLUEWATER</span>
-          <span className="kio-sub">SHOP FLOOR · LIVE</span>
+          <Logo size={30} light />
+          <span className="kio-sub">B.O.S.S · Bluewater Operations &amp; Shop System</span>
         </div>
         <div className="kio-kpis">
           <Kpi n={inProd.length} label="IN PRODUCTION" accent="#22D3EE" />

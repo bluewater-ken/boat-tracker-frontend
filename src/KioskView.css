@@ -32,16 +32,17 @@
 }
 @keyframes kioSweep { 0% { top: -220px; } 100% { top: 100%; } }
 
+/* Lift the real content above the decorative layers. The bg + scanline stay
+   absolute (out of flow) — a more specific selector so this rule can't demote
+   them to relative, which would push the header down by the scanline's height. */
 .kio > * { position: relative; z-index: 1; }
+.kio > .kio-bg, .kio > .kio-scan { position: absolute; z-index: 0; }
 
 /* ---------- top bar ---------- */
 .kio-top { display: flex; align-items: center; gap: 24px; padding: 22px 34px 14px; }
-.kio-brand { display: flex; flex-direction: column; gap: 2px; }
-.kio-logo {
-  font-size: 30px; font-weight: 900; letter-spacing: 6px; color: #fff;
-  text-shadow: 0 0 18px rgba(34,211,238,0.55);
-}
-.kio-sub { font-size: 11px; letter-spacing: 5px; color: #22D3EE; font-weight: 700; }
+.kio-brand { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.kio-brand img { filter: drop-shadow(0 0 14px rgba(34,211,238,0.45)); }
+.kio-sub { font-size: 12px; letter-spacing: 2.5px; color: #22D3EE; font-weight: 700; text-transform: uppercase; }
 
 .kio-kpis { display: flex; gap: 14px; margin-left: auto; }
 .kio-kpi {

@@ -456,8 +456,8 @@ function KioskTraveler({ b }) {
         <div className="kio-bcol">
           <div className="kio-bcol-head">
             <span>WORK CENTERS</span>
-            {(() => { const left = b.workcenters.filter(w => w.done < w.total).length;
-              return left > 0 ? <em className="kio-left">{left} LEFT</em> : <em className="kio-alldone">✓ DONE</em>; })()}
+            {(() => { const openCount = b.workcenters.reduce((s, w) => s + (w.open?.length || 0), 0);
+              return openCount > 0 ? <em className="kio-left">{openCount} LEFT</em> : <em className="kio-alldone">✓ DONE</em>; })()}
           </div>
           <div className="kio-bcol-list">
             {b.workcenters.map(w => {
@@ -469,8 +469,8 @@ function KioskTraveler({ b }) {
                   <div className="kio-wc-bar"><span style={{ width: `${pct}%` }} /></div>
                   {open.length > 0 && (
                     <div className="kio-wc-tasks">
-                      {open.slice(0, 3).map(t => <span key={t} className="kio-wc-task">{t}</span>)}
-                      {open.length > 3 && <span className="kio-wc-more">+{open.length - 3} more</span>}
+                      {open.slice(0, 5).map(t => <span key={t} className="kio-wc-task">{t}</span>)}
+                      {open.length > 5 && <span className="kio-wc-more">+{open.length - 5} more</span>}
                     </div>
                   )}
                 </div>

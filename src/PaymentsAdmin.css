@@ -25,6 +25,7 @@
 .pay-cum-forward { border-top: 2px solid #534AB7; }
 .pay-cum-quarter { border-top: 2px solid #D85A30; }
 .pay-cum-dashed { border-top: 2px dashed #8A969E; }
+.pay-cum-prevyear { border-top: 2px dashed #64707A; }
 .pay-chart-note { font-size: 11px; color: #8A969E; font-style: italic; margin-top: 4px; }
 .pay-note-over { color: #A32D2D; font-style: normal; }
 .pay-chart-zoom { margin-left: auto; display: flex; gap: 4px; }

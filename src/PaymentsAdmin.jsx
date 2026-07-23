@@ -136,12 +136,16 @@ function buildBuckets(rows, mode) {
   const by = {}; for (const k of keys) by[k] = { received: 0, overdue: 0, due: 0, upcoming: 0, rows: [] };
   // YTD opening balance: money already COLLECTED this calendar year but before the
   // chart window (left of -3mo). Seeds the collected line so it reads true YTD.
-  const janFirst = `${todayStr().slice(0, 4)}-01-01`;
-  let ytdOpen = 0;
+  const thisYear = todayStr().slice(0, 4);
+  const janFirst = `${thisYear}-01-01`;
+  const prevYear = String(+thisYear - 1); // full prior calendar year — a pacing benchmark
+  let ytdOpen = 0, prevYearTotal = 0;
   for (const r of rows) {
     if (r.amount == null || r.status !== 'paid') continue;
     const rd = rowDate(r);
-    if (rd && rd >= janFirst && rd < sIso) ytdOpen += r.amount;
+    if (!rd) continue;
+    if (rd >= janFirst && rd < sIso) ytdOpen += r.amount;
+    if (rd.slice(0, 4) === prevYear) prevYearTotal += r.amount;
   }
   let outFwd = 0; // expected money beyond the window's right edge (so the note can flag it)
   for (const r of rows) {
@@ -152,11 +156,11 @@ function buildBuckets(rows, mode) {
   }
   const barMax = Math.max(1, ...keys.map(k => CHART_CATS.reduce((s, c) => s + by[k][c.key], 0)));
   const step = Math.pow(10, Math.floor(Math.log10(barMax)));
-  return { keys, by, niceMax: Math.ceil(barMax / step) * step, todayKey, outFwd, ytdOpen };
+  return { keys, by, niceMax: Math.ceil(barMax / step) * step, todayKey, outFwd, ytdOpen, prevYearTotal, prevYear };
 }
 
 function PayChart({ rows, mode, pick, onPick }) {
-  const { keys, by, niceMax, todayKey, outFwd, ytdOpen } = buildBuckets(rows, mode);
+  const { keys, by, niceMax, todayKey, outFwd, ytdOpen, prevYearTotal, prevYear } = buildBuckets(rows, mode);
   if (!keys.length) return <div className="pay-quiet" style={{ padding: '10px 2px' }}>No dated payments to chart yet.</div>;
   const W = 760, H = 210, L = 52, R = 96, T = 12, B = 34;
   const plotW = W - L - R, plotH = H - T - B;
@@ -193,7 +197,7 @@ function PayChart({ rows, mode, pick, onPick }) {
   if (qSeg) qSegs.push(qSeg);
 
   // Shared scale so both cumulatives are comparable (quarterly sits under from-date).
-  const cumMax = Math.max(1, lrun, rAll, ...qSegs.map(s => s.endAll));
+  const cumMax = Math.max(1, lrun, rAll, prevYearTotal, ...qSegs.map(s => s.endAll));
   const yc = (v) => T + plotH - (plotH * v) / cumMax;
   const pts = (arr) => arr.map(([i, v]) => `${x(i)},${yc(v)}`).join(' ');
   const pastPts = keys.map((k, i) => cum[i].past ? `${x(i)},${yc(cum[i].v)}` : null).filter(Boolean).join(' ');
@@ -214,6 +218,13 @@ function PayChart({ rows, mode, pick, onPick }) {
           </g>
         ))}
         {todayI >= 0 && <line x1={x(todayI) - slot / 2} y1={T} x2={x(todayI) - slot / 2} y2={T + plotH} stroke="#2E92D6" strokeDasharray="3 3" />}
+        {/* Prior full-year collected — a horizontal benchmark to pace YTD against. */}
+        {prevYearTotal > 0 && (
+          <g>
+            <line x1={L} y1={yc(prevYearTotal)} x2={W - R} y2={yc(prevYearTotal)} stroke="#64707A" strokeWidth="1.4" strokeDasharray="2 3" />
+            <text x={W - R + 4} y={yc(prevYearTotal) + 3} fontSize="8.5" fontWeight="700" fill="#64707A">{`${prevYear} full yr ${kMoney(prevYearTotal)}`}</text>
+          </g>
+        )}
         {keys.map((k, i) => {
           let yTop = y(0); const on = pick === k;
           return (
@@ -416,6 +427,7 @@ function PaymentsAdmin() {
               <span><i className="pay-cumline pay-cum-collected" />Collected (YTD)</span>
               <span><i className="pay-cumline pay-cum-forward" />Cumulative (from today)</span>
               <span><i className="pay-cumline pay-cum-quarter" />Per quarter</span>
+              <span><i className="pay-cumline pay-cum-prevyear" />Last year total</span>
               <span><i className="pay-cumline pay-cum-dashed" />dashed = on-time (excl. overdue)</span>
             </span>
             <span className="pay-chart-zoom">

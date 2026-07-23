@@ -158,7 +158,7 @@ function buildBuckets(rows, mode) {
 function PayChart({ rows, mode, pick, onPick }) {
   const { keys, by, niceMax, todayKey, outFwd, ytdOpen } = buildBuckets(rows, mode);
   if (!keys.length) return <div className="pay-quiet" style={{ padding: '10px 2px' }}>No dated payments to chart yet.</div>;
-  const W = 760, H = 210, L = 52, R = 58, T = 12, B = 34;
+  const W = 760, H = 210, L = 52, R = 96, T = 12, B = 34;
   const plotW = W - L - R, plotH = H - T - B;
   const slot = plotW / keys.length;
   const bw = Math.max(3, Math.min(30, slot * 0.68));
@@ -185,7 +185,7 @@ function PayChart({ rows, mode, pick, onPick }) {
   const qSegs = []; let qCur = null, qAll = 0, qClean = 0, qSeg = null;
   keys.forEach((k, i) => {
     const q = qOf(k);
-    if (q !== qCur) { if (qSeg) qSegs.push(qSeg); qCur = q; qAll = 0; qClean = 0; qSeg = { firstI: i, all: [], clean: [], endAll: 0, endClean: 0, endI: i, over: false }; }
+    if (q !== qCur) { if (qSeg) qSegs.push(qSeg); qCur = q; qAll = 0; qClean = 0; qSeg = { firstI: i, all: [], clean: [], endAll: 0, endClean: 0, endI: i, over: false, qNum: Math.floor((+k.split('-')[1] - 1) / 3) + 1 }; }
     qAll += total(k); qClean += total(k) - by[k].overdue;
     if (by[k].overdue > 0) qSeg.over = true;
     qSeg.all.push([i, qAll]); qSeg.clean.push([i, qClean]); qSeg.endAll = qAll; qSeg.endClean = qClean; qSeg.endI = i;
@@ -236,7 +236,7 @@ function PayChart({ rows, mode, pick, onPick }) {
           <g key={'q' + i}>
             {s.over && <polyline points={pts(s.clean)} fill="none" stroke="#F0997B" strokeWidth="1.4" strokeDasharray="4 3" strokeLinejoin="round" />}
             <polyline points={pts(s.all)} fill="none" stroke="#D85A30" strokeWidth="1.8" strokeLinejoin="round" />
-            {s.endAll > 0 && <text x={x(s.endI)} y={yc(s.endAll) - 4} textAnchor="middle" fontSize="8" fontWeight="700" fill="#D85A30">{kMoney(s.endAll)}</text>}
+            {s.endAll > 0 && <text x={x(s.endI)} y={yc(s.endAll) - 4} textAnchor="middle" fontSize="8" fontWeight="700" fill="#D85A30">{`Q${s.qNum} ${kMoney(s.endAll)}`}</text>}
           </g>
         ))}
         {/* FROM-DATE (teal collected → purple pipeline); dashed purple = on-time */}
@@ -244,8 +244,8 @@ function PayChart({ rows, mode, pick, onPick }) {
         {overdueTotal > 0 && fwdCleanPts && <polyline points={fwdCleanPts} fill="none" stroke="#7F77DD" strokeWidth="1.6" strokeDasharray="4 3" strokeLinejoin="round" />}
         {fwdPts && <polyline points={fwdPts} fill="none" stroke="#534AB7" strokeWidth="2" strokeLinejoin="round" />}
         {lrun > 0 && todayI > 0 && <text x={x(todayI) - slot / 2 - 3} y={yc(lrun) - 4} textAnchor="end" fontSize="9" fontWeight="700" fill="#0F6E56">YTD {kMoney(lrun)}</text>}
-        {rAll > 0 && <text x={x(lastI) + 4} y={yc(rAll) + 3} fontSize="9" fontWeight="700" fill="#534AB7">{kMoney(rAll)}</text>}
-        {overdueTotal > 0 && <text x={x(lastI) + 4} y={yc(rClean) + 3} fontSize="8.5" fontWeight="700" fill="#7F77DD">{kMoney(rClean)}</text>}
+        {rAll > 0 && <text x={x(lastI) + 4} y={yc(rAll) + 3} fontSize="9" fontWeight="700" fill="#534AB7">{`Pipeline ${kMoney(rAll)}`}</text>}
+        {overdueTotal > 0 && <text x={x(lastI) + 4} y={yc(rClean) + 3} fontSize="8.5" fontWeight="700" fill="#7F77DD">{`On-time ${kMoney(rClean)}`}</text>}
         <line x1={L} y1={y(0)} x2={W - R} y2={y(0)} stroke="#D6DBE0" />
       </svg>
       {overdueTotal > 0 && <div className="pay-chart-note pay-note-over">{money(overdueTotal)} is <b>overdue</b> — the gap between each solid line and its dashed on-time line.</div>}

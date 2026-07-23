@@ -116,7 +116,7 @@
 .kio-bcol-head em.kio-left { color: #FBBF24; background: rgba(251,191,36,0.14); border: 1px solid rgba(251,191,36,0.45); }
 .kio-bcol-head em.kio-alldone { color: #34E4B0; background: rgba(52,228,176,0.12); border: 1px solid rgba(52,228,176,0.4); }
 .kio-bcol-list { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; overflow: hidden; flex: 1 1 0; min-height: 0; }
-.kio-bitem { display: flex; align-items: center; gap: 11px; font-size: 18px; }
+.kio-bitem { flex: none; display: flex; align-items: center; gap: 11px; font-size: 18px; }
 /* Done recedes; what's left (wip / not-started) pops so the wall shows the gaps. */
 .kio-bitem.ok { opacity: 0.42; }
 .kio-bmark { width: 26px; height: 26px; flex: none; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; }
@@ -133,7 +133,7 @@
 .kio-wc-bar { flex: none; height: 8px; border-radius: 5px; background: rgba(255,255,255,0.08); overflow: hidden; }
 .kio-wc-bar span { display: block; height: 100%; background: linear-gradient(90deg, rgba(163,230,53,0.5), #A3E635); box-shadow: 0 0 10px #A3E635; }
 .kio-wc-tasks { display: flex; flex-direction: column; gap: 3px; padding: 4px 0 2px 4px; flex: 1 1 0; min-height: 0; overflow: hidden; }
-.kio-wc-task { font-size: 15px; color: #F1F6FB; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kio-wc-task { flex: none; font-size: 15px; color: #F1F6FB; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kio-wc-task::before { content: '○'; color: #F0997B; font-weight: 800; margin-right: 8px; }
 .kio-wc-more { font-size: 13px; color: #8FA6BC; font-style: italic; padding-left: 4px; }
 
@@ -183,6 +183,7 @@
 .kio-col-body { display: flex; flex-direction: column; gap: 10px; overflow: hidden; padding-top: 12px; flex: 1; min-height: 0; }
 
 .kio-card {
+  flex: none;
   border-radius: 12px; padding: 12px 13px;
   background: linear-gradient(180deg, rgba(10,18,30,0.9), rgba(8,14,24,0.9));
   border: 1px solid rgba(255,255,255,0.09);
@@ -271,7 +272,7 @@
 .kio-dhead.red { color: #F0997B; } .kio-dhead.red em { background: rgba(224,75,74,0.2); color: #F0997B; }
 .kio-dhead.amber { color: #FBBF24; } .kio-dhead.amber em { background: rgba(251,191,36,0.18); color: #FBBF24; }
 .kio-dlist { display: flex; flex-direction: column; gap: 7px; padding-top: 10px; overflow: hidden; flex: 1 1 0; min-height: 0; }
-.kio-ditem { display: flex; flex-direction: column; gap: 1px; padding: 6px 10px; border-radius: 8px; border-left: 3px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.03); }
+.kio-ditem { flex: none; display: flex; flex-direction: column; gap: 1px; padding: 6px 10px; border-radius: 8px; border-left: 3px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.03); }
 .kio-ditem.done { border-left-color: #34E4B0; }
 .kio-ditem.asap { border-left-color: #E24B4A; }
 .kio-ditem.late { border-left-color: #FBBF24; }

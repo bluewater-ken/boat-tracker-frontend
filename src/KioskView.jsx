@@ -141,13 +141,10 @@ function KioskView({ demo }) {
   const [boats, setBoats] = useState(demo ? DEMO_BOATS : []);
   const [feed, setFeed] = useState(demo ? DEMO_FEED : []);
   const [aux, setAux] = useState(null); // { lam, fin, parts, std, asm, wcs } for per-boat pages
-  const [panel, setPanel] = useState(0);   // index into `pages`
-  const [tick, setTick] = useState(0);      // rotation progress 0..1
-  const [manual, setManual] = useState(false); // arrows pause the auto-rotate
+  const [panel, setPanel] = useState(0);   // index into `pages` (0 = pipeline)
+  const [manual, setManual] = useState(false); // arrows browse boat pages
   const now = useClock();
-  const AUTO = 2;          // only the first two pages (pipeline, activity) auto-rotate
-  const ROTATE_MS = 22000;
-  const RESUME_MS = 60000; // after a manual move, resume auto-rotate when idle this long
+  const RESUME_MS = 60000; // after a manual move, return to the pipeline when idle this long
 
   // --- data load + refresh ---
   const load = async () => {
@@ -184,18 +181,10 @@ function KioskView({ demo }) {
   };
   useEffect(() => { if (demo) return; load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, [demo]);
 
-  // --- auto-rotate the first two pages (paused while browsing manually) ---
-  useEffect(() => {
-    if (manual) return;
-    const sweep = setInterval(() => setTick(t => Math.min(1, t + 100 / ROTATE_MS)), 100);
-    const rot = setTimeout(() => { setPanel(p => (p + 1) % AUTO); setTick(0); }, ROTATE_MS);
-    return () => { clearInterval(sweep); clearTimeout(rot); };
-  }, [panel, manual]);
-
-  // After a manual move, snap back to the overview and resume auto when idle.
+  // After browsing boat pages with the arrows, return to the pipeline when idle.
   useEffect(() => {
     if (!manual) return;
-    const t = setTimeout(() => { setManual(false); setPanel(0); setTick(0); }, RESUME_MS);
+    const t = setTimeout(() => { setManual(false); setPanel(0); }, RESUME_MS);
     return () => clearTimeout(t);
   }, [manual, panel]);
 
@@ -209,9 +198,10 @@ function KioskView({ demo }) {
     return s && s.fill_pct != null ? Math.round(s.fill_pct) : null;
   };
 
-  // Pages: pipeline + activity auto-rotate; boat pages are reached with the arrows.
-  // Each in-production boat gets a Traveler page then a Status page.
-  const pages = ['pipeline', 'activity'];
+  // The pipeline is the always-on main page; each in-production boat adds a
+  // Traveler then a Status page reachable with the arrows. The live feed is NOT a
+  // page — it runs as a horizontal ticker along the bottom of every screen.
+  const pages = ['pipeline'];
   if (demo) {
     pages.push({ v: 'traveler', b: DEMO_BOAT_DETAIL }, { v: 'status', b: DEMO_BOAT_DETAIL });
   } else if (aux) {
@@ -222,7 +212,7 @@ function KioskView({ demo }) {
   }
   const cur = pages[Math.min(panel, pages.length - 1)];
 
-  const step = (dir) => { setManual(true); setTick(0); setPanel(p => (p + dir + pages.length) % pages.length); };
+  const step = (dir) => { setManual(true); setPanel(p => (p + dir + pages.length) % pages.length); };
   const stepRef = useRef(step); stepRef.current = step;
   useEffect(() => {
     const onKey = (e) => {
@@ -234,7 +224,7 @@ function KioskView({ demo }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const pageLabel = (p) => p === 'pipeline' ? 'PRODUCTION PIPELINE' : p === 'activity' ? 'LIVE ACTIVITY'
+  const pageLabel = (p) => p === 'pipeline' ? 'PRODUCTION PIPELINE'
     : `${p.b.boat_id} · ${p.v === 'traveler' ? 'BUILD TRAVELER' : 'STATUS'}`;
 
   const clock = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -268,9 +258,7 @@ function KioskView({ demo }) {
         <span className="kio-rot-label">{pageLabel(cur)}{manual && <em> · paused</em>}</span>
         <div className="kio-dots">
           {pages.map((_, i) => (
-            <span key={i} className={`kio-dot ${i === panel ? 'on' : ''} ${i >= AUTO ? 'boat' : ''}`}>
-              {i === panel && !manual && <span className="kio-dot-fill" style={{ width: `${tick * 100}%` }} />}
-            </span>
+            <span key={i} className={`kio-dot ${i === panel ? 'on' : ''} ${i >= 1 ? 'boat' : ''}`} />
           ))}
         </div>
         <button className="kio-nav" onClick={() => step(1)} aria-label="Next page">›</button>
@@ -310,35 +298,37 @@ function KioskView({ demo }) {
               );
             })}
           </section>
-        ) : cur === 'activity' ? (
-          <section className="kio-panel kio-activity">
-            <div className="kio-act-head">LIVE ACTIVITY</div>
-            <div className="kio-ticker">
-              <div className="kio-ticker-track" style={{ animationDuration: `${Math.max(20, feed.length * 2.4)}s` }}>
-                {[...feed, ...feed].map((it, i) => (
-                  <div key={i} className="kio-act-row">
-                    <span className="kio-act-icon">{FEED_ICON[it.type] || '•'}</span>
-                    <span className="kio-act-main">
-                      <span className="kio-act-title">{it.title}</span>
-                      <span className="kio-act-sub">
-                        {it.boat_id}{it.customer_name ? ` · ${it.customer_name}` : ''}
-                        {it.work_center_name ? ` · ${it.work_center_name}` : ''}
-                        {it.actor_name ? ` — ${it.actor_name}` : ''}
-                      </span>
-                    </span>
-                    <span className="kio-act-time">{timeAgo(it.created_at)}</span>
-                  </div>
-                ))}
-                {feed.length === 0 && <div className="kio-act-row"><span className="kio-act-main"><span className="kio-act-title">Waiting for shop activity…</span></span></div>}
-              </div>
-            </div>
-          </section>
         ) : cur.v === 'traveler' ? (
           <KioskTraveler b={cur.b} />
         ) : (
           <KioskStatus b={cur.b} />
         )}
       </main>
+
+      <TickerBar feed={feed} />
+    </div>
+  );
+}
+
+// Persistent horizontal news-ticker along the bottom of every screen — the live
+// shop feed scrolling right→left. The list is doubled so the scroll loops seamlessly.
+function TickerBar({ feed }) {
+  const items = feed.length ? feed : [{ id: 'x', title: 'Waiting for shop activity…' }];
+  return (
+    <div className="kio-tickerbar">
+      <span className="kio-tick-tag"><i />LIVE</span>
+      <div className="kio-tick-view">
+        <div className="kio-tick-track" style={{ animationDuration: `${Math.max(30, items.length * 6)}s` }}>
+          {[...items, ...items].map((it, i) => (
+            <span key={i} className="kio-tick-item">
+              <span className="kio-tick-icon">{FEED_ICON[it.type] || '•'}</span>
+              <span className="kio-tick-title">{it.title}</span>
+              {it.boat_id && <span className="kio-tick-meta">{it.boat_id}{it.customer_name ? ` · ${it.customer_name}` : ''}{it.actor_name ? ` — ${it.actor_name}` : ''}</span>}
+              {it.created_at && <span className="kio-tick-time">{timeAgo(it.created_at)}</span>}
+            </span>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

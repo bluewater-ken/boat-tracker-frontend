@@ -198,6 +198,31 @@
 .kio-act-sub { font-size: 14px; color: #8FA6BC; letter-spacing: 0.5px; }
 .kio-act-time { font-size: 14px; font-weight: 700; color: #34E4B0; white-space: nowrap; letter-spacing: 1px; }
 
+/* ---------- persistent horizontal ticker bar (bottom of every screen) ---------- */
+.kio-tickerbar {
+  display: flex; align-items: center; height: 62px; flex: none;
+  border-top: 1px solid rgba(34,211,238,0.25);
+  background: linear-gradient(180deg, rgba(10,18,30,0.5), rgba(5,9,16,0.9));
+  box-shadow: 0 -10px 30px -12px rgba(34,211,238,0.4);
+}
+.kio-tick-tag {
+  display: flex; align-items: center; gap: 8px; flex: none; height: 100%; padding: 0 22px;
+  font-size: 14px; font-weight: 900; letter-spacing: 3px; color: #05070D;
+  background: linear-gradient(180deg, #34E4B0, #22C39A);
+  box-shadow: 0 0 24px -4px #34E4B0;
+}
+.kio-tick-tag i { width: 9px; height: 9px; border-radius: 50%; background: #05070D; animation: kioPulse 1.4s ease-in-out infinite; }
+.kio-tick-view { flex: 1; overflow: hidden; height: 100%; position: relative;
+  mask-image: linear-gradient(90deg, transparent, #000 3%, #000 94%, transparent); }
+.kio-tick-track { display: inline-flex; align-items: center; height: 100%; white-space: nowrap; animation: kioTickScroll linear infinite; }
+@keyframes kioTickScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.kio-tick-item { display: inline-flex; align-items: center; gap: 12px; padding: 0 34px; position: relative; }
+.kio-tick-item::after { content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 6px; height: 6px; border-radius: 50%; background: rgba(34,211,238,0.5); }
+.kio-tick-icon { font-size: 22px; }
+.kio-tick-title { font-size: 20px; font-weight: 700; color: #fff; }
+.kio-tick-meta { font-size: 17px; color: #8FA6BC; }
+.kio-tick-time { font-size: 15px; font-weight: 700; color: #34E4B0; letter-spacing: 1px; }
+
 @media (max-width: 900px) {
   .kio-pipeline { grid-template-columns: repeat(3, 1fr); }
   .kio-kpis { display: none; }

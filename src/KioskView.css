@@ -64,18 +64,22 @@
 .kio-day { font-size: 12px; letter-spacing: 2px; color: #7E93A8; text-transform: uppercase; }
 
 /* ---------- rotation dots + nav ---------- */
-.kio-rot { display: flex; gap: 16px; align-items: center; justify-content: center; padding: 4px 0 10px; }
-.kio-dots { display: flex; gap: 8px; }
-.kio-dot { width: 40px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; }
-.kio-dot.boat { width: 20px; background: rgba(255,255,255,0.08); }
-.kio-dot.on { background: rgba(34,211,238,0.25); }
-.kio-dot.boat.on { background: rgba(163,230,53,0.3); }
+/* Page title + nav, left-aligned under the logo — big, so it's obvious what's on screen. */
+.kio-rot { display: flex; gap: 18px; align-items: center; justify-content: flex-start; padding: 2px 34px 14px; }
+.kio-dots { display: flex; gap: 8px; margin-left: 6px; }
+.kio-dot { width: 30px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; }
+.kio-dot.boat { width: 16px; background: rgba(255,255,255,0.08); }
+.kio-dot.on { background: #22D3EE; box-shadow: 0 0 10px #22D3EE; }
+.kio-dot.boat.on { background: #A3E635; box-shadow: 0 0 10px #A3E635; }
 .kio-dot-fill { display: block; height: 100%; background: #22D3EE; box-shadow: 0 0 10px #22D3EE; }
-.kio-rot-label { font-size: 11px; letter-spacing: 3px; font-weight: 800; color: #7E93A8; min-width: 210px; text-align: center; }
-.kio-rot-label em { color: #FBBF24; font-style: normal; }
+.kio-rot-label {
+  font-size: 34px; font-weight: 900; letter-spacing: 4px; color: #fff;
+  text-shadow: 0 0 18px rgba(34,211,238,0.5);
+}
+.kio-rot-label em { color: #FBBF24; font-style: normal; font-size: 0.45em; letter-spacing: 2px; }
 .kio-nav {
-  width: 34px; height: 34px; border-radius: 50%; font-size: 20px; line-height: 1; cursor: pointer;
-  background: rgba(255,255,255,0.05); color: #C7D6E4; border: 1px solid rgba(255,255,255,0.14);
+  width: 44px; height: 44px; border-radius: 50%; font-size: 26px; line-height: 1; cursor: pointer; flex: none;
+  background: rgba(255,255,255,0.05); color: #C7D6E4; border: 1px solid rgba(255,255,255,0.16);
   display: flex; align-items: center; justify-content: center; transition: all .15s;
 }
 .kio-nav:hover { background: rgba(34,211,238,0.18); color: #fff; border-color: rgba(34,211,238,0.5); box-shadow: 0 0 16px -4px #22D3EE; }

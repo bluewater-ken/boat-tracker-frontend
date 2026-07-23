@@ -356,7 +356,7 @@ function KioskView({ demo }) {
                     <span className="kio-col-name">{col.label}</span>
                     <span className="kio-col-count">{list.length}</span>
                   </div>
-                  <div className="kio-col-body">
+                  <AutoScroll className="kio-col-body">
                     {list.map(b => {
                       const fill = fillOf(b);
                       return (
@@ -374,7 +374,7 @@ function KioskView({ demo }) {
                       );
                     })}
                     {list.length === 0 && <div className="kio-empty">—</div>}
-                  </div>
+                  </AutoScroll>
                 </div>
               );
             })}
@@ -412,6 +412,35 @@ function TickerBar({ feed }) {
   );
 }
 
+// A box that slowly auto-pans its content up, pauses, then back down — so a wall
+// display with no input still reveals data that overflows. No scrollbar (the box
+// stays overflow:hidden; we drive scrollTop). Idle when nothing overflows.
+function AutoScroll({ className, children }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let raf, pos = 0, dir = 1, pauseUntil = 0, last = performance.now();
+    const SPEED = 16, PAUSE = 2200; // px/sec, ms at each end
+    const tick = (now) => {
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      const max = el.scrollHeight - el.clientHeight;
+      if (max > 4) {
+        if (now >= pauseUntil) {
+          pos += dir * SPEED * dt;
+          if (pos >= max) { pos = max; dir = -1; pauseUntil = now + PAUSE; }
+          else if (pos <= 0) { pos = 0; dir = 1; pauseUntil = now + PAUSE; }
+          el.scrollTop = pos;
+        }
+      } else if (el.scrollTop) { el.scrollTop = pos = 0; }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return <div ref={ref} className={className}>{children}</div>;
+}
+
 function Kpi({ n, label, accent }) {
   return (
     <div className="kio-kpi" style={{ '--accent': accent }}>
@@ -432,14 +461,14 @@ function StatList({ title, items }) {
         <span>{title}</span>
         {left > 0 ? <em className="kio-left">{left} LEFT</em> : <em className="kio-alldone">✓ DONE</em>}
       </div>
-      <div className="kio-bcol-list">
+      <AutoScroll className="kio-bcol-list">
         {ordered.map(it => (
           <div key={it.n} className={`kio-bitem ${STATUS_CLS[it.s]}`}>
             <span className="kio-bmark">{STATUS_MARK[it.s]}</span>
             <span className="kio-bname">{it.n}{it.d ? <em> — {it.d}</em> : ''}</span>
           </div>
         ))}
-      </div>
+      </AutoScroll>
     </div>
   );
 }
@@ -461,7 +490,7 @@ function KioskTraveler({ b }) {
           <span>WORK CENTERS</span>
           {wcOpen > 0 ? <em className="kio-left">{wcOpen} LEFT</em> : <em className="kio-alldone">✓ DONE</em>}
         </div>
-        <div className="kio-wc-grid">
+        <AutoScroll className="kio-wc-grid">
           {b.workcenters.map(w => {
             const pct = Math.round((w.done / w.total) * 100);
             const open = w.open || [];
@@ -478,7 +507,7 @@ function KioskTraveler({ b }) {
               </div>
             );
           })}
-        </div>
+        </AutoScroll>
       </div>
     </section>
   );

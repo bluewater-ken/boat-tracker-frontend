@@ -119,19 +119,11 @@ function build(b, lamRows, finRows, wcs, asmRows, parts, std) {
   const ccDone = cc.reduce((n, g) => n + g.items.filter(i => i.done).length, 0);
   const ccTotal = cc.reduce((n, g) => n + g.items.length, 0);
 
-  // Motor(s): pull from the "Motors" Key Part's detail field (Ken types e.g.
-  // "Mercury 250" there). There's no engine field on the Manage Boats form, so the
-  // part is the source of truth. Fall back to the boat's legacy engine_* fields
-  // (from the Monday import) only when the Motors detail is blank.
+  // Motor(s): the "Motors" Key Part's detail field is the ONLY source (Ken types
+  // e.g. "Mercury 250" there). There's no engine field anywhere else, so if the
+  // detail is blank the header simply shows no motor.
   const motorPart = prows.find(p => /^motors?$/i.test((p.part_name || '').trim()));
-  let engineStr = (motorPart?.description || '').trim();
-  if (!engineStr) {
-    const engines = [1, 2, 3].map(i => {
-      const brand = b[`engine_brand_${i}`], choice = b[`engine_choice_${i}`];
-      return brand || choice ? `${brand || ''} ${choice || ''}`.trim() : null;
-    }).filter(Boolean);
-    engineStr = engines.length ? (engines.every(e => e === engines[0]) ? `${engines.length}× ${engines[0]}` : engines.join(' · ')) : '';
-  }
+  const engineStr = (motorPart?.description || '').trim();
 
   return {
     boat_id: b.boat_id, customer: b.customer_name, model: b.boat_model, hull: b.hull_color,

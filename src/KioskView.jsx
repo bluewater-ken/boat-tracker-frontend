@@ -446,7 +446,6 @@ function KioskView({ demo }) {
           <Kpi n={byStage('QC').length} label="IN QC" accent="#FBBF24" />
           <Kpi n={backlog} label="BACKLOG" accent="#5B8DEF" />
           <Kpi n={delivered} label="DELIVERED" accent="#2DD4BF" />
-          <Kpi n={daily.completed.length} label="DONE TODAY" accent="#34E4B0" />
         </div>
         <div className="kio-clock">
           <span className="kio-live"><i />LIVE</span>

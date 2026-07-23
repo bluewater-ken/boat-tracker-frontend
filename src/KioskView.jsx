@@ -24,6 +24,15 @@ const FEED_ICON = {
 };
 // Feed events that count as "something got done" — a new one drops the bomb.
 const COMPLETION_TYPES = new Set(['CHECKLIST_ITEM_COMPLETED', 'CHECKLIST_COMPLETED', 'PART_RECEIVED', 'STAGE_CHANGED']);
+// Departments for the throughput stack + the per-item dept tags.
+const DEPTS = [
+  { key: 'Assembly', color: '#22D3EE' },
+  { key: 'Parts', color: '#A3E635' },
+  { key: 'Stage', color: '#FBBF24' },
+];
+const DEPT_COLOR = Object.fromEntries(DEPTS.map(d => [d.key, d.color]));
+// Which department a feed event belongs to (coarse: work-center detail kept separately).
+const deptOf = (it) => it.type === 'PART_RECEIVED' ? 'Parts' : it.type === 'STAGE_CHANGED' ? 'Stage' : 'Assembly';
 
 // Synthesized bomb-drop (falling whistle → explosion) via Web Audio — no audio
 // file, CSP-safe. Evokes the classic DJ air-horn/bomb without using any sample.
@@ -140,25 +149,33 @@ const DEMO_BOAT_DETAIL = {
   ],
   flags: [{ t: 'QC PUNCH LIST', c: 'warn' }],
 };
+const dSeg = (a, p, s) => [{ dept: 'Assembly', color: '#22D3EE', count: a }, { dept: 'Parts', color: '#A3E635', count: p }, { dept: 'Stage', color: '#FBBF24', count: s }];
 const DEMO_DAILY = {
   completed: [
-    { title: 'Advanced to QC', boat_id: '25T060', actor: 'Ryan', at: new Date(Date.now() - 8 * 60000).toISOString() },
-    { title: 'Motors received — Twin Yamaha 300', boat_id: '26F031', actor: 'Kelly', at: new Date(Date.now() - 44 * 60000).toISOString() },
-    { title: 'Console rigging complete', boat_id: '36C004', actor: 'Jacob', at: new Date(Date.now() - 96 * 60000).toISOString() },
-    { title: 'Deck mated to hull', boat_id: '28C012', actor: 'Trey', at: new Date(Date.now() - 130 * 60000).toISOString() },
-    { title: 'Gelcoat received', boat_id: '25T043', actor: 'Kelly', at: new Date(Date.now() - 180 * 60000).toISOString() },
-    { title: 'Advanced to Front Line', boat_id: '25T043', actor: 'Ryan', at: new Date(Date.now() - 220 * 60000).toISOString() },
-    { title: 'Livewell plumbed', boat_id: '36C004', actor: 'Jacob', at: new Date(Date.now() - 260 * 60000).toISOString() },
-    { title: 'Hardtop fitted', boat_id: '28C012', actor: 'Trey', at: new Date(Date.now() - 300 * 60000).toISOString() },
+    { title: 'Advanced to QC', boat_id: '25T060', actor: 'Ryan', dept: 'Schedule', at: new Date(Date.now() - 8 * 60000).toISOString() },
+    { title: 'Motors received — Twin Yamaha 300', boat_id: '26F031', actor: 'Kelly', dept: 'Key Parts', at: new Date(Date.now() - 44 * 60000).toISOString() },
+    { title: 'Console rigging complete', boat_id: '36C004', actor: 'Jacob', dept: 'Front Line', at: new Date(Date.now() - 96 * 60000).toISOString() },
+    { title: 'Deck mated to hull', boat_id: '28C012', actor: 'Trey', dept: 'Back Line', at: new Date(Date.now() - 130 * 60000).toISOString() },
+    { title: 'Gelcoat received', boat_id: '25T043', actor: 'Kelly', dept: 'Key Parts', at: new Date(Date.now() - 180 * 60000).toISOString() },
+    { title: 'Advanced to Front Line', boat_id: '25T043', actor: 'Ryan', dept: 'Schedule', at: new Date(Date.now() - 220 * 60000).toISOString() },
+    { title: 'Livewell plumbed', boat_id: '36C004', actor: 'Jacob', dept: 'Front Line', at: new Date(Date.now() - 260 * 60000).toISOString() },
+    { title: 'Hardtop fitted', boat_id: '28C012', actor: 'Trey', dept: 'Back Line', at: new Date(Date.now() - 300 * 60000).toISOString() },
   ],
   asap: [
-    { boat_id: '30S009', label: 'Gelcoat' }, { boat_id: '26F032', label: 'Steering' },
-    { boat_id: '25T043', label: 'Bracket' }, { boat_id: '28C012', label: 'Electronics' }, { boat_id: '30S009', label: 'Transducer' },
+    { boat_id: '30S009', label: 'Gelcoat', dept: 'Key Parts', detail: 'Matterhorn White' },
+    { boat_id: '26F032', label: 'Steering', dept: 'Key Parts', detail: 'SeaStar hydraulic' },
+    { boat_id: '25T043', label: 'Bracket', dept: 'Key Parts', detail: '' },
+    { boat_id: '28C012', label: 'Electronics', dept: 'Key Parts', detail: 'Garmin 8612' },
+    { boat_id: '30S009', label: 'Buckets', dept: 'Finishing', detail: '' },
   ],
   missing: [
-    { boat_id: '30S009', part: 'Gelcoat', backorder: true }, { boat_id: '25T043', part: 'Trailer', late: true },
-    { boat_id: '26F032', part: 'Steering', late: true }, { boat_id: '28C012', part: 'Electronics' },
-    { boat_id: '25T060', part: 'Upholstery' }, { boat_id: '26F031', part: 'Wallabys Tanks' }, { boat_id: '25T050', part: 'Bracket' },
+    { boat_id: '30S009', part: 'Gelcoat', dept: 'Key Parts', detail: 'Matterhorn White', status: 'Ordered', exp: 'Aug 2', backorder: true },
+    { boat_id: '25T043', part: 'Trailer', dept: 'Key Parts', detail: 'Aluminum tri-axle', status: 'Ordered', exp: 'Jul 20', late: true },
+    { boat_id: '26F032', part: 'Steering', dept: 'Key Parts', detail: 'SeaStar hydraulic', status: 'Ordered', exp: 'Jul 22', late: true },
+    { boat_id: '28C012', part: 'Electronics', dept: 'Key Parts', detail: 'Garmin 8612', status: 'Ordered', exp: 'Aug 8' },
+    { boat_id: '25T060', part: 'Upholstery', dept: 'Key Parts', detail: '', status: 'Not Ordered', exp: null },
+    { boat_id: '26F031', part: 'Wallabys Tanks', dept: 'Key Parts', detail: '', status: 'Not Ordered', exp: null },
+    { boat_id: '25T050', part: 'Bracket', dept: 'Key Parts', detail: '', status: 'Ordered', exp: 'Aug 5' },
   ],
   notes: [
     { text: 'Which transducer on the 30 Sport?', boat_id: '30S009' },
@@ -167,8 +184,10 @@ const DEMO_DAILY = {
     { text: 'Trailer vendor backordered until next week', boat_id: '25T043' },
   ],
   throughput: [
-    { label: '7/14', count: 6 }, { label: '7/15', count: 9 }, { label: '7/16', count: 4 }, { label: '7/17', count: 11 },
-    { label: '7/18', count: 8 }, { label: '7/21', count: 13 }, { label: '7/22', count: 7 }, { label: '7/23', count: 8, today: true },
+    { label: '7/14', segs: dSeg(4, 1, 1), total: 6 }, { label: '7/15', segs: dSeg(6, 2, 1), total: 9 },
+    { label: '7/16', segs: dSeg(3, 1, 0), total: 4 }, { label: '7/17', segs: dSeg(7, 3, 1), total: 11 },
+    { label: '7/18', segs: dSeg(5, 2, 1), total: 8 }, { label: '7/21', segs: dSeg(9, 3, 1), total: 13 },
+    { label: '7/22', segs: dSeg(4, 2, 1), total: 7 }, { label: '7/23', segs: dSeg(5, 2, 1), total: 8, today: true },
   ],
 };
 
@@ -246,23 +265,33 @@ function buildBoatDetail(b, aux) {
 function computeDaily(feed, aux, now) {
   const today = now.toISOString().slice(0, 10);
   const isToday = (iso) => iso && String(iso).slice(0, 10) === today;
+  // Completed today — carry the department (work center, or Parts/Stage).
   const completed = (feed || []).filter(it => COMPLETION_TYPES.has(it.type) && isToday(it.created_at))
-    .map(it => ({ title: it.title, boat_id: it.boat_id, actor: it.actor_name, at: it.created_at }));
+    .map(it => ({ title: it.title, boat_id: it.boat_id, actor: it.actor_name, at: it.created_at, dept: it.work_center_name || deptOf(it) }));
   const parts = aux?.parts || [];
+  // Call-in priorities (ASAP) — with department + any spec detail.
   const asap = [];
-  parts.forEach(p => { if (p.order_asap && p.status !== 'Received' && !p.na) asap.push({ boat_id: p.boat_id, label: p.part_name }); });
-  (aux?.fin || []).forEach(r => { if (r.asap && r.status !== 'Complete' && !r.na) asap.push({ boat_id: r.boat_id, label: r.task_name }); });
-  const missing = parts.filter(p => p.status !== 'Received' && !p.na).map(p => ({
-    boat_id: p.boat_id, part: p.part_name,
-    late: !!(p.flag_late || (p.expected_delivery && String(p.expected_delivery).slice(0, 10) < today)),
-    backorder: !!p.flag_backordered,
-  })).sort((a, b) => (b.backorder - a.backorder) || (b.late - a.late));
+  parts.forEach(p => { if (p.order_asap && p.status !== 'Received' && !p.na) asap.push({ boat_id: p.boat_id, label: p.part_name, dept: 'Key Parts', detail: p.description || '' }); });
+  (aux?.fin || []).forEach(r => { if (r.asap && r.status !== 'Complete' && !r.na) asap.push({ boat_id: r.boat_id, label: r.task_name, dept: 'Finishing', detail: '' }); });
+  // Missing parts — status + expected date + spec detail.
+  const missing = parts.filter(p => p.status !== 'Received' && !p.na).map(p => {
+    const exp = p.expected_delivery ? String(p.expected_delivery).slice(0, 10) : null;
+    return {
+      boat_id: p.boat_id, part: p.part_name, dept: 'Key Parts', detail: p.description || '',
+      status: p.status || 'Not Ordered', exp: exp ? fmtMonthDay(exp) : null,
+      late: !!(p.flag_late || (exp && exp < today)), backorder: !!p.flag_backordered,
+    };
+  }).sort((a, b) => (b.backorder - a.backorder) || (b.late - a.late));
   const notes = (aux?.issues || []).map(i => ({ text: i.title || i.text || i.question || '', boat_id: i.boat_id, at: i.created_at })).filter(n => n.text);
+  // Throughput per day, stacked by department.
   const days = [];
   for (let i = 9; i >= 0; i--) { const dt = new Date(now); dt.setDate(dt.getDate() - i); days.push(dt.toISOString().slice(0, 10)); }
-  const counts = {}; days.forEach(d => { counts[d] = 0; });
-  (feed || []).forEach(it => { if (COMPLETION_TYPES.has(it.type)) { const d = String(it.created_at).slice(0, 10); if (d in counts) counts[d]++; } });
-  const throughput = days.map(d => ({ label: `${+d.slice(5, 7)}/${+d.slice(8, 10)}`, count: counts[d], today: d === today }));
+  const perDay = {}; days.forEach(d => { perDay[d] = { Assembly: 0, Parts: 0, Stage: 0 }; });
+  (feed || []).forEach(it => { if (COMPLETION_TYPES.has(it.type)) { const d = String(it.created_at).slice(0, 10); if (perDay[d]) perDay[d][deptOf(it)]++; } });
+  const throughput = days.map(d => {
+    const segs = DEPTS.map(dp => ({ dept: dp.key, color: dp.color, count: perDay[d][dp.key] }));
+    return { label: `${+d.slice(5, 7)}/${+d.slice(8, 10)}`, today: d === today, segs, total: segs.reduce((s, x) => s + x.count, 0) };
+  });
   return { completed, asap, missing, notes, throughput };
 }
 
@@ -551,9 +580,10 @@ function AutoScroll({ className, children }) {
   return <div ref={ref} className={className}>{children}</div>;
 }
 
-// Daily Overview page: completed-today, ASAP, missing parts, notes, throughput.
+// Daily Overview page: completed-today, call-in priorities, missing parts, notes, throughput.
 function DailyOverview({ d }) {
-  const max = Math.max(1, ...d.throughput.map(t => t.count));
+  const BARH = 108;
+  const max = Math.max(1, ...d.throughput.map(t => t.total));
   return (
     <section className="kio-panel kio-daily">
       <div className="kio-dcol">
@@ -561,7 +591,7 @@ function DailyOverview({ d }) {
         <AutoScroll className="kio-dlist">
           {d.completed.map((c, i) => (
             <div key={i} className="kio-ditem done">
-              <span className="kio-dt-title">{c.title}</span>
+              <span className="kio-dt-line"><span className="kio-dt-title">{c.title}</span>{c.dept && <span className="kio-dept">{c.dept}</span>}</span>
               <span className="kio-dt-sub">{c.boat_id}{c.actor ? ` · ${c.actor}` : ''} · {timeAgo(c.at)}</span>
             </div>
           ))}
@@ -571,12 +601,15 @@ function DailyOverview({ d }) {
 
       <div className="kio-dcol">
         <div className="kio-dsub">
-          <div className="kio-dhead red"><span>🔴 ASAP</span><em>{d.asap.length}</em></div>
+          <div className="kio-dhead red"><span>📞 CALL-IN PRIORITIES</span><em>{d.asap.length}</em></div>
           <AutoScroll className="kio-dlist">
             {d.asap.map((a, i) => (
-              <div key={i} className="kio-ditem asap"><span className="kio-dt-title">{a.label}</span><span className="kio-dt-sub">{a.boat_id}</span></div>
+              <div key={i} className="kio-ditem asap">
+                <span className="kio-dt-line"><span className="kio-dt-title">{a.label}{a.detail ? <em className="kio-dt-spec"> — {a.detail}</em> : ''}</span>{a.dept && <span className="kio-dept">{a.dept}</span>}</span>
+                <span className="kio-dt-sub">{a.boat_id}</span>
+              </div>
             ))}
-            {d.asap.length === 0 && <div className="kio-dempty">No ASAP items.</div>}
+            {d.asap.length === 0 && <div className="kio-dempty">No call-in priorities.</div>}
           </AutoScroll>
         </div>
         <div className="kio-dsub">
@@ -584,8 +617,9 @@ function DailyOverview({ d }) {
           <AutoScroll className="kio-dlist">
             {d.missing.map((m, i) => (
               <div key={i} className={`kio-ditem ${m.backorder ? 'back' : m.late ? 'late' : 'miss'}`}>
-                <span className="kio-dt-title">{m.part}</span>
-                <span className="kio-dt-sub">{m.boat_id}{m.backorder ? ' · BACKORDER' : m.late ? ' · LATE' : ''}</span>
+                <span className="kio-dt-line"><span className="kio-dt-title">{m.part}{m.detail ? <em className="kio-dt-spec"> — {m.detail}</em> : ''}</span>
+                  {m.backorder ? <span className="kio-tag red">BACKORDER</span> : m.late ? <span className="kio-tag amber">LATE</span> : null}</span>
+                <span className="kio-dt-sub">{m.boat_id} · {m.status}{m.exp ? ` · exp ${m.exp}` : ''}</span>
               </div>
             ))}
             {d.missing.length === 0 && <div className="kio-dempty">All parts in.</div>}
@@ -604,11 +638,18 @@ function DailyOverview({ d }) {
           </AutoScroll>
         </div>
         <div className="kio-dsub kio-dthru">
-          <div className="kio-dhead"><span>📈 THROUGHPUT</span><em>per day</em></div>
+          <div className="kio-dhead"><span>📈 THROUGHPUT</span>
+            <span className="kio-legend">{DEPTS.map(dp => <span key={dp.key} className="kio-leg"><i style={{ background: dp.color }} />{dp.key}</span>)}</span>
+          </div>
           <div className="kio-chart">
             {d.throughput.map((t, i) => (
               <div key={i} className={`kio-bar ${t.today ? 'today' : ''}`}>
-                <span className="kio-bar-fill" style={{ height: `${Math.max(4, (t.count / max) * 100)}%` }}><em>{t.count}</em></span>
+                <span className="kio-bar-total">{t.total}</span>
+                <span className="kio-bar-stack">
+                  {t.segs.filter(s => s.count > 0).map(s => (
+                    <i key={s.dept} style={{ height: `${(s.count / max) * BARH}px`, background: s.color }} title={`${s.dept}: ${s.count}`} />
+                  ))}
+                </span>
                 <span className="kio-bar-lbl">{t.label}</span>
               </div>
             ))}

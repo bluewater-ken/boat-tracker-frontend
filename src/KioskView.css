@@ -329,6 +329,7 @@
 .gs-boat { flex: 0 0 190px; display: flex; flex-direction: column; justify-content: center; padding: 8px 14px; border-radius: 7px; background: #0E1726; border-left: 3px solid #22D3EE; }
 .gs-id { font-size: 19px; font-weight: 900; color: #fff; letter-spacing: 0.5px; font-variant-numeric: tabular-nums; }
 .gs-cust { font-size: 13px; color: #8FA6BC; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-stage { margin-top: 3px; align-self: flex-start; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #22D3EE; background: rgba(34,211,238,0.14); border: 1px solid rgba(34,211,238,0.35); padding: 1px 7px; border-radius: 5px; }
 .gs-cell { flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 10px 4px; border-radius: 7px; font-size: 14px; font-weight: 600; text-align: center; }
 .gs-cell.pulled { background: rgba(45,212,191,0.18); color: #6FE9D3; }
 .gs-cell.onmold { background: rgba(163,230,53,0.16); color: #C4EE7E; }

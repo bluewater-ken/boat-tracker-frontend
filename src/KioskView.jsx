@@ -579,17 +579,19 @@ function AutoScroll({ className, children }) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    let raf, pos = 0, dir = 1, pauseUntil = 0, last = performance.now();
-    const SPEED = 16, PAUSE = 2200; // px/sec, ms at each end
+    let raf, pos = 0, pauseUntil = 0, resetting = false, last = performance.now();
+    const SPEED = 16, PAUSE = 2200; // px/sec, ms paused at top + bottom
     const tick = (now) => {
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
       const max = el.scrollHeight - el.clientHeight;
       if (max > 4) {
         if (now >= pauseUntil) {
-          pos += dir * SPEED * dt;
-          if (pos >= max) { pos = max; dir = -1; pauseUntil = now + PAUSE; }
-          else if (pos <= 0) { pos = 0; dir = 1; pauseUntil = now + PAUSE; }
-          el.scrollTop = pos;
+          if (resetting) { pos = 0; el.scrollTop = 0; resetting = false; pauseUntil = now + PAUSE; }
+          else {
+            pos += SPEED * dt; // always upward; jump back to top and repeat at the end
+            if (pos >= max) { pos = max; el.scrollTop = max; resetting = true; pauseUntil = now + PAUSE; }
+            else el.scrollTop = pos;
+          }
         }
       } else if (el.scrollTop) { el.scrollTop = pos = 0; }
       raf = requestAnimationFrame(tick);

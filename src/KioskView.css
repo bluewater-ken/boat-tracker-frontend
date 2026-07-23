@@ -106,15 +106,15 @@
 
 /* traveler layout: top row of 3, then a full-width Work Centers block */
 .kio-btop { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; flex: 1 1 0; min-height: 0; }
-.kio-bwc { flex: 1.4 1 0; min-height: 0; }
+.kio-bwc { flex: 1.4 1 0; min-height: 0; overflow: hidden; }
 .kio-wc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 26px; padding-top: 12px; overflow: hidden; flex: 1; min-height: 0; align-content: start; }
-.kio-bcol { display: flex; flex-direction: column; border-radius: 14px; padding: 12px 14px;
+.kio-bcol { display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-radius: 14px; padding: 12px 14px;
   background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)); border: 1px solid rgba(255,255,255,0.07); }
 .kio-bcol-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 800; letter-spacing: 2px; color: #22D3EE; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); }
 .kio-bcol-head em { font-style: normal; font-size: 13px; padding: 2px 9px; border-radius: 6px; }
 .kio-bcol-head em.kio-left { color: #FBBF24; background: rgba(251,191,36,0.14); border: 1px solid rgba(251,191,36,0.45); }
 .kio-bcol-head em.kio-alldone { color: #34E4B0; background: rgba(52,228,176,0.12); border: 1px solid rgba(52,228,176,0.4); }
-.kio-bcol-list { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; overflow: hidden; }
+.kio-bcol-list { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; overflow: hidden; flex: 1 1 0; min-height: 0; }
 .kio-bitem { display: flex; align-items: center; gap: 11px; font-size: 18px; }
 /* Done recedes; what's left (wip / not-started) pops so the wall shows the gaps. */
 .kio-bitem.ok { opacity: 0.42; }

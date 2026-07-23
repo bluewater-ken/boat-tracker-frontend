@@ -264,6 +264,10 @@ function KioskView({ demo }) {
   const backlog = boats.filter(b => stageOf(b) === 'Backlog').length;
   const delivered = boats.filter(b => stageOf(b) === 'Delivered').length;
   const byStage = (k) => inProd.filter(b => stageOf(b) === k).sort((a, b) => (a.sequence_number || 999) - (b.sequence_number || 999));
+  // All boats in a stage (incl. Backlog, which isn't in `inProd`) for the pipeline columns.
+  const stageBoats = (k) => boats.filter(b => stageOf(b) === k).sort((a, b) => (a.sequence_number || 999) - (b.sequence_number || 999));
+  // Pipeline columns: the Queued (Backlog) boats first, then the production stages.
+  const PIPE_COLS = [{ key: 'Backlog', label: 'QUEUED', accent: '#8492A6' }, ...PIPELINE];
   const fillOf = (b) => {
     const s = (b.segments || []).find(sg => sg.name === stageOf(b));
     return s && s.fill_pct != null ? Math.round(s.fill_pct) : null;
@@ -343,9 +347,9 @@ function KioskView({ demo }) {
 
       <main className="kio-stage">
         {cur === 'pipeline' ? (
-          <section className="kio-panel kio-pipeline">
-            {PIPELINE.map(col => {
-              const list = byStage(col.key);
+          <section className="kio-panel kio-pipeline" style={{ gridTemplateColumns: `repeat(${PIPE_COLS.length}, 1fr)` }}>
+            {PIPE_COLS.map(col => {
+              const list = stageBoats(col.key);
               return (
                 <div key={col.key} className="kio-col" style={{ '--accent': col.accent }}>
                   <div className="kio-col-head">
@@ -418,7 +422,10 @@ function Kpi({ n, label, accent }) {
 }
 
 function StatList({ title, items }) {
-  const left = items.filter(i => i.s !== 'done' && i.s !== 'received').length;
+  const isDone = (i) => i.s === 'done' || i.s === 'received';
+  const left = items.filter(i => !isDone(i)).length;
+  // Not-done first (stable) so if the column clips, it only hides completed items.
+  const ordered = [...items].sort((a, b) => (isDone(a) ? 1 : 0) - (isDone(b) ? 1 : 0));
   return (
     <div className="kio-bcol">
       <div className="kio-bcol-head">
@@ -426,7 +433,7 @@ function StatList({ title, items }) {
         {left > 0 ? <em className="kio-left">{left} LEFT</em> : <em className="kio-alldone">✓ DONE</em>}
       </div>
       <div className="kio-bcol-list">
-        {items.map(it => (
+        {ordered.map(it => (
           <div key={it.n} className={`kio-bitem ${STATUS_CLS[it.s]}`}>
             <span className="kio-bmark">{STATUS_MARK[it.s]}</span>
             <span className="kio-bname">{it.n}{it.d ? <em> — {it.d}</em> : ''}</span>

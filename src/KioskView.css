@@ -323,7 +323,7 @@
 .gs-toolbar { display: flex; gap: 18px; padding: 0 2px 12px; font-size: 13px; color: #8FA6BC; }
 .gs-leg { display: flex; align-items: center; gap: 7px; }
 .gs-sw { width: 12px; height: 12px; border-radius: 3px; }
-.gs-sw.pulled { background: #6FE9D3; } .gs-sw.onmold { background: #C4EE7E; } .gs-sw.wip { background: #FBD26B; } .gs-sw.open { background: #9DB8F5; } .gs-sw.wait { background: #7E8CA0; }
+.gs-sw.pulled { background: #6FE9D3; } .gs-sw.onmold { background: #C4EE7E; } .gs-sw.wip { background: #FBD26B; } .gs-sw.open { background: #9DB8F5; } .gs-sw.busy { background: #F0997B; } .gs-sw.wait { background: #7E8CA0; }
 .gs-grid { display: flex; flex-direction: column; gap: 7px; flex: 1; min-height: 0; overflow: hidden; }
 .gs-row { display: flex; gap: 7px; align-items: stretch; }
 .gs-boat { flex: 0 0 200px; display: flex; flex-direction: column; justify-content: center; padding: 8px 14px; border-radius: 7px; background: #0E1726; border-left: 3px solid #22D3EE; }
@@ -337,6 +337,7 @@
 .gs-cell.onmold { background: rgba(163,230,53,0.16); color: #C4EE7E; }
 .gs-cell.wip { background: rgba(251,191,36,0.16); color: #FBD26B; }
 .gs-cell.open { background: rgba(91,141,239,0.18); color: #9DB8F5; }
+.gs-cell.busy { background: rgba(240,153,123,0.18); color: #F0997B; }
 .gs-cell.wait { background: rgba(126,140,160,0.08); color: #7E8CA0; }
 .gs-head .gs-cell, .gs-head .gs-boat { background: transparent; border: none; padding-top: 0; padding-bottom: 8px; }
 .gs-th { color: #8FA6BC; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }

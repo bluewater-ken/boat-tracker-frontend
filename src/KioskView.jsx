@@ -11,6 +11,13 @@ const DEPT_TAG = [
   [/part/i, '#8FCB4F'], [/front|back|assembly|console|rig/i, '#3FA9E8'], [/schedule|stage|deliver/i, '#E0A93B'],
 ];
 const deptColor = (dept) => (DEPT_TAG.find(([re]) => re.test(dept || '')) || [, '#8FA6BC'])[1];
+// Note tags = the issue's problem type or area; color by severity/area.
+const NOTE_TAG = [
+  [/safety/i, '#E24B4A'], [/damage/i, '#F0997B'], [/rework/i, '#FBBF24'], [/missing|short/i, '#FBBF24'],
+  [/question/i, '#5B8DEF'], [/laminat|glass/i, '#3FB3C4'], [/finish/i, '#E86A6A'], [/part/i, '#8FCB4F'],
+  [/assembly/i, '#3FA9E8'], [/schedule/i, '#E0A93B'],
+];
+const noteColor = (t) => (NOTE_TAG.find(([re]) => re.test(t || '')) || [, '#8FA6BC'])[1];
 
 // Full-screen, high-tech shop-floor board for a wall TV (Raspberry Pi kiosk).
 // Reached at ?kiosk=1 once a session is logged in. Read-only: it only GETs data,
@@ -190,10 +197,11 @@ const DEMO_DAILY = {
     { boat_id: '25T050', part: 'Bracket', dept: 'Key Parts', detail: '', status: 'Ordered', exp: 'Aug 5' },
   ],
   notes: [
-    { text: 'Which transducer on the 30 Sport?', boat_id: '30S009' },
-    { text: 'Confirm hull color for Ferro build', boat_id: '25T071' },
-    { text: 'Customer wants extra rod holders — check with office', boat_id: '36C004' },
-    { text: 'Trailer vendor backordered until next week', boat_id: '25T043' },
+    { text: 'Which transducer on the 30 Sport?', boat_id: '30S009', tag: 'Question' },
+    { text: 'Gelcoat run — check color match', boat_id: '25T071', tag: 'Rework' },
+    { text: 'Chip on port gunnel, needs repair', boat_id: '36C004', tag: 'Damage' },
+    { text: 'Trailer vendor backordered until next week', boat_id: '25T043', tag: 'Missing / Short' },
+    { text: 'Console face in lamination 9 days', boat_id: '25T049', tag: 'Lamination' },
   ],
   throughput: [
     { label: '7/14', segs: dSeg(4, 1, 1), total: 6 }, { label: '7/15', segs: dSeg(6, 2, 1), total: 9 },
@@ -294,7 +302,10 @@ function computeDaily(feed, aux, now) {
       late: !!(p.flag_late || (exp && exp < today)), backorder: !!p.flag_backordered,
     };
   }).sort((a, b) => (b.backorder - a.backorder) || (b.late - a.late));
-  const notes = (aux?.issues || []).map(i => ({ text: i.title || i.text || i.question || '', boat_id: i.boat_id, at: i.created_at })).filter(n => n.text);
+  const notes = (aux?.issues || []).map(i => ({
+    text: i.title || i.text || i.question || '', boat_id: i.boat_id, at: i.created_at,
+    tag: i.problem_type || i.source_tab || (i.kind === 'question' ? 'Question' : ''),
+  })).filter(n => n.text);
   // Throughput per day, stacked by department.
   const days = [];
   for (let i = 9; i >= 0; i--) { const dt = new Date(now); dt.setDate(dt.getDate() - i); days.push(dt.toISOString().slice(0, 10)); }
@@ -674,7 +685,13 @@ function DailyOverview({ d }) {
           <div className="kio-dhead"><span>📝 NOTES</span><em>{d.notes.length}</em></div>
           <AutoScroll className="kio-dlist">
             {d.notes.map((n, i) => (
-              <div key={i} className="kio-ditem note"><span className="kio-dt-title">{n.text}</span>{n.boat_id && <span className="kio-dt-sub">{n.boat_id}</span>}</div>
+              <div key={i} className="kio-ditem note">
+                <span className="kio-dt-line">
+                  <span className="kio-dt-title">{n.text}</span>
+                  {n.tag && <span className="kio-dept" style={{ color: noteColor(n.tag), background: `${noteColor(n.tag)}22`, borderColor: `${noteColor(n.tag)}66` }}>{n.tag}</span>}
+                </span>
+                {n.boat_id && <span className="kio-dt-sub">{n.boat_id}</span>}
+              </div>
             ))}
             {d.notes.length === 0 && <div className="kio-dempty">No open notes.</div>}
           </AutoScroll>

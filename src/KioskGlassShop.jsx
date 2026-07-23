@@ -3,7 +3,7 @@
 // builds the rows (live or demo) and hands them in.
 
 export const GS_PARTS = ['Glass Kit', 'Hull', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid'];
-const GS_LEGEND = [['pulled', 'Pulled'], ['onmold', 'On mold'], ['wip', 'In progress'], ['open', 'Mold open'], ['wait', 'Waiting']];
+const GS_LEGEND = [['pulled', 'Pulled'], ['onmold', 'On mold'], ['wip', 'In progress'], ['open', 'Mold open'], ['busy', 'Mold occupied'], ['wait', 'Not started']];
 
 // Lamination status -> a cell { label, cls }. cls drives the color (see CSS).
 export function cellOf(status, na) {
@@ -14,7 +14,7 @@ export function cellOf(status, na) {
     case 'Complete': return { label: 'Complete', cls: 'pulled' };
     case 'In Progress': return { label: 'In progress', cls: 'wip' };
     case 'Mold Open': return { label: 'Mold open', cls: 'open' };
-    case 'Mold Unavailable': return { label: 'Waiting', cls: 'wait' };
+    case 'Mold Unavailable': return { label: 'Mold occupied', cls: 'busy' };
     default: return { label: '—', cls: 'wait' };
   }
 }
@@ -53,13 +53,13 @@ export function computeUpcoming(boats, n = 5) {
     .map(b => ({ boat_id: b.boat_id, customer: b.customer_name, hull: b.hull_color }));
 }
 
-const DEMO_CODE = { P: 'Pulled', OM: 'Complete/On Mold', C: 'Complete', W: 'In Progress', O: 'Mold Open' };
+const DEMO_CODE = { P: 'Pulled', OM: 'Complete/On Mold', C: 'Complete', W: 'In Progress', O: 'Mold Open', MU: 'Mold Unavailable' };
 export const DEMO_GLASS_ROWS = [
-  ['25T072', 'Ferro', 'Pre-Prod', 'navy', ['OM', 'W', 'O', '_', '_', '_', '_', '_', '_', '_', '_', '_']],
-  ['30S009', '7 Sports', 'Pre-Prod', 'seagreen', ['C', 'OM', 'W', 'O', '_', '_', '_', '_', '_', '_', '_', '_']],
-  ['26F031', 'Scituate #1', 'Glass', 'firebrick', ['P', 'P', 'P', 'OM', 'OM', 'OM', 'OM', 'OM', 'O', 'W', '_', '_']],
-  ['26F033', 'Halloran', 'Glass', 'goldenrod', ['P', 'OM', 'OM', 'W', 'W', 'O', '_', 'W', '_', '_', '_', '_']],
-  ['28225', 'Trey', 'Back Line', 'slategray', ['P', 'P', 'OM', 'P', 'OM', 'OM', 'W', 'OM', 'O', 'W', '_', '_']],
+  ['25T072', 'Ferro', 'Pre-Prod', 'navy', ['OM', 'W', 'MU', '_', '_', '_', '_', '_', '_', '_', '_', '_']],
+  ['30S009', '7 Sports', 'Pre-Prod', 'seagreen', ['C', 'OM', 'W', 'MU', '_', '_', '_', '_', '_', '_', '_', '_']],
+  ['26F031', 'Scituate #1', 'Glass', 'firebrick', ['P', 'P', 'P', 'OM', 'OM', 'OM', 'OM', 'OM', 'O', 'W', 'MU', '_']],
+  ['26F033', 'Halloran', 'Glass', 'goldenrod', ['P', 'OM', 'OM', 'W', 'W', 'O', 'MU', 'W', '_', '_', '_', '_']],
+  ['28225', 'Trey', 'Back Line', 'slategray', ['P', 'P', 'OM', 'P', 'OM', 'OM', 'W', 'OM', 'O', 'W', 'MU', '_']],
 ].map(([id, cust, stage, hull, st]) => ({ boat_id: id, customer: cust, stage, hull, cells: st.map(c => cellOf(c === '_' ? null : DEMO_CODE[c], false)) }));
 export const DEMO_UPCOMING = [
   { boat_id: '25T074', customer: 'Whitaker', hull: 'teal' },

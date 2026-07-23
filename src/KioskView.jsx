@@ -86,15 +86,22 @@ function useClock() {
 }
 
 // Sample data for ?kiosk=demo — lets the board be previewed with no backend/login.
+const dOff = (days) => { const x = new Date(); x.setDate(x.getDate() + days); return x.toISOString().slice(0, 10); };
+// each in-prod boat: last segment `end` (projected completion) + `target_date` so
+// the pipeline can show ETA and behind/ahead. Extra backlog boats so the column scrolls.
+const seg = (name, fill, end) => [{ name, fill_pct: fill, end }];
 const DEMO_BOATS = [
-  { boat_id: '25T043', customer_name: 'Stanyek', boat_model: '25T', hull_color: '#1B3A6B', global_status: 'Front Line', sequence_number: 1, segments: [{ name: 'Front Line', fill_pct: 43 }] },
-  { boat_id: '25T048', customer_name: 'Morrigno', boat_model: '25T', hull_color: '#0E7C5A', global_status: 'QC', sequence_number: 2, segments: [{ name: 'QC', fill_pct: 78 }] },
-  { boat_id: '26F031', customer_name: 'Scituate #1', boat_model: '26 Flats', hull_color: '#B02D2D', global_status: 'Glass Shop', sequence_number: 3, segments: [{ name: 'Glass Shop', fill_pct: 61 }] },
-  { boat_id: '26F032', customer_name: 'Scituate #2', boat_model: '26 Flats', hull_color: '#C9A227', global_status: 'Back Line', sequence_number: 4, segments: [{ name: 'Back Line', fill_pct: 24 }] },
-  { boat_id: '30S009', customer_name: '7 Sports', boat_model: '30 Sport', hull_color: '#2B6CB0', global_status: 'Glass Shop', sequence_number: 5, segments: [{ name: 'Glass Shop', fill_pct: 12 }] },
-  { boat_id: '25T050', customer_name: 'Delgado', boat_model: '25T', hull_color: '#444', global_status: 'Pre-Production', sequence_number: 6, segments: [] },
-  { boat_id: '36C004', customer_name: 'Hensley', boat_model: '36 Center', hull_color: '#155E75', global_status: 'Front Line', sequence_number: 7, segments: [{ name: 'Front Line', fill_pct: 88 }] },
-  { boat_id: '25T055', customer_name: 'Backlog', boat_model: '25T', hull_color: '#333', global_status: 'Backlog', sequence_number: 8, segments: [] },
+  { boat_id: '25T043', customer_name: 'Stanyek', boat_model: '25T', hull_color: '#1B3A6B', global_status: 'Front Line', sequence_number: 1, segments: seg('Front Line', 43, dOff(18)), target_date: dOff(10) },
+  { boat_id: '25T048', customer_name: 'Morrigno', boat_model: '25T', hull_color: '#0E7C5A', global_status: 'QC', sequence_number: 2, segments: seg('QC', 78, dOff(6)), target_date: dOff(12) },
+  { boat_id: '26F031', customer_name: 'Scituate #1', boat_model: '26 Flats', hull_color: '#B02D2D', global_status: 'Glass Shop', sequence_number: 3, segments: seg('Glass Shop', 61, dOff(34)), target_date: dOff(35) },
+  { boat_id: '26F032', customer_name: 'Scituate #2', boat_model: '26 Flats', hull_color: '#C9A227', global_status: 'Back Line', sequence_number: 4, segments: seg('Back Line', 24, dOff(41)), target_date: dOff(30) },
+  { boat_id: '30S009', customer_name: '7 Sports', boat_model: '30 Sport', hull_color: '#2B6CB0', global_status: 'Glass Shop', sequence_number: 5, segments: seg('Glass Shop', 12, dOff(47)), target_date: dOff(52) },
+  { boat_id: '36C004', customer_name: 'Hensley', boat_model: '36 Center', hull_color: '#155E75', global_status: 'Front Line', sequence_number: 6, segments: seg('Front Line', 88, dOff(4)), target_date: dOff(4) },
+  { boat_id: '25T050', customer_name: 'Delgado', boat_model: '25T', hull_color: '#6B4FA0', global_status: 'Pre-Production', sequence_number: 7, segments: seg('Pre-Production', 30, dOff(58)), target_date: dOff(55) },
+  { boat_id: '28C012', customer_name: 'Rourke', boat_model: '28 Center', hull_color: '#0F766E', global_status: 'Back Line', sequence_number: 8, segments: seg('Back Line', 55, dOff(29)), target_date: dOff(33) },
+  { boat_id: '25T060', customer_name: 'Alvarez', boat_model: '25T', hull_color: '#334155', global_status: 'QC', sequence_number: 9, segments: seg('QC', 40, dOff(9)), target_date: dOff(7) },
+  ...['Whitaker', 'Ferro', 'Nguyen', 'Costa', 'Bianchi', 'Ortiz', 'Halloran', 'Vance', 'Reyes', 'Pope'].map((c, i) => (
+    { boat_id: `25T0${70 + i}`, customer_name: c, boat_model: i % 2 ? '30 Sport' : '25T', hull_color: '#3A4553', global_status: 'Backlog', sequence_number: 10 + i, segments: [] })),
 ];
 const DEMO_FEED = [
   { id: 1, type: 'STAGE_CHANGED', title: 'Advanced to QC', boat_id: '25T048', customer_name: 'Morrigno', actor_name: 'Ryan', created_at: new Date(Date.now() - 3 * 60000).toISOString() },
@@ -104,27 +111,32 @@ const DEMO_FEED = [
   { id: 5, type: 'QUESTION_POSTED', title: 'Which transducer on the 30?', boat_id: '30S009', actor_name: 'Floor', created_at: new Date(Date.now() - 140 * 60000).toISOString() },
   { id: 6, type: 'STAGE_CHANGED', title: 'Advanced to Back Line', boat_id: '26F032', customer_name: 'Scituate #2', actor_name: 'Ryan', created_at: new Date(Date.now() - 210 * 60000).toISOString() },
 ];
-// One richly-populated boat so both per-boat kiosk layouts can be previewed.
+// One richly-populated boat (lots of tasks) so overflow/auto-scroll is visible.
 const DEMO_BOAT_DETAIL = {
   boat_id: '25T048', customer_name: 'Morrigno', boat_model: '25T', hull_color: '#0E7C5A',
-  motor: 'Twin Mercury 250', global_status: 'QC', stageFill: 78, target: 'Aug 14',
+  motor: 'Twin Mercury 250', global_status: 'Back Line', stageFill: 55, target: 'Aug 14',
   keyParts: [
-    { n: 'Motors', s: 'done', d: 'Twin Mercury 250' }, { n: 'Gelcoat', s: 'done' },
-    { n: 'Steering', s: 'done' }, { n: 'Hardware', s: 'done' },
-    { n: 'Electronics', s: 'ordered' }, { n: 'Trailer', s: 'not' },
+    { n: 'Motors', s: 'done', d: 'Twin Mercury 250' }, { n: 'Gelcoat', s: 'done' }, { n: 'Coosa Kit', s: 'done' },
+    { n: 'Steering', s: 'done' }, { n: 'Hardware', s: 'done' }, { n: 'Ride Plate', s: 'done' },
+    { n: 'New Wire', s: 'done' }, { n: 'Upholstery', s: 'ordered' }, { n: 'Electronics', s: 'ordered' },
+    { n: 'Bracket', s: 'not' }, { n: 'Trailer', s: 'not' }, { n: 'Wallabys Tanks', s: 'not' },
   ],
   lamination: [
-    { n: 'Hull', s: 'done' }, { n: 'Deck', s: 'done' }, { n: 'Liner', s: 'done' },
-    { n: 'Console', s: 'done' }, { n: 'Hatches', s: 'progress' },
+    { n: 'Glass Kit', s: 'done' }, { n: 'Hull', s: 'done' }, { n: 'T Top', s: 'done' }, { n: 'Liner', s: 'done' },
+    { n: 'Ring', s: 'done' }, { n: 'Baitwell', s: 'done' }, { n: 'Leaning Post', s: 'done' }, { n: 'Console', s: 'done' },
+    { n: 'Console Face', s: 'progress' }, { n: 'Hatches', s: 'progress' }, { n: 'Boxes', s: 'not' }, { n: 'Grid', s: 'not' },
   ],
   finishing: [
-    { n: 'Rigging', s: 'progress' }, { n: 'Upholstery', s: 'not' }, { n: 'Detailing', s: 'not' },
+    { n: 'Hull', s: 'done' }, { n: 'Liner', s: 'progress' }, { n: 'Ring', s: 'not' }, { n: 'Hard Top', s: 'not' },
+    { n: 'Console', s: 'progress' }, { n: 'Console Face', s: 'not' }, { n: 'Hatches', s: 'not' },
+    { n: 'Leaning Post', s: 'not' }, { n: 'Buckets', s: 'not' },
   ],
   workcenters: [
-    { n: 'Back Line', done: 12, total: 12, open: [] },
-    { n: 'Front Line', done: 6, total: 12, open: ['Rig hydraulic steering', 'Mount electronics', 'Run bilge wiring', 'Install trim tabs', 'Seal thru-hulls', 'Mount battery trays'] },
-    { n: 'Console', done: 5, total: 9, open: ['Install nav lights', 'Wire switch panel', 'Mount GPS', 'Fit grab rail'] },
-    { n: 'Rigging', done: 3, total: 7, open: ['Steering cable', 'Throttle cables', 'Fuel line', 'Battery cutoff'] },
+    { n: 'Backline — Hull', done: 4, total: 18, open: ['Take photos of motors', 'Drill/cut transom thru-hull', 'Rig for windlass', 'Install fuel tanks', 'Install rig tube', 'Install anchor liner', 'Install forward fish boxes', 'Install coffin box', 'Install fresh water tank', 'Install aft fish boxes', 'Paint bilge and transom', 'Foam all hull areas', 'Set floor', 'Bond stringers'] },
+    { n: 'Backline — Deck', done: 8, total: 12, open: ['Dry fit to hull', 'Mate deck to hull', 'Bond deck seam', 'Install rub rail'] },
+    { n: 'Backline — Ring', done: 0, total: 14, open: ['Cut and trim flange', 'Cut out deck cleats', 'Cut out fuel fills', 'Cut fwd nav light', 'Check livewell for leaks', 'Install deck cleats', 'Install rod holders', 'Install bolster clips', 'Install baitwell lights', 'Drill mounting holes', 'Fit hatches', 'Seal gunnels', 'Rig plumbing', 'Final trim'] },
+    { n: 'Console & Hardtop', done: 2, total: 16, open: ['Cut out console door', 'Install binnacle', 'Install helm', 'Install gauge', 'Install joystick', 'Install steering (electric)', 'Install kill switch', 'Install MFDs', 'Electronics mounting', 'Install switch panel', 'Wire nav lights', 'Mount stereo', 'Fit windshield', 'Install grab rail'] },
+    { n: 'Front Line', done: 3, total: 15, open: ['Install scupper covers', 'Install pickup strainer', 'Install transom rod rack', 'Install rub rail', 'Install deck hatches', 'Plumb livewell', 'Connect gutter drains', 'Connect in bilge', 'Install legset and hardtop', 'Install transom door', 'Rig fuel', 'Bleed steering'] },
   ],
   flags: [{ t: 'QC PUNCH LIST', c: 'warn' }],
 };
@@ -272,6 +284,19 @@ function KioskView({ demo }) {
     const s = (b.segments || []).find(sg => sg.name === stageOf(b));
     return s && s.fill_pct != null ? Math.round(s.fill_pct) : null;
   };
+  // Projected completion (last timeline segment end) and how it compares to the
+  // boat's ◆ target date — behind (projected past target), ahead, or on time.
+  const dayDiff = (a, b) => Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000);
+  const schedOf = (b) => {
+    const segs = b.segments || [];
+    const end = segs.length ? segs[segs.length - 1].end : null;
+    if (!end) return null;
+    const eta = fmtMonthDay(end);
+    const target = b.target_date;
+    if (!target) return { eta, status: null };
+    const d = dayDiff(String(target).slice(0, 10), String(end).slice(0, 10));
+    return { eta, status: d > 1 ? 'behind' : d < -1 ? 'ahead' : 'ontime', days: Math.abs(d) };
+  };
 
   // The pipeline is the always-on main page; each in-production boat adds a
   // Build Traveler page reachable with the arrows. The live feed is NOT a page —
@@ -312,7 +337,7 @@ function KioskView({ demo }) {
         <div className="kio-kpis">
           <Kpi n={inProd.length} label="IN PRODUCTION" accent="#22D3EE" />
           <Kpi n={byStage('QC').length} label="IN QC" accent="#FBBF24" />
-          <Kpi n={backlog} label="QUEUED" accent="#5B8DEF" />
+          <Kpi n={backlog} label="BACKLOG" accent="#5B8DEF" />
           <Kpi n={delivered} label="DELIVERED" accent="#2DD4BF" />
         </div>
         <div className="kio-clock">
@@ -338,8 +363,11 @@ function KioskView({ demo }) {
           </div>
         )}
         <div className="kio-dots">
-          {pages.map((_, i) => (
-            <span key={i} className={`kio-dot ${i === panel ? 'on' : ''} ${i >= 1 ? 'boat' : ''}`} />
+          {pages.map((p, i) => (
+            <span key={i} className={`kio-dot ${i === panel ? 'on' : ''} ${p === 'pipeline' ? 'overview' : 'boat'}`}
+              title={p === 'pipeline' ? 'Overview' : p.b.boat_id}>
+              {p === 'pipeline' ? '▦' : '🚤'}
+            </span>
           ))}
         </div>
         <button className="kio-nav" onClick={() => step(1)} aria-label="Next page">›</button>
@@ -370,6 +398,14 @@ function KioskView({ demo }) {
                           {fill != null && (
                             <div className="kio-prog"><span style={{ width: `${fill}%` }} /><em>{fill}%</em></div>
                           )}
+                          {(() => { const s = schedOf(b); if (!s) return null; return (
+                            <div className="kio-eta">
+                              <span className="kio-eta-d">ETA {s.eta}</span>
+                              {s.status === 'behind' && <span className="kio-sched behind">{s.days}d behind</span>}
+                              {s.status === 'ahead' && <span className="kio-sched ahead">{s.days}d ahead</span>}
+                              {s.status === 'ontime' && <span className="kio-sched ontime">on time</span>}
+                            </div>
+                          ); })()}
                         </div>
                       );
                     })}
@@ -490,7 +526,7 @@ function KioskTraveler({ b }) {
           <span>WORK CENTERS</span>
           {wcOpen > 0 ? <em className="kio-left">{wcOpen} LEFT</em> : <em className="kio-alldone">✓ DONE</em>}
         </div>
-        <AutoScroll className="kio-wc-grid">
+        <div className="kio-wc-grid">
           {b.workcenters.map(w => {
             const pct = Math.round((w.done / w.total) * 100);
             const open = w.open || [];
@@ -499,15 +535,14 @@ function KioskTraveler({ b }) {
                 <div className="kio-wc-top"><span>{w.n}</span><em>{w.done}/{w.total}</em></div>
                 <div className="kio-wc-bar"><span style={{ width: `${pct}%` }} /></div>
                 {open.length > 0 && (
-                  <div className="kio-wc-tasks">
-                    {open.slice(0, 20).map(t => <span key={t} className="kio-wc-task">{t}</span>)}
-                    {open.length > 20 && <span className="kio-wc-more">+{open.length - 20} more</span>}
-                  </div>
+                  <AutoScroll className="kio-wc-tasks">
+                    {open.map(t => <span key={t} className="kio-wc-task">{t}</span>)}
+                  </AutoScroll>
                 )}
               </div>
             );
           })}
-        </AutoScroll>
+        </div>
       </div>
     </section>
   );

@@ -77,6 +77,13 @@
   text-shadow: 0 0 16px rgba(34,211,238,0.5);
 }
 .kio-rot-label em { color: #FBBF24; font-style: normal; font-size: 0.45em; letter-spacing: 2px; }
+/* Boat info folded into the nav row (no separate header row). */
+.kio-rot-boat { display: flex; align-items: center; gap: 14px; }
+.kio-rb-hull { font-size: 25px; font-weight: 900; color: #fff; letter-spacing: 1px; text-shadow: 0 0 16px rgba(34,211,238,0.5); font-variant-numeric: tabular-nums; }
+.kio-rb-cust { font-size: 21px; font-weight: 800; color: #EAF2FA; }
+.kio-rb-spec { font-size: 13px; letter-spacing: 1.2px; color: #8FA6BC; text-transform: uppercase; }
+.kio-rb-stage { font-size: 15px; font-weight: 900; letter-spacing: 1px; color: #FBBF24; padding: 3px 12px; border-radius: 7px; background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.45); text-shadow: 0 0 12px rgba(251,191,36,0.4); }
+.kio-rb-paused { font-style: normal; font-size: 12px; letter-spacing: 2px; color: #FBBF24; }
 .kio-nav {
   width: 44px; height: 44px; border-radius: 50%; font-size: 26px; line-height: 1; cursor: pointer; flex: none;
   background: rgba(255,255,255,0.05); color: #C7D6E4; border: 1px solid rgba(255,255,255,0.16);

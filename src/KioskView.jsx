@@ -320,7 +320,19 @@ function KioskView({ demo }) {
 
       <div className="kio-rot">
         <button className="kio-nav" onClick={() => step(-1)} aria-label="Previous page">‹</button>
-        <span className="kio-rot-label">{pageLabel(cur)}{manual && <em> · paused</em>}</span>
+        {cur === 'pipeline' ? (
+          <span className="kio-rot-label">PRODUCTION PIPELINE{manual && <em> · paused</em>}</span>
+        ) : (
+          <div className="kio-rot-boat">
+            <span className="kio-rb-hull">{cur.b.boat_id}</span>
+            {cur.b.hull_color && <span className="kio-bchip" style={{ color: cur.b.hull_color }} />}
+            <span className="kio-rb-cust">{cur.b.customer_name}</span>
+            {[cur.b.boat_model, cur.b.motor].filter(Boolean).length > 0 &&
+              <span className="kio-rb-spec">{[cur.b.boat_model, cur.b.motor].filter(Boolean).join(' · ')}</span>}
+            <span className="kio-rb-stage">{cur.b.global_status}</span>
+            {manual && <em className="kio-rb-paused">paused</em>}
+          </div>
+        )}
         <div className="kio-dots">
           {pages.map((_, i) => (
             <span key={i} className={`kio-dot ${i === panel ? 'on' : ''} ${i >= 1 ? 'boat' : ''}`} />
@@ -405,26 +417,6 @@ function Kpi({ n, label, accent }) {
   );
 }
 
-// Shared header strip for the per-boat pages.
-function BoatHead({ b }) {
-  return (
-    <div className="kio-bhead">
-      <div className="kio-bid">
-        <span className="kio-bhull">{b.boat_id}</span>
-        {b.hull_color && <span className="kio-bchip" style={{ color: b.hull_color }} />}
-      </div>
-      <div className="kio-bmeta">
-        <span className="kio-bcust">{b.customer_name}</span>
-        <span className="kio-bspec">{[b.boat_model, b.hull_color && 'Dark Hull', b.motor].filter(Boolean).join(' · ')}</span>
-      </div>
-      <div className="kio-bstage">
-        <span className="kio-bstage-l">CURRENT STAGE</span>
-        <span className="kio-bstage-v">{b.global_status}</span>
-      </div>
-    </div>
-  );
-}
-
 function StatList({ title, items }) {
   const left = items.filter(i => i.s !== 'done' && i.s !== 'received').length;
   return (
@@ -452,7 +444,6 @@ function KioskTraveler({ b }) {
   const wcOpen = b.workcenters.reduce((s, w) => s + (w.open?.length || 0), 0);
   return (
     <section className="kio-panel kio-boat kio-traveler">
-      <BoatHead b={b} />
       <div className="kio-btop">
         <StatList title="KEY PARTS" items={b.keyParts} />
         <StatList title="LAMINATION" items={b.lamination} />

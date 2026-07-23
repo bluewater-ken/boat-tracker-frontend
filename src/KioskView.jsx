@@ -32,6 +32,9 @@ const FEED_ICON = {
 };
 // Feed events that count as "something got done" — a new one drops the bomb.
 const COMPLETION_TYPES = new Set(['CHECKLIST_ITEM_COMPLETED', 'CHECKLIST_COMPLETED', 'PART_RECEIVED', 'STAGE_CHANGED']);
+// Ticker = a shop news wire: milestones only, not every checklist-item check-off.
+const TICKER_TYPES = new Set(['STAGE_CHANGED', 'PART_RECEIVED', 'PART_DELAYED', 'PART_FLAGGED', 'QUESTION_POSTED', 'CHECKLIST_COMPLETED']);
+const TICKER_MAX_AGE_MS = 48 * 3600 * 1000; // only recent news
 // Departments for the throughput stack + the per-item dept tags.
 const DEPTS = [
   { key: 'Assembly', color: '#22D3EE' },
@@ -309,7 +312,7 @@ function KioskView({ demo }) {
   const [panel, setPanel] = useState(0);   // index into `pages` (0 = pipeline)
   const [manual, setManual] = useState(false); // arrows browse boat pages
   const now = useClock();
-  const AUTO = 2;          // first two pages (pipeline, daily) auto-rotate
+  const AUTO = 3;          // pipeline, daily, throughput auto-rotate
   const ROTATE_MS = 22000;
   const RESUME_MS = 60000; // after a manual move, return to the pipeline when idle this long
   const seenRef = useRef(null); // feed ids seen so far — a new completion drops the bomb
@@ -403,7 +406,7 @@ function KioskView({ demo }) {
   // The pipeline is the always-on main page; each in-production boat adds a
   // Build Traveler page reachable with the arrows. The live feed is NOT a page —
   // it runs as a horizontal ticker along the bottom of every screen.
-  const pages = ['pipeline', 'daily'];
+  const pages = ['pipeline', 'daily', 'throughput'];
   if (demo) pages.push({ v: 'traveler', b: DEMO_BOAT_DETAIL });
   else if (aux) inProd.forEach(b => pages.push({ v: 'traveler', b: buildBoatDetail(b, aux) }));
   const cur = pages[Math.min(panel, pages.length - 1)];
@@ -455,7 +458,7 @@ function KioskView({ demo }) {
       <div className="kio-rot">
         <button className="kio-nav" onClick={() => step(-1)} aria-label="Previous page">‹</button>
         {typeof cur === 'string' ? (
-          <span className="kio-rot-label">{cur === 'pipeline' ? 'PRODUCTION PIPELINE' : 'DAILY OVERVIEW'}{manual && <em> · paused</em>}</span>
+          <span className="kio-rot-label">{cur === 'pipeline' ? 'PRODUCTION PIPELINE' : cur === 'daily' ? 'DAILY OVERVIEW' : 'THROUGHPUT'}{manual && <em> · paused</em>}</span>
         ) : (
           <div className="kio-rot-boat">
             <span className="kio-rb-hull">{cur.b.boat_id}</span>
@@ -469,11 +472,11 @@ function KioskView({ demo }) {
         )}
         <div className="kio-dots">
           {pages.map((p, i) => {
-            const kind = p === 'pipeline' ? 'overview' : p === 'daily' ? 'daily' : 'boat';
-            const icon = p === 'pipeline' ? '▦' : p === 'daily' ? '☀' : '🚤';
+            const kind = p === 'pipeline' ? 'overview' : p === 'daily' ? 'daily' : p === 'throughput' ? 'thru' : 'boat';
+            const icon = p === 'pipeline' ? '▦' : p === 'daily' ? '☀' : p === 'throughput' ? '📈' : '🚤';
             return (
               <span key={i} className={`kio-dot ${i === panel ? 'on' : ''} ${kind}`}
-                title={typeof p === 'string' ? (p === 'pipeline' ? 'Overview' : 'Daily') : p.b.boat_id}>
+                title={typeof p === 'string' ? p : p.b.boat_id}>
                 {icon}
               </span>
             );
@@ -526,6 +529,8 @@ function KioskView({ demo }) {
           </section>
         ) : cur === 'daily' ? (
           <DailyOverview d={daily} />
+        ) : cur === 'throughput' ? (
+          <ThroughputScreen doneToday={daily.completed.length} />
         ) : (
           <KioskTraveler b={cur.b} />
         )}
@@ -539,7 +544,10 @@ function KioskView({ demo }) {
 // Persistent horizontal news-ticker along the bottom of every screen — the live
 // shop feed scrolling right→left. The list is doubled so the scroll loops seamlessly.
 function TickerBar({ feed }) {
-  const items = feed.length ? feed : [{ id: 'x', title: 'Waiting for shop activity…' }];
+  // Curate to a shop news wire: milestone events only, and only recent ones.
+  const cutoff = Date.now() - TICKER_MAX_AGE_MS;
+  const news = (feed || []).filter(it => TICKER_TYPES.has(it.type) && (!it.created_at || new Date(it.created_at).getTime() >= cutoff));
+  const items = news.length ? news : [{ id: 'x', title: 'All caught up — no new shop news' }];
   return (
     <div className="kio-tickerbar">
       <span className="kio-tick-tag"><i />LIVE</span>
@@ -646,7 +654,7 @@ function DailyOverview({ d }) {
       </div>
 
       <div className="kio-dcol">
-        <div className="kio-dsub">
+        <div className="kio-dsub" style={{ flex: '1 1 0' }}>
           <div className="kio-dhead"><span>📝 NOTES</span><em>{d.notes.length}</em></div>
           <AutoScroll className="kio-dlist">
             {d.notes.map((n, i) => (
@@ -655,11 +663,20 @@ function DailyOverview({ d }) {
             {d.notes.length === 0 && <div className="kio-dempty">No open notes.</div>}
           </AutoScroll>
         </div>
-        <div className="kio-dsub kio-dthru">
-          <div className="kio-dhead"><span>📈 THROUGHPUT</span><em>14d</em></div>
-          <div className="kio-thru-card"><CompletionsChart embedded days={14} /></div>
-        </div>
       </div>
+    </section>
+  );
+}
+
+// Full-screen Throughput board — the Admin completions chart at full size.
+function ThroughputScreen({ doneToday }) {
+  return (
+    <section className="kio-panel kio-thruscreen">
+      <div className="kio-thru-side">
+        <div className="kio-thru-stat"><span className="kio-thru-n">{doneToday}</span><span className="kio-thru-l">DONE TODAY</span></div>
+        <div className="kio-thru-note">Jobs checked off per day, stacked by department. Bars = daily count · line = 7-day average · QC split out.</div>
+      </div>
+      <div className="kio-thru-big"><CompletionsChart embedded days={30} /></div>
     </section>
   );
 }

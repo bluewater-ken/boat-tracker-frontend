@@ -267,7 +267,7 @@ function KioskView({ demo }) {
   // All boats in a stage (incl. Backlog, which isn't in `inProd`) for the pipeline columns.
   const stageBoats = (k) => boats.filter(b => stageOf(b) === k).sort((a, b) => (a.sequence_number || 999) - (b.sequence_number || 999));
   // Pipeline columns: the Queued (Backlog) boats first, then the production stages.
-  const PIPE_COLS = [{ key: 'Backlog', label: 'QUEUED', accent: '#8492A6' }, ...PIPELINE];
+  const PIPE_COLS = [{ key: 'Backlog', label: 'BACKLOG', accent: '#8492A6' }, ...PIPELINE];
   const fillOf = (b) => {
     const s = (b.segments || []).find(sg => sg.name === stageOf(b));
     return s && s.fill_pct != null ? Math.round(s.fill_pct) : null;
@@ -471,8 +471,8 @@ function KioskTraveler({ b }) {
                 <div className="kio-wc-bar"><span style={{ width: `${pct}%` }} /></div>
                 {open.length > 0 && (
                   <div className="kio-wc-tasks">
-                    {open.slice(0, 12).map(t => <span key={t} className="kio-wc-task">{t}</span>)}
-                    {open.length > 12 && <span className="kio-wc-more">+{open.length - 12} more</span>}
+                    {open.slice(0, 20).map(t => <span key={t} className="kio-wc-task">{t}</span>)}
+                    {open.length > 20 && <span className="kio-wc-more">+{open.length - 20} more</span>}
                   </div>
                 )}
               </div>

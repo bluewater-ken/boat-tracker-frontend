@@ -107,14 +107,21 @@
 /* traveler layout: top row of 3, then a full-width Work Centers block */
 .kio-btop { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; flex: 1 1 0; min-height: 0; }
 .kio-bwc { flex: 1.4 1 0; min-height: 0; overflow: hidden; }
-.kio-wc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 26px; padding-top: 12px; overflow: hidden; flex: 1; min-height: 0; align-content: start; }
+/* Work Centers scroll horizontally when there are more centers than fit. */
+.kio-wc-grid { display: flex; flex-direction: row; gap: 26px; padding: 12px 2px 6px; overflow-x: auto; overflow-y: hidden; flex: 1; min-height: 0; }
+.kio-wc-grid > .kio-wc { flex: 0 0 clamp(240px, 24%, 340px); min-width: 0; }
 .kio-bcol { display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-radius: 14px; padding: 12px 14px;
   background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)); border: 1px solid rgba(255,255,255,0.07); }
 .kio-bcol-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 800; letter-spacing: 2px; color: #22D3EE; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); }
 .kio-bcol-head em { font-style: normal; font-size: 13px; padding: 2px 9px; border-radius: 6px; }
 .kio-bcol-head em.kio-left { color: #FBBF24; background: rgba(251,191,36,0.14); border: 1px solid rgba(251,191,36,0.45); }
 .kio-bcol-head em.kio-alldone { color: #34E4B0; background: rgba(52,228,176,0.12); border: 1px solid rgba(52,228,176,0.4); }
-.kio-bcol-list { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; overflow: hidden; flex: 1 1 0; min-height: 0; }
+.kio-bcol-list { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; overflow-y: auto; overflow-x: hidden; flex: 1 1 0; min-height: 0; }
+/* Thin, on-theme scrollbars for any box that scrolls when data is cut off. */
+.kio-bcol-list, .kio-col-body, .kio-wc-grid { scrollbar-width: thin; scrollbar-color: rgba(34,211,238,0.5) transparent; }
+.kio-bcol-list::-webkit-scrollbar, .kio-col-body::-webkit-scrollbar, .kio-wc-grid::-webkit-scrollbar { width: 8px; height: 8px; }
+.kio-bcol-list::-webkit-scrollbar-thumb, .kio-col-body::-webkit-scrollbar-thumb, .kio-wc-grid::-webkit-scrollbar-thumb { background: rgba(34,211,238,0.4); border-radius: 6px; }
+.kio-bcol-list::-webkit-scrollbar-track, .kio-col-body::-webkit-scrollbar-track, .kio-wc-grid::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 6px; }
 .kio-bitem { display: flex; align-items: center; gap: 11px; font-size: 18px; }
 /* Done recedes; what's left (wip / not-started) pops so the wall shows the gaps. */
 .kio-bitem.ok { opacity: 0.42; }
@@ -178,7 +185,7 @@
   background: color-mix(in srgb, var(--accent) 18%, transparent); color: #fff;
   border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
 }
-.kio-col-body { display: flex; flex-direction: column; gap: 10px; overflow: hidden; padding-top: 12px; flex: 1; }
+.kio-col-body { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; overflow-x: hidden; padding-top: 12px; flex: 1; min-height: 0; }
 
 .kio-card {
   border-radius: 12px; padding: 12px 13px;

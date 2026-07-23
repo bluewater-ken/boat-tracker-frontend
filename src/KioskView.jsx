@@ -290,7 +290,7 @@ function KioskView({ demo }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const pageLabel = (p) => p === 'pipeline' ? 'PRODUCTION PIPELINE' : `${p.b.boat_id} · BUILD TRAVELER`;
+  const pageLabel = (p) => p === 'pipeline' ? 'PRODUCTION PIPELINE' : `${p.b.boat_id} · BOAT DETAIL`;
 
   const clock = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   const day = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });

@@ -122,8 +122,9 @@ const DEMO_BOAT_DETAIL = {
   ],
   workcenters: [
     { n: 'Back Line', done: 12, total: 12, open: [] },
-    { n: 'Front Line', done: 8, total: 10, open: ['Rig hydraulic steering', 'Mount electronics'] },
-    { n: 'Console', done: 5, total: 6, open: ['Install nav lights'] },
+    { n: 'Front Line', done: 6, total: 12, open: ['Rig hydraulic steering', 'Mount electronics', 'Run bilge wiring', 'Install trim tabs', 'Seal thru-hulls', 'Mount battery trays'] },
+    { n: 'Console', done: 5, total: 9, open: ['Install nav lights', 'Wire switch panel', 'Mount GPS', 'Fit grab rail'] },
+    { n: 'Rigging', done: 3, total: 7, open: ['Steering cable', 'Throttle cables', 'Fuel line', 'Battery cutoff'] },
   ],
   flags: [{ t: 'QC PUNCH LIST', c: 'warn' }],
 };
@@ -444,39 +445,41 @@ function StatList({ title, items }) {
   );
 }
 
-// Variant A — full build traveler (Pre-Production Report style).
+// Full build traveler: Key Parts / Lamination / Finishing across the top, then
+// Work Centers spanning the full width below (sub-columns) so a boat in heavy
+// assembly can show many individual open tasks.
 function KioskTraveler({ b }) {
+  const wcOpen = b.workcenters.reduce((s, w) => s + (w.open?.length || 0), 0);
   return (
     <section className="kio-panel kio-boat kio-traveler">
       <BoatHead b={b} />
-      <div className="kio-bcols">
+      <div className="kio-btop">
         <StatList title="KEY PARTS" items={b.keyParts} />
         <StatList title="LAMINATION" items={b.lamination} />
         <StatList title="FINISHING" items={b.finishing} />
-        <div className="kio-bcol">
-          <div className="kio-bcol-head">
-            <span>WORK CENTERS</span>
-            {(() => { const openCount = b.workcenters.reduce((s, w) => s + (w.open?.length || 0), 0);
-              return openCount > 0 ? <em className="kio-left">{openCount} LEFT</em> : <em className="kio-alldone">✓ DONE</em>; })()}
-          </div>
-          <div className="kio-bcol-list">
-            {b.workcenters.map(w => {
-              const pct = Math.round((w.done / w.total) * 100);
-              const open = w.open || [];
-              return (
-                <div key={w.n} className="kio-wc">
-                  <div className="kio-wc-top"><span>{w.n}</span><em>{w.done}/{w.total}</em></div>
-                  <div className="kio-wc-bar"><span style={{ width: `${pct}%` }} /></div>
-                  {open.length > 0 && (
-                    <div className="kio-wc-tasks">
-                      {open.slice(0, 5).map(t => <span key={t} className="kio-wc-task">{t}</span>)}
-                      {open.length > 5 && <span className="kio-wc-more">+{open.length - 5} more</span>}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+      </div>
+      <div className="kio-bwc kio-bcol">
+        <div className="kio-bcol-head">
+          <span>WORK CENTERS</span>
+          {wcOpen > 0 ? <em className="kio-left">{wcOpen} LEFT</em> : <em className="kio-alldone">✓ DONE</em>}
+        </div>
+        <div className="kio-wc-grid">
+          {b.workcenters.map(w => {
+            const pct = Math.round((w.done / w.total) * 100);
+            const open = w.open || [];
+            return (
+              <div key={w.n} className="kio-wc">
+                <div className="kio-wc-top"><span>{w.n}</span><em>{w.done}/{w.total}</em></div>
+                <div className="kio-wc-bar"><span style={{ width: `${pct}%` }} /></div>
+                {open.length > 0 && (
+                  <div className="kio-wc-tasks">
+                    {open.slice(0, 12).map(t => <span key={t} className="kio-wc-task">{t}</span>)}
+                    {open.length > 12 && <span className="kio-wc-more">+{open.length - 12} more</span>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>

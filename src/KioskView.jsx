@@ -21,6 +21,53 @@ const FEED_ICON = {
   COMMENT_ADDED: '💬', PART_RECEIVED: '📦', PART_DELAYED: '🕓', PART_FLAGGED: '⚠️',
   STAGE_CHANGED: '🚩', QUESTION_POSTED: '❓', APP_TASK_UPDATED: '🛠️',
 };
+// Feed events that count as "something got done" — a new one drops the bomb.
+const COMPLETION_TYPES = new Set(['CHECKLIST_ITEM_COMPLETED', 'CHECKLIST_COMPLETED', 'PART_RECEIVED', 'STAGE_CHANGED']);
+
+// Synthesized bomb-drop (falling whistle → explosion) via Web Audio — no audio
+// file, CSP-safe. Evokes the classic DJ air-horn/bomb without using any sample.
+function playBombDrop() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = playBombDrop._ctx || (playBombDrop._ctx = new AC());
+    if (ctx.state === 'suspended') ctx.resume();
+    const t0 = ctx.currentTime;
+
+    // 1) Falling whistle
+    const w = ctx.createOscillator(), wg = ctx.createGain();
+    w.type = 'sine';
+    w.frequency.setValueAtTime(1500, t0);
+    w.frequency.exponentialRampToValueAtTime(170, t0 + 0.7);
+    wg.gain.setValueAtTime(0.0001, t0);
+    wg.gain.exponentialRampToValueAtTime(0.3, t0 + 0.05);
+    wg.gain.exponentialRampToValueAtTime(0.08, t0 + 0.7);
+    w.connect(wg); wg.connect(ctx.destination);
+    w.start(t0); w.stop(t0 + 0.72);
+
+    // 2) Explosion when the whistle lands
+    const bt = t0 + 0.66, dur = 1.0;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 1.5);
+    const noise = ctx.createBufferSource(); noise.buffer = buf;
+    const nf = ctx.createBiquadFilter(); nf.type = 'lowpass';
+    nf.frequency.setValueAtTime(1400, bt); nf.frequency.exponentialRampToValueAtTime(120, bt + 0.6);
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.9, bt); ng.gain.exponentialRampToValueAtTime(0.001, bt + 0.85);
+    noise.connect(nf); nf.connect(ng); ng.connect(ctx.destination);
+    noise.start(bt); noise.stop(bt + dur);
+
+    // low sub-boom for the punch
+    const s = ctx.createOscillator(), sg = ctx.createGain();
+    s.type = 'sine';
+    s.frequency.setValueAtTime(130, bt); s.frequency.exponentialRampToValueAtTime(38, bt + 0.5);
+    sg.gain.setValueAtTime(0.0001, bt); sg.gain.exponentialRampToValueAtTime(0.9, bt + 0.03);
+    sg.gain.exponentialRampToValueAtTime(0.001, bt + 0.75);
+    s.connect(sg); sg.connect(ctx.destination);
+    s.start(bt); s.stop(bt + 0.8);
+  } catch { /* audio not allowed yet (needs a gesture / kiosk autoplay flag) */ }
+}
 
 const timeAgo = (iso) => {
   if (!iso) return '';
@@ -145,6 +192,7 @@ function KioskView({ demo }) {
   const [manual, setManual] = useState(false); // arrows browse boat pages
   const now = useClock();
   const RESUME_MS = 60000; // after a manual move, return to the pipeline when idle this long
+  const seenRef = useRef(null); // feed ids seen so far — a new completion drops the bomb
 
   // --- data load + refresh ---
   const load = async () => {
@@ -167,7 +215,15 @@ function KioskView({ demo }) {
         bs = bs.map(b => ({ ...b, segments: seg[b.boat_id], target_date: b.target_date || tgt[b.boat_id] }));
       }
       setBoats(bs);
-      if (fRes && fRes.ok) setFeed(await fRes.json());
+      if (fRes && fRes.ok) {
+        const f = await fRes.json();
+        setFeed(f);
+        // Drop the bomb when a NEW completion shows up (but not on the first load,
+        // which would fire for every existing item).
+        const ids = new Set(f.map(it => it.id));
+        if (seenRef.current && f.some(it => !seenRef.current.has(it.id) && COMPLETION_TYPES.has(it.type))) playBombDrop();
+        seenRef.current = ids;
+      }
       const asm = asmRes && asmRes.ok ? await asmRes.json() : null;
       setAux({
         lam: lamRes && lamRes.ok ? await lamRes.json() : [],
@@ -219,6 +275,7 @@ function KioskView({ demo }) {
       if (e.key === 'Escape') window.location.href = window.location.pathname;
       else if (e.key === 'ArrowRight') stepRef.current(1);
       else if (e.key === 'ArrowLeft') stepRef.current(-1);
+      else if (e.key === 's' || e.key === 'S') playBombDrop(); // test the completion sound
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

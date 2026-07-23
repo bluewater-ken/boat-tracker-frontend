@@ -103,6 +103,7 @@ function KeyPartsTracker() {
   const [menu, setMenu] = useState(null); // { boatId, partName, isCustom, x, y }
   const [customList, setCustomList] = useState(null); // { boatId, x, y } — grid drill-down
   const [customSel, setCustomSel] = useState(null); // { side: 'all'|'boat', name } — two-box selection
+  const [customFilter, setCustomFilter] = useState('all'); // all | std | cust — filter the "All custom parts" pool
   // Remembered spec/description options per part name (grows as values are entered).
   const [specOptions, setSpecOptions] = useState(DUMMY_SPEC_OPTIONS);
 
@@ -511,11 +512,20 @@ function KeyPartsTracker() {
                 <div className="kpt-tbox">
                   <div className="kpt-tbox-title">
                     All custom parts
+                    {supportsStd && (
+                      <div className="kpt-filter" role="group" aria-label="Filter parts">
+                        {[['all', 'All'], ['std', 'Standard'], ['cust', 'Custom']].map(([k, lbl]) => (
+                          <button key={k} className={customFilter === k ? 'on' : ''} onClick={() => setCustomFilter(k)}>{lbl}</button>
+                        ))}
+                      </div>
+                    )}
                     {supportsStd && availableForBoat(selectedBoat.boat_id).some(n => customStd.has(n)) &&
                       <button className="kpt-addstd" title="Add every part marked Standard to this boat" onClick={addAllStandard}>+ Add all standard</button>}
                   </div>
                   <div className="kpt-tbox-list">
-                    {availableForBoat(selectedBoat.boat_id).map(n => {
+                    {availableForBoat(selectedBoat.boat_id)
+                      .filter(n => !supportsStd || customFilter === 'all' || customStd.has(n) === (customFilter === 'std'))
+                      .map(n => {
                       const std = customStd.has(n);
                       return (
                         <div key={n} className={`kpt-titem ${customSel?.side === 'all' && customSel.name === n ? 'sel' : ''}`}
@@ -530,7 +540,13 @@ function KeyPartsTracker() {
                         </div>
                       );
                     })}
-                    {availableForBoat(selectedBoat.boat_id).length === 0 && <div className="kpt-tempty">All added to this boat.</div>}
+                    {(() => {
+                      const pool = availableForBoat(selectedBoat.boat_id);
+                      const shown = pool.filter(n => !supportsStd || customFilter === 'all' || customStd.has(n) === (customFilter === 'std'));
+                      if (shown.length) return null;
+                      if (pool.length === 0) return <div className="kpt-tempty">All added to this boat.</div>;
+                      return <div className="kpt-tempty">No {customFilter === 'std' ? 'standard' : 'custom'} parts to add.</div>;
+                    })()}
                   </div>
                   <div className="kpt-tadd">
                     <SmartInput storeKey="custom-names" options={customNames} placeholder="Add a new custom part..." value={newCustom} onChange={setNewCustom} onEnter={addNewCustomName} />

@@ -83,9 +83,64 @@ const STATUS_MARK = { done: '✓', received: '✓', ordered: '◐', progress: '�
 const STATUS_CLS = { done: 'ok', received: 'ok', ordered: 'wip', progress: 'wip', not: 'off' };
 const countDone = (arr) => arr.filter(i => i.s === 'done' || i.s === 'received').length;
 
+// Per-boat detail mapping — mirrors PreProductionReport so the kiosk reads the same.
+const KLAM_TASKS = ['Glass Kit', 'Hull', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid', 'Other'];
+const KFIN_TASKS = ['Hull', 'Liner', 'Ring', 'Hard Top', 'Console', 'Console Face', 'Hatches', 'Leaning Post', 'Buckets', 'Other'];
+const lamDone = (task, status) => (task === 'Glass Kit' ? ['Complete'] : ['Complete/On Mold', 'Pulled']).includes(status || '');
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const fmtMonthDay = (iso) => { if (!iso) return '—'; const [, m, d] = String(iso).slice(0, 10).split('-'); return `${MON[+m - 1]} ${+d}`; };
+const isMotor = (name) => /^motors?$/i.test(String(name || '').trim());
+
+// Build one boat's detail object (shape consumed by KioskTraveler/KioskStatus) from
+// the fetched lamination/finishing/parts/assembly data.
+function buildBoatDetail(b, aux) {
+  const { lam, fin, parts, std, asm, wcs } = aux;
+  const pFor = parts.filter(p => p.boat_id === b.boat_id);
+  const keyParts = std.map(name => {
+    const p = pFor.find(x => x.part_name === name && !x.is_custom);
+    if (!p || p.na) return null;
+    const s = p.status === 'Received' ? 'done' : p.status === 'Ordered' ? 'ordered' : 'not';
+    return { n: name, s, d: isMotor(name) ? (p.description || '') : '' };
+  }).filter(Boolean);
+  const lamBy = {}; for (const r of lam) if (r.boat_id === b.boat_id) lamBy[r.task_name] = r;
+  const lamination = KLAM_TASKS.map(t => {
+    const r = lamBy[t]; if (!r || r.na) return null;
+    const s = lamDone(t, r.status) ? 'done' : (r.status === 'In Progress' || r.status === 'Mold Open') ? 'progress' : 'not';
+    return { n: t, s };
+  }).filter(Boolean);
+  const finBy = {}; for (const r of fin) if (r.boat_id === b.boat_id) finBy[r.task_name] = r;
+  const finishing = KFIN_TASKS.map(t => {
+    const r = finBy[t]; if (!r || r.na || r.status === 'Not Available') return null;
+    const s = r.status === 'Complete' ? 'done' : r.status === 'In Progress' ? 'progress' : 'not';
+    return { n: t, s };
+  }).filter(Boolean);
+  const workcenters = (wcs || []).filter(w => w.id !== 'quality-control').map(w => {
+    const row = (asm?.rows || []).find(r => r.boat_id === b.boat_id && r.work_center_id === w.id);
+    if (!row) return null;
+    const total = (row.items || []).length || (row.remaining || []).length;
+    if (!total) return null;
+    return { n: w.name || w.id, done: (row.items || []).filter(i => i.done).length, total };
+  }).filter(Boolean);
+  const today = new Date().toISOString().slice(0, 10);
+  const flags = [];
+  if (pFor.some(p => p.status !== 'Received' && (p.flag_late || p.flag_backordered ||
+    (p.expected_delivery && String(p.expected_delivery).slice(0, 10) < today)))) flags.push({ t: 'PARTS LATE', c: 'warn' });
+  const seg = (b.segments || []).find(s => s.name === b.global_status);
+  const segs = b.segments || [];
+  return {
+    boat_id: b.boat_id, customer_name: b.customer_name, boat_model: b.boat_model, hull_color: b.hull_color,
+    motor: (pFor.find(p => isMotor(p.part_name))?.description || '').trim(),
+    global_status: b.global_status,
+    stageFill: seg && seg.fill_pct != null ? Math.round(seg.fill_pct) : null,
+    target: b.target_date ? fmtMonthDay(b.target_date) : (segs.length ? fmtMonthDay(segs[segs.length - 1].end) : '—'),
+    keyParts, lamination, finishing, workcenters, flags,
+  };
+}
+
 function KioskView({ demo }) {
   const [boats, setBoats] = useState(demo ? DEMO_BOATS : []);
   const [feed, setFeed] = useState(demo ? DEMO_FEED : []);
+  const [aux, setAux] = useState(null); // { lam, fin, parts, std, asm, wcs } for per-boat pages
   const [panel, setPanel] = useState(0);   // index into `pages`
   const [tick, setTick] = useState(0);      // rotation progress 0..1
   const [manual, setManual] = useState(false); // arrows pause the auto-rotate
@@ -97,20 +152,34 @@ function KioskView({ demo }) {
   // --- data load + refresh ---
   const load = async () => {
     try {
-      const [bRes, tlRes, fRes] = await Promise.all([
+      const [bRes, tlRes, fRes, lamRes, finRes, asmRes, partsRes, stdRes] = await Promise.all([
         apiFetch('/api/boats').catch(() => null),
         apiFetch('/api/timeline').catch(() => null),
         apiFetch('/api/assembly/feed?limit=80').catch(() => null),
+        apiFetch('/api/lamination').catch(() => null),
+        apiFetch('/api/finishing').catch(() => null),
+        apiFetch('/api/assembly').catch(() => null),
+        apiFetch('/api/parts').catch(() => null),
+        apiFetch('/api/parts/standard').catch(() => null),
       ]);
       let bs = bRes && bRes.ok ? await bRes.json() : [];
       if (tlRes && tlRes.ok) {
         const tl = await tlRes.json();
-        const seg = {};
-        for (const g of (tl.groups || [])) if (g.kind === 'boat') seg[g.key] = g.segments;
-        bs = bs.map(b => ({ ...b, segments: seg[b.boat_id] }));
+        const seg = {}, tgt = {};
+        for (const g of (tl.groups || [])) if (g.kind === 'boat') { seg[g.key] = g.segments; tgt[g.key] = g.target_date; }
+        bs = bs.map(b => ({ ...b, segments: seg[b.boat_id], target_date: b.target_date || tgt[b.boat_id] }));
       }
       setBoats(bs);
       if (fRes && fRes.ok) setFeed(await fRes.json());
+      const asm = asmRes && asmRes.ok ? await asmRes.json() : null;
+      setAux({
+        lam: lamRes && lamRes.ok ? await lamRes.json() : [],
+        fin: finRes && finRes.ok ? await finRes.json() : [],
+        parts: partsRes && partsRes.ok ? await partsRes.json() : [],
+        std: stdRes && stdRes.ok ? await stdRes.json() : [],
+        asm,
+        wcs: (asm?.work_centers || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
+      });
     } catch { /* keep last good data on the wall */ }
   };
   useEffect(() => { if (demo) return; load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, [demo]);
@@ -141,10 +210,16 @@ function KioskView({ demo }) {
   };
 
   // Pages: pipeline + activity auto-rotate; boat pages are reached with the arrows.
-  // In demo mode we show BOTH per-boat layouts on one boat so Ken can compare.
+  // Each in-production boat gets a Traveler page then a Status page.
   const pages = ['pipeline', 'activity'];
-  if (demo) pages.push({ v: 'traveler', b: DEMO_BOAT_DETAIL }, { v: 'status', b: DEMO_BOAT_DETAIL });
-  else inProd.forEach(b => pages.push({ v: 'status', b }));
+  if (demo) {
+    pages.push({ v: 'traveler', b: DEMO_BOAT_DETAIL }, { v: 'status', b: DEMO_BOAT_DETAIL });
+  } else if (aux) {
+    inProd.forEach(b => {
+      const d = buildBoatDetail(b, aux);
+      pages.push({ v: 'traveler', b: d }, { v: 'status', b: d });
+    });
+  }
   const cur = pages[Math.min(panel, pages.length - 1)];
 
   const step = (dir) => { setManual(true); setTick(0); setPanel(p => (p + dir + pages.length) % pages.length); };

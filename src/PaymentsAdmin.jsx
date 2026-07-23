@@ -134,6 +134,15 @@ function buildBuckets(rows, mode) {
   if (mode === 'weeks') { let c = mondayOf(sIso); const end = mondayOf(eIso); while (c <= end) { keys.push(c); c = nextWeek(c); } }
   else { let [y, m] = sIso.slice(0, 7).split('-').map(Number); const [ey, em] = eIso.slice(0, 7).split('-').map(Number); while (y < ey || (y === ey && m <= em)) { keys.push(`${y}-${String(m).padStart(2, '0')}`); if (++m > 12) { m = 1; y++; } } }
   const by = {}; for (const k of keys) by[k] = { received: 0, overdue: 0, due: 0, upcoming: 0, rows: [] };
+  // YTD opening balance: money already COLLECTED this calendar year but before the
+  // chart window (left of -3mo). Seeds the collected line so it reads true YTD.
+  const janFirst = `${todayStr().slice(0, 4)}-01-01`;
+  let ytdOpen = 0;
+  for (const r of rows) {
+    if (r.amount == null || r.status !== 'paid') continue;
+    const rd = rowDate(r);
+    if (rd && rd >= janFirst && rd < sIso) ytdOpen += r.amount;
+  }
   let outFwd = 0; // expected money beyond the window's right edge (so the note can flag it)
   for (const r of rows) {
     if (r.amount == null) continue; const d = bucketDate(r); if (!d) continue;
@@ -143,11 +152,11 @@ function buildBuckets(rows, mode) {
   }
   const barMax = Math.max(1, ...keys.map(k => CHART_CATS.reduce((s, c) => s + by[k][c.key], 0)));
   const step = Math.pow(10, Math.floor(Math.log10(barMax)));
-  return { keys, by, niceMax: Math.ceil(barMax / step) * step, todayKey, outFwd };
+  return { keys, by, niceMax: Math.ceil(barMax / step) * step, todayKey, outFwd, ytdOpen };
 }
 
 function PayChart({ rows, mode, pick, onPick }) {
-  const { keys, by, niceMax, todayKey, outFwd } = buildBuckets(rows, mode);
+  const { keys, by, niceMax, todayKey, outFwd, ytdOpen } = buildBuckets(rows, mode);
   if (!keys.length) return <div className="pay-quiet" style={{ padding: '10px 2px' }}>No dated payments to chart yet.</div>;
   const W = 760, H = 210, L = 52, R = 58, T = 12, B = 34;
   const plotW = W - L - R, plotH = H - T - B;
@@ -160,9 +169,10 @@ function PayChart({ rows, mode, pick, onPick }) {
   const total = (k) => CHART_CATS.reduce((s, c) => s + by[k][c.key], 0);
   const overdueTotal = keys.reduce((s, k) => s + (k >= todayKey ? by[k].overdue : 0), 0);
 
-  // (1) Cumulative FROM DATE, resetting at today: collected-to-date (past) then the
-  // forward pipeline — with an on-time line (excludes overdue) underneath.
-  let lrun = 0, rAll = 0, rClean = 0;
+  // (1) Cumulative FROM DATE: the collected line is YTD — seeded with this year's
+  // receipts from before the window, so at today it equals the full year-to-date
+  // total. Forward of today it becomes the pipeline, with an on-time line under it.
+  let lrun = ytdOpen, rAll = 0, rClean = 0;
   const cum = keys.map(k => {
     if (k < todayKey) { lrun += by[k].received; return { past: true, v: lrun }; }
     rAll += total(k); rClean += by[k].due + by[k].upcoming;
@@ -233,7 +243,7 @@ function PayChart({ rows, mode, pick, onPick }) {
         {pastPts && <polyline points={pastPts} fill="none" stroke="#1D9E75" strokeWidth="2" strokeLinejoin="round" />}
         {overdueTotal > 0 && fwdCleanPts && <polyline points={fwdCleanPts} fill="none" stroke="#7F77DD" strokeWidth="1.6" strokeDasharray="4 3" strokeLinejoin="round" />}
         {fwdPts && <polyline points={fwdPts} fill="none" stroke="#534AB7" strokeWidth="2" strokeLinejoin="round" />}
-        {lrun > 0 && todayI > 0 && <text x={x(todayI) - slot / 2 - 3} y={yc(lrun) - 4} textAnchor="end" fontSize="9" fontWeight="700" fill="#0F6E56">{kMoney(lrun)}</text>}
+        {lrun > 0 && todayI > 0 && <text x={x(todayI) - slot / 2 - 3} y={yc(lrun) - 4} textAnchor="end" fontSize="9" fontWeight="700" fill="#0F6E56">YTD {kMoney(lrun)}</text>}
         {rAll > 0 && <text x={x(lastI) + 4} y={yc(rAll) + 3} fontSize="9" fontWeight="700" fill="#534AB7">{kMoney(rAll)}</text>}
         {overdueTotal > 0 && <text x={x(lastI) + 4} y={yc(rClean) + 3} fontSize="8.5" fontWeight="700" fill="#7F77DD">{kMoney(rClean)}</text>}
         <line x1={L} y1={y(0)} x2={W - R} y2={y(0)} stroke="#D6DBE0" />
@@ -403,7 +413,7 @@ function PaymentsAdmin() {
             <span className="pay-chart-title">Cash flow — {chartMode === 'weeks' ? 'weekly' : 'monthly'}</span>
             <span className="pay-chart-legend">
               {CHART_CATS.map(c => <span key={c.key}><i style={{ background: c.color }} />{c.label}</span>)}
-              <span><i className="pay-cumline pay-cum-collected" />Collected to date</span>
+              <span><i className="pay-cumline pay-cum-collected" />Collected (YTD)</span>
               <span><i className="pay-cumline pay-cum-forward" />Cumulative (from today)</span>
               <span><i className="pay-cumline pay-cum-quarter" />Per quarter</span>
               <span><i className="pay-cumline pay-cum-dashed" />dashed = on-time (excl. overdue)</span>

@@ -37,6 +37,9 @@
    them to relative, which would push the header down by the scanline's height. */
 .kio > * { position: relative; z-index: 1; }
 .kio > .kio-bg, .kio > .kio-scan { position: absolute; z-index: 0; }
+/* The photo viewer renders as a child of .kio, so the blanket rule above would
+   pin it to z-index:1 (behind the detail overlay). Restore its fixed fullscreen. */
+.kio > .plb { position: fixed; z-index: 1200; }
 
 /* ---------- top bar ---------- */
 .kio-top { display: flex; align-items: center; gap: 24px; padding: 22px 34px 14px; }

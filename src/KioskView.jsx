@@ -212,14 +212,18 @@ const DEMO_DAILY = {
 };
 const dPh = (arr) => arr.map(([name, done, total]) => ({ name, done, total, pct: Math.round((done / total) * 100) }));
 const DEMO_FLOOR = [
-  { boat_id: '28225', customer: 'Trey', hull: 'slategray', stage: 'Back Line', overall: 55, phases: dPh([
+  { boat_id: '28225', customer: 'Trey', hull: 'slategray', stage: 'Back Line', overall: 55, eta: 'Aug 20', sched: { status: 'behind', days: 6 }, phases: dPh([
     ['Parts', 12, 15], ['Glass Shop', 10, 11], ['Back Line', 28, 48], ['Consoles', 3, 18], ['QC', 0, 14], ['Finishing', 1, 9]]) },
-  { boat_id: '36C004', customer: 'Hensley', hull: '#155E75', stage: 'Front Line', overall: 79, phases: dPh([
+  { boat_id: '36C004', customer: 'Hensley', hull: '#155E75', stage: 'Front Line', overall: 79, eta: 'Aug 4', sched: { status: 'ontime', days: 0 }, phases: dPh([
     ['Parts', 15, 15], ['Glass Shop', 11, 11], ['Back Line', 46, 48], ['Consoles', 15, 18], ['Front Line', 22, 30], ['QC', 3, 14], ['Finishing', 2, 9]]) },
-  { boat_id: '26F032', customer: 'Scituate #2', hull: 'goldenrod', stage: 'Back Line', overall: 38, phases: dPh([
+  { boat_id: '26F032', customer: 'Scituate #2', hull: 'goldenrod', stage: 'Back Line', overall: 38, eta: 'Aug 28', sched: { status: 'ahead', days: 3 }, phases: dPh([
     ['Parts', 10, 15], ['Glass Shop', 8, 11], ['Back Line', 14, 48], ['Consoles', 1, 18], ['Finishing', 0, 9]]) },
-  { boat_id: '28C012', customer: 'Rourke', hull: '#0F766E', stage: 'Back Line', overall: 62, phases: dPh([
+  { boat_id: '28C012', customer: 'Rourke', hull: '#0F766E', stage: 'Back Line', overall: 62, eta: 'Aug 12', sched: { status: 'behind', days: 2 }, phases: dPh([
     ['Parts', 14, 15], ['Glass Shop', 11, 11], ['Back Line', 34, 48], ['Consoles', 6, 18], ['QC', 1, 14], ['Finishing', 3, 9]]) },
+  { boat_id: '25T060', customer: 'Alvarez', hull: '#334155', stage: 'Front Line', overall: 84, eta: 'Aug 1', sched: { status: 'ahead', days: 4 }, phases: dPh([
+    ['Parts', 15, 15], ['Glass Shop', 11, 11], ['Back Line', 48, 48], ['Consoles', 18, 18], ['Front Line', 26, 30], ['QC', 6, 14], ['Finishing', 4, 9]]) },
+  { boat_id: '25T043', customer: 'Svoboda', hull: 'darkgoldenrod', stage: 'Front Line', overall: 64, eta: 'Aug 9', sched: { status: 'behind', days: 5 }, phases: dPh([
+    ['Parts', 17, 20], ['Glass Shop', 11, 11], ['Back Line', 76, 78], ['Consoles', 34, 61], ['Front Line', 23, 40], ['QC', 0, 48], ['Finishing', 9, 9]]) },
 ];
 
 const STATUS_MARK = { done: '✓', received: '✓', ordered: '◐', progress: '◐', not: '○' };
@@ -374,7 +378,14 @@ function computeFloor(boats, aux) {
         { name: 'Finishing', done: finApp.filter(r => r.status === 'Complete').length, total: finApp.length },
       ].filter(p => p.total > 0).map(p => ({ ...p, pct: Math.round((p.done / p.total) * 100) }));
       const tot = phases.reduce((s, p) => s + p.total, 0), don = phases.reduce((s, p) => s + p.done, 0);
-      return { boat_id: b.boat_id, customer: b.customer_name, hull: b.hull_color, stage: b.global_status, overall: tot ? Math.round((don / tot) * 100) : 0, phases };
+      const segs = b.segments || [];
+      const end = segs.length ? segs[segs.length - 1].end : null;
+      let sched = null;
+      if (end && b.target_date) {
+        const d = Math.round((new Date(String(end).slice(0, 10) + 'T00:00:00') - new Date(String(b.target_date).slice(0, 10) + 'T00:00:00')) / 86400000);
+        sched = { status: d > 1 ? 'behind' : d < -1 ? 'ahead' : 'ontime', days: Math.abs(d) };
+      }
+      return { boat_id: b.boat_id, customer: b.customer_name, hull: b.hull_color, stage: b.global_status, overall: tot ? Math.round((don / tot) * 100) : 0, phases, eta: end ? fmtMonthDay(end) : null, sched };
     });
 }
 
@@ -716,6 +727,14 @@ function FloorCard({ b }) {
           <span className={`kio-fc-stage ${b.stage === 'Front Line' ? 'front' : 'back'}`}>{b.stage}</span>
         </div>
         <div className="kio-fc-cust">{b.customer}</div>
+        {b.eta && (
+          <div className="kio-fc-eta">
+            <span className="kio-fc-eta-d">ETA {b.eta}</span>
+            {b.sched && b.sched.status === 'behind' && <span className="kio-sched behind">{b.sched.days}d behind</span>}
+            {b.sched && b.sched.status === 'ahead' && <span className="kio-sched ahead">{b.sched.days}d ahead</span>}
+            {b.sched && b.sched.status === 'ontime' && <span className="kio-sched ontime">on time</span>}
+          </div>
+        )}
         <div className="kio-fc-centers">
           {b.phases.map(p => (
             <div key={p.name} className="kio-fc-wc">
@@ -754,19 +773,19 @@ function ThroughputScreen({ completed }) {
   return (
     <section className="kio-panel kio-thruscreen">
       <div className="kio-thru-side">
-        <div className="kio-thru-stat"><span className="kio-thru-n">{completed.length}</span><span className="kio-thru-l">DONE TODAY</span></div>
-        <div className="kio-thru-done">
-          <div className="kio-dhead green"><span>✅ COMPLETED TODAY</span></div>
-          <AutoScroll className="kio-dlist">
-            {completed.map((c, i) => (
-              <div key={i} className="kio-ditem done">
-                <span className="kio-dt-line"><span className="kio-dt-title">{c.title}</span>{c.dept && <DeptTag dept={c.dept} />}</span>
-                <span className="kio-dt-sub">{c.boat_id}{c.actor ? ` · ${c.actor}` : ''} · {timeAgo(c.at)}</span>
-              </div>
-            ))}
-            {completed.length === 0 && <div className="kio-dempty">Nothing completed yet today.</div>}
-          </AutoScroll>
+        <div className="kio-thru-donehead">
+          <span className="kio-thru-n">{completed.length}</span>
+          <span className="kio-thru-l">COMPLETED<br />TODAY</span>
         </div>
+        <AutoScroll className="kio-dlist">
+          {completed.map((c, i) => (
+            <div key={i} className="kio-ditem done">
+              <span className="kio-dt-line"><span className="kio-dt-title">{c.title}</span>{c.dept && <DeptTag dept={c.dept} />}</span>
+              <span className="kio-dt-sub">{c.boat_id}{c.actor ? ` · ${c.actor}` : ''} · {timeAgo(c.at)}</span>
+            </div>
+          ))}
+          {completed.length === 0 && <div className="kio-dempty">Nothing completed yet today.</div>}
+        </AutoScroll>
       </div>
       <div className="kio-thru-big"><CompletionsChart embedded days={30} /></div>
     </section>

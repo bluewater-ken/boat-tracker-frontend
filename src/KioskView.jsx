@@ -210,15 +210,16 @@ const DEMO_DAILY = {
     { label: '7/22', segs: dSeg(4, 2, 1), total: 7 }, { label: '7/23', segs: dSeg(5, 2, 1), total: 8, today: true },
   ],
 };
+const dPh = (arr) => arr.map(([name, done, total]) => ({ name, done, total, pct: Math.round((done / total) * 100) }));
 const DEMO_FLOOR = [
-  { boat_id: '28225', customer: 'Trey', hull: 'slategray', stage: 'Back Line', overall: 52, centers: [
-    { name: 'Backline — Hull', done: 18, total: 34, pct: 53 }, { name: 'Backline — Deck', done: 8, total: 12, pct: 67 }, { name: 'Backline — Ring', done: 2, total: 14, pct: 14 } ] },
-  { boat_id: '36C004', customer: 'Hensley', hull: '#155E75', stage: 'Front Line', overall: 78, centers: [
-    { name: 'Front Line', done: 22, total: 30, pct: 73 }, { name: 'Console', done: 9, total: 11, pct: 82 } ] },
-  { boat_id: '26F032', customer: 'Scituate #2', hull: 'goldenrod', stage: 'Back Line', overall: 33, centers: [
-    { name: 'Backline — Hull', done: 9, total: 34, pct: 26 }, { name: 'Backline — Deck', done: 5, total: 12, pct: 42 } ] },
-  { boat_id: '28C012', customer: 'Rourke', hull: '#0F766E', stage: 'Back Line', overall: 61, centers: [
-    { name: 'Backline — Hull', done: 20, total: 34, pct: 59 }, { name: 'Backline — Ring', done: 8, total: 14, pct: 57 } ] },
+  { boat_id: '28225', customer: 'Trey', hull: 'slategray', stage: 'Back Line', overall: 55, phases: dPh([
+    ['Parts', 12, 15], ['Glass Shop', 10, 11], ['Back Line', 28, 48], ['Consoles', 3, 18], ['QC', 0, 14], ['Finishing', 1, 9]]) },
+  { boat_id: '36C004', customer: 'Hensley', hull: '#155E75', stage: 'Front Line', overall: 79, phases: dPh([
+    ['Parts', 15, 15], ['Glass Shop', 11, 11], ['Back Line', 46, 48], ['Consoles', 15, 18], ['Front Line', 22, 30], ['QC', 3, 14], ['Finishing', 2, 9]]) },
+  { boat_id: '26F032', customer: 'Scituate #2', hull: 'goldenrod', stage: 'Back Line', overall: 38, phases: dPh([
+    ['Parts', 10, 15], ['Glass Shop', 8, 11], ['Back Line', 14, 48], ['Consoles', 1, 18], ['Finishing', 0, 9]]) },
+  { boat_id: '28C012', customer: 'Rourke', hull: '#0F766E', stage: 'Back Line', overall: 62, phases: dPh([
+    ['Parts', 14, 15], ['Glass Shop', 11, 11], ['Back Line', 34, 48], ['Consoles', 6, 18], ['QC', 1, 14], ['Finishing', 3, 9]]) },
 ];
 
 const STATUS_MARK = { done: '✓', received: '✓', ordered: '◐', progress: '◐', not: '○' };
@@ -328,23 +329,52 @@ function computeDaily(feed, aux, now) {
   return { completed, asap, missing, notes, throughput };
 }
 
-// Shop-floor cards for the visual overview: Back Line + Front Line boats with
-// overall assembly completion (from the CompanyCam work centers, QC excluded)
-// and a per-work-center breakdown.
+// Build phases in order, each its own color.
+const PHASE_COLOR = { 'Parts': '#8FCB4F', 'Glass Shop': '#3FB3C4', 'Back Line': '#22D3EE', 'Consoles': '#5B8DEF', 'Front Line': '#A3E635', 'QC': '#7C74E6', 'Finishing': '#E86A6A' };
+const phaseColor = (name) => PHASE_COLOR[name] || '#22D3EE';
+// Which assembly work center belongs to which phase (by its name/id).
+const asmBucket = (name, id) => {
+  const s = (name || id || '').toLowerCase();
+  if (id === 'quality-control' || /quality|\bqc\b/.test(s)) return 'QC';
+  if (s.includes('console')) return 'Consoles';
+  if (s.includes('front')) return 'Front Line';
+  return 'Back Line';
+};
+
+// Shop-floor cards: Back Line + Front Line boats with an overall completion ring
+// and a per-phase breakdown (Parts -> Glass -> Back Line -> Consoles -> Front
+// Line -> QC -> Finishing), in build order.
 function computeFloor(boats, aux) {
   const asmRows = aux?.asm?.rows || [];
   const wcs = aux?.wcs || [];
+  const parts = aux?.parts || [], lam = aux?.lam || [], fin = aux?.fin || [];
   const wcName = (id) => { const w = wcs.find(x => x.id === id); return (w && w.name) || id; };
   return (boats || [])
     .filter(b => b.global_status === 'Back Line' || b.global_status === 'Front Line')
     .sort((a, b) => (a.sequence_number || 999) - (b.sequence_number || 999))
     .map(b => {
-      const centers = asmRows
-        .filter(r => r.boat_id === b.boat_id && r.work_center_id !== 'quality-control')
-        .map(r => { const items = r.items || []; const total = items.length || (r.remaining || []).length; const done = items.filter(i => i.done).length; return { name: wcName(r.work_center_id), done, total, pct: total ? Math.round((done / total) * 100) : 0 }; })
-        .filter(c => c.total > 0);
-      const total = centers.reduce((s, c) => s + c.total, 0), done = centers.reduce((s, c) => s + c.done, 0);
-      return { boat_id: b.boat_id, customer: b.customer_name, hull: b.hull_color, stage: b.global_status, overall: total ? Math.round((done / total) * 100) : 0, centers };
+      const pFor = parts.filter(p => p.boat_id === b.boat_id && !p.na);
+      const lamBy = {}; for (const r of lam) if (r.boat_id === b.boat_id) lamBy[r.task_name] = r;
+      const lamApp = KLAM_TASKS.map(t => lamBy[t]).filter(r => r && !r.na);
+      const finBy = {}; for (const r of fin) if (r.boat_id === b.boat_id) finBy[r.task_name] = r;
+      const finApp = KFIN_TASKS.map(t => finBy[t]).filter(r => r && !r.na && r.status !== 'Not Available');
+      const buckets = { 'Back Line': { done: 0, total: 0 }, 'Consoles': { done: 0, total: 0 }, 'Front Line': { done: 0, total: 0 }, 'QC': { done: 0, total: 0 } };
+      asmRows.filter(r => r.boat_id === b.boat_id).forEach(r => {
+        const items = r.items || []; const total = items.length || (r.remaining || []).length; if (!total) return;
+        const bk = buckets[asmBucket(wcName(r.work_center_id), r.work_center_id)];
+        bk.done += items.filter(i => i.done).length; bk.total += total;
+      });
+      const phases = [
+        { name: 'Parts', done: pFor.filter(p => p.status === 'Received').length, total: pFor.length },
+        { name: 'Glass Shop', done: lamApp.filter(r => lamDone(r.task_name, r.status)).length, total: lamApp.length },
+        { name: 'Back Line', ...buckets['Back Line'] },
+        { name: 'Consoles', ...buckets['Consoles'] },
+        { name: 'Front Line', ...buckets['Front Line'] },
+        { name: 'QC', ...buckets['QC'] },
+        { name: 'Finishing', done: finApp.filter(r => r.status === 'Complete').length, total: finApp.length },
+      ].filter(p => p.total > 0).map(p => ({ ...p, pct: Math.round((p.done / p.total) * 100) }));
+      const tot = phases.reduce((s, p) => s + p.total, 0), don = phases.reduce((s, p) => s + p.done, 0);
+      return { boat_id: b.boat_id, customer: b.customer_name, hull: b.hull_color, stage: b.global_status, overall: tot ? Math.round((don / tot) * 100) : 0, phases };
     });
 }
 
@@ -687,13 +717,13 @@ function FloorCard({ b }) {
         </div>
         <div className="kio-fc-cust">{b.customer}</div>
         <div className="kio-fc-centers">
-          {b.centers.map(c => (
-            <div key={c.name} className="kio-fc-wc">
-              <div className="kio-fc-wc-top"><span>{c.name}</span><em>{c.done}/{c.total}</em></div>
-              <div className="kio-fc-bar"><span style={{ width: `${c.pct}%` }} /></div>
+          {b.phases.map(p => (
+            <div key={p.name} className="kio-fc-wc">
+              <div className="kio-fc-wc-top"><span>{p.name}</span><em>{p.done}/{p.total}</em></div>
+              <div className="kio-fc-bar"><span style={{ width: `${p.pct}%`, background: phaseColor(p.name) }} /></div>
             </div>
           ))}
-          {b.centers.length === 0 && <div className="kio-fc-none">No work-center detail yet</div>}
+          {b.phases.length === 0 && <div className="kio-fc-none">No build detail yet</div>}
         </div>
       </div>
     </div>

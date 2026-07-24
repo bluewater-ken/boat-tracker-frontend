@@ -657,8 +657,12 @@ function KioskView({ demo }) {
   useEffect(() => {
     const onKey = (e) => {
       const k = e.key;
-      // While the photo viewer is open it owns the keyboard (its own Esc/arrows).
-      if (photosRef.current) return;
+      // While the photo viewer is open it owns the keyboard (its own Esc/arrows);
+      // the clicker's Back button (Backspace) closes it too.
+      if (photosRef.current) {
+        if (k === 'Backspace') { e.preventDefault(); setPhotos(null); }
+        return;
+      }
       if (k === 'Escape') { window.location.href = window.location.pathname; return; }
       if (k === 'ArrowUp') navRef.current('up');
       else if (k === 'ArrowDown') navRef.current('down');

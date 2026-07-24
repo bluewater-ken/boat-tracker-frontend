@@ -276,14 +276,16 @@ function buildBoatDetail(b, aux) {
   const workcenters = (wcs || []).filter(w => w.id !== 'quality-control').map(w => {
     const row = (asm?.rows || []).find(r => r.boat_id === b.boat_id && r.work_center_id === w.id);
     if (!row) return null;
-    const items = (row.items || []).map(i => ({ name: cleanItem(i.name), done: !!i.done })).filter(i => i.name);
+    const items = (row.items || []).map(i => ({
+      name: cleanItem(i.name), done: !!i.done, desc: i.description || '', photos: i.photo_count || 0,
+    })).filter(i => i.name);
     // Older/delivered boats have no items[] — fall back to the open "remaining" list.
     const open = items.length ? items.filter(i => !i.done).map(i => i.name)
       : (row.remaining || []).map(cleanItem).filter(Boolean);
     const total = items.length || (row.remaining || []).length;
     if (!total) return null;
     const allItems = items.length ? items : (row.remaining || []).map(cleanItem).filter(Boolean).map(name => ({ name, done: false }));
-    return { n: w.name || w.id, done: items.filter(i => i.done).length, total, open, items: allItems };
+    return { n: w.name || w.id, done: items.filter(i => i.done).length, total, open, items: allItems, ccUrl: row.cc_url || null, photos: row.photo_count || 0 };
   }).filter(Boolean);
   const today = new Date().toISOString().slice(0, 10);
   const flags = [];
@@ -305,18 +307,22 @@ function buildBoatDetail(b, aux) {
 // columns, then each work center. Every section carries its FULL task list
 // (done + not done) so the detail overlay can show everything.
 function sectionsOf(b) {
-  const fromParts = (arr) => (arr || []).map(it => ({
-    name: it.n + (it.d ? ` — ${it.d}` : '') + (it.exp ? `  (exp ${it.exp})` : ''),
-    done: it.s === 'done' || it.s === 'received',
+  // state: done ✓ / mid ◐ (ordered or in-progress) / not ○. Parts carry an expected
+  // date + spec; work-center tasks carry a description + CompanyCam photo count.
+  const part = (arr) => (arr || []).map(it => ({
+    name: it.n,
+    state: (it.s === 'done' || it.s === 'received') ? 'done' : (it.s === 'ordered' || it.s === 'progress') ? 'mid' : 'not',
+    desc: it.d || '',
+    exp: it.exp || null,
   }));
   return [
-    { label: 'Key Parts', tasks: fromParts(b.keyParts) },
-    { label: 'Lamination', tasks: fromParts(b.lamination) },
-    { label: 'Finishing', tasks: fromParts(b.finishing) },
+    { label: 'Key Parts', tasks: part(b.keyParts), kind: 'parts' },
+    { label: 'Lamination', tasks: part(b.lamination), kind: 'lam' },
+    { label: 'Finishing', tasks: part(b.finishing), kind: 'fin' },
     ...(b.workcenters || []).map(w => ({
-      label: w.n,
+      label: w.n, kind: 'wc', ccUrl: w.ccUrl, photos: w.photos,
       tasks: (w.items && w.items.length ? w.items : (w.open || []).map(n => ({ name: n, done: false })))
-        .map(i => ({ name: i.name, done: !!i.done })),
+        .map(i => ({ name: i.name, state: i.done ? 'done' : 'not', desc: i.desc || '', photos: i.photos || 0 })),
     })),
   ];
 }
@@ -578,7 +584,7 @@ function KioskView({ demo }) {
       const n = secs.length;
       if (action === 'right' || action === 'down') { setManual(true); setSectionSel(i => Math.min(n - 1, (i ?? 0) + 1)); return; }
       if (action === 'left' || action === 'up') { setManual(true); setSectionSel(i => Math.max(0, (i ?? 0) - 1)); return; }
-      if (action === 'select') { setManual(true); setDetail(secs[sectionSel]); return; }
+      if (action === 'select') { setManual(true); setDetail({ boat: curPage.b, section: secs[sectionSel] }); return; }
       if (action === 'back') { setSectionSel(null); return; }
       return;
     }
@@ -729,11 +735,11 @@ function KioskView({ demo }) {
         ) : cur === 'glass' ? (
           <GlassGrid rows={glassRows} />
         ) : (
-          <KioskTraveler b={cur.b} sel={sectionSel} onOpen={(i) => { setManual(true); setDetail(sectionsOf(cur.b)[i]); }} />
+          <KioskTraveler b={cur.b} sel={sectionSel} onOpen={(i) => { setManual(true); setDetail({ boat: cur.b, section: sectionsOf(cur.b)[i] }); }} />
         )}
       </main>
 
-      {detail && <SectionDetail section={detail} onClose={() => setDetail(null)} />}
+      {detail && <SectionDetail boat={detail.boat} section={detail.section} onClose={() => setDetail(null)} />}
 
       <TickerBar feed={feed} />
     </div>
@@ -979,27 +985,59 @@ function KioskTraveler({ b, sel, onOpen }) {
   );
 }
 
-// Full-screen overlay listing every task in one section (done ✓ / not-done ○).
-// Opened by Select-ing a highlighted section (or clicking it); Back / ✕ closes.
-function SectionDetail({ section, onClose }) {
-  const left = section.tasks.filter(t => !t.done).length;
-  const ordered = [...section.tasks].sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0));
+// Near-full-screen overlay listing EVERY task in one section, with the boat it
+// belongs to, a progress bar, and per-task detail (spec + CompanyCam photo count,
+// or a part's expected date). All tasks flow into auto-sized columns so nothing
+// scrolls. Opened by Select-ing a highlighted section (or clicking it); Back / ✕ closes.
+const DETAIL_MARK = { done: '✓', mid: '◐', not: '○' };
+function SectionDetail({ boat, section, onClose }) {
+  const tasks = section.tasks || [];
+  const total = tasks.length;
+  const doneN = tasks.filter(t => t.state === 'done').length;
+  const left = total - doneN;
+  const pct = total ? Math.round((doneN / total) * 100) : 0;
+  // Open / in-progress first so the shop sees what's left; done sink to the bottom.
+  const rank = { not: 0, mid: 1, done: 2 };
+  const ordered = [...tasks].sort((a, b) => rank[a.state] - rank[b.state]);
+  const cols = total <= 12 ? 2 : total <= 28 ? 3 : total <= 48 ? 4 : 5;
   return (
     <div className="kio-detail" onClick={onClose}>
       <div className="kio-detail-card" onClick={e => e.stopPropagation()}>
         <div className="kio-detail-head">
-          <span className="kio-detail-title">{section.label}</span>
-          <span className="kio-detail-count">{left > 0 ? `${left} remaining` : '✓ all done'}</span>
+          <div className="kio-detail-boat">
+            <span className="kio-detail-hull">{boat.boat_id}</span>
+            {boat.hull_color && <span className="kio-chip" style={{ background: boat.hull_color }} title={boat.hull_color} />}
+            <span className="kio-detail-cust">{boat.customer_name}</span>
+            <span className="kio-detail-stage">{boat.global_status}{boat.stageFill != null ? ` · ${boat.stageFill}%` : ''}</span>
+            {boat.target && boat.target !== '—' && <span className="kio-detail-tgt">◆ {boat.target}</span>}
+          </div>
           <button className="kio-detail-x" onClick={onClose}>✕</button>
         </div>
-        <div className="kio-detail-list">
+        <div className="kio-detail-sub">
+          <span className="kio-detail-title">{section.label}</span>
+          <div className="kio-detail-prog"><span style={{ width: `${pct}%` }} /></div>
+          <span className="kio-detail-count">
+            <b>{doneN}</b>/{total} done{left > 0 ? ` · ${left} left` : ' · ✓ complete'}
+          </span>
+          {section.photos > 0 && <span className="kio-detail-camtot">📷 {section.photos}</span>}
+        </div>
+        <div className="kio-detail-list" style={{ columnCount: cols }}>
           {ordered.map((t, i) => (
-            <div key={i} className={`kio-detail-item ${t.done ? 'done' : 'open'}`}>
-              <span className="kio-detail-mark">{t.done ? '✓' : '○'}</span>
-              <span className="kio-detail-name">{t.name}</span>
+            <div key={i} className={`kio-detail-item ${t.state}`}>
+              <span className="kio-detail-mark">{DETAIL_MARK[t.state]}</span>
+              <span className="kio-detail-body">
+                <span className="kio-detail-name">{t.name}</span>
+                {t.desc && <span className="kio-detail-desc">{t.desc}</span>}
+              </span>
+              {(t.exp || t.photos > 0) && (
+                <span className="kio-detail-meta">
+                  {t.exp && <em className="kio-detail-exp">exp {t.exp}</em>}
+                  {t.photos > 0 && <em className="kio-detail-cam">📷 {t.photos}</em>}
+                </span>
+              )}
             </div>
           ))}
-          {ordered.length === 0 && <div className="kio-dempty">No tasks in this section.</div>}
+          {total === 0 && <div className="kio-dempty">No tasks in this section.</div>}
         </div>
       </div>
     </div>

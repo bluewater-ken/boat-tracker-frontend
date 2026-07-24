@@ -147,7 +147,7 @@ const DEMO_BOAT_DETAIL = {
   keyParts: [
     { n: 'Motors', s: 'done', d: 'Twin Mercury 250' }, { n: 'Gelcoat', s: 'done' }, { n: 'Coosa Kit', s: 'done' },
     { n: 'Steering', s: 'done' }, { n: 'Hardware', s: 'done' }, { n: 'Ride Plate', s: 'done' },
-    { n: 'New Wire', s: 'done' }, { n: 'Upholstery', s: 'ordered' }, { n: 'Electronics', s: 'ordered' },
+    { n: 'New Wire', s: 'done' }, { n: 'Upholstery', s: 'ordered', exp: 'Aug 5' }, { n: 'Electronics', s: 'ordered', exp: 'Jul 29' },
     { n: 'Bracket', s: 'not' }, { n: 'Trailer', s: 'not' }, { n: 'Wallabys Tanks', s: 'not' },
   ],
   lamination: [
@@ -259,7 +259,7 @@ function buildBoatDetail(b, aux) {
     const p = pFor.find(x => x.part_name === name && !x.is_custom);
     if (!p || p.na) return null;
     const s = p.status === 'Received' ? 'done' : p.status === 'Ordered' ? 'ordered' : 'not';
-    return { n: name, s, d: isMotor(name) ? (p.description || '') : '' };
+    return { n: name, s, d: isMotor(name) ? (p.description || '') : '', exp: s === 'ordered' && p.expected_delivery ? fmtMonthDay(p.expected_delivery) : null };
   }).filter(Boolean);
   const lamBy = {}; for (const r of lam) if (r.boat_id === b.boat_id) lamBy[r.task_name] = r;
   const lamination = KLAM_TASKS.map(t => {
@@ -831,6 +831,7 @@ function StatList({ title, items }) {
           <div key={it.n} className={`kio-bitem ${STATUS_CLS[it.s]}`}>
             <span className="kio-bmark">{STATUS_MARK[it.s]}</span>
             <span className="kio-bname">{it.n}{it.d ? <em> — {it.d}</em> : ''}</span>
+            {it.exp && <span className="kio-bexp">exp {it.exp}</span>}
           </div>
         ))}
       </AutoScroll>

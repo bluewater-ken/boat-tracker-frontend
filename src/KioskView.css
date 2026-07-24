@@ -123,7 +123,8 @@
 .kio-bitem.ok .kio-bmark { background: rgba(52,228,176,0.16); color: #34E4B0; border: 1px solid rgba(52,228,176,0.4); }
 .kio-bitem.wip .kio-bmark { background: rgba(251,191,36,0.2); color: #FBBF24; border: 1px solid rgba(251,191,36,0.55); }
 .kio-bitem.off .kio-bmark { background: rgba(240,153,123,0.18); color: #F0997B; border: 1px solid rgba(240,153,123,0.55); }
-.kio-bname { color: #F1F6FB; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kio-bname { flex: 1; min-width: 0; color: #F1F6FB; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kio-bexp { flex: none; font-size: 12px; font-weight: 800; color: #FBBF24; white-space: nowrap; letter-spacing: 0.3px; }
 .kio-bitem.ok .kio-bname { font-weight: 600; }
 .kio-bname em { font-style: normal; color: #8FA6BC; font-weight: 500; }
 .kio-wc { display: flex; flex-direction: column; gap: 6px; }

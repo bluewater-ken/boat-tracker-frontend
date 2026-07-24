@@ -384,6 +384,45 @@
 .gs-up-chip b { color: #fff; font-weight: 900; font-variant-numeric: tabular-nums; }
 .gs-up-chip em { color: #8FA6BC; font-style: normal; }
 
+/* --- Clicker drill-down: highlight + section-detail overlay --- */
+.kio-fcard.clickable, .kio-bcol.clickable, .kio-wc.clickable { cursor: pointer; }
+/* Selected (highlighted by the clicker) — a glowing cyan ring. */
+.kio-fcard.sel, .kio-bcol.sel, .kio-wc.sel {
+  outline: 2px solid #22D3EE;
+  box-shadow: 0 0 0 2px rgba(34,211,238,0.35), 0 0 22px rgba(34,211,238,0.45);
+  border-radius: 12px;
+}
+.kio-fcard { transition: box-shadow 0.12s ease, outline-color 0.12s ease; }
+
+.kio-detail {
+  position: absolute; inset: 0; z-index: 30;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(4,9,18,0.78); backdrop-filter: blur(3px);
+}
+.kio-detail-card {
+  width: min(1100px, 88vw); max-height: 82vh; display: flex; flex-direction: column;
+  background: #0B1422; border: 1px solid rgba(34,211,238,0.35);
+  border-radius: 16px; box-shadow: 0 0 60px rgba(34,211,238,0.25); overflow: hidden;
+}
+.kio-detail-head {
+  flex: none; display: flex; align-items: center; gap: 16px;
+  padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,0.1);
+  background: linear-gradient(180deg, rgba(34,211,238,0.1), transparent);
+}
+.kio-detail-title { font-size: 26px; font-weight: 900; color: #fff; letter-spacing: 0.5px; }
+.kio-detail-count { font-size: 16px; font-weight: 700; color: #FBD26B; }
+.kio-detail-x { margin-left: auto; background: rgba(255,255,255,0.08); border: none; color: #cfe0f0; font-size: 20px; line-height: 1; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
+.kio-detail-list { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 24px 24px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px 24px; align-content: start; }
+.kio-detail-item { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; font-size: 17px; }
+.kio-detail-item.open { background: rgba(251,191,36,0.09); }
+.kio-detail-item.done { background: rgba(45,212,191,0.07); opacity: 0.72; }
+.kio-detail-mark { flex: none; width: 22px; text-align: center; font-weight: 900; font-size: 18px; }
+.kio-detail-item.open .kio-detail-mark { color: #FBBF24; }
+.kio-detail-item.done .kio-detail-mark { color: #2DD4BF; }
+.kio-detail-item.done .kio-detail-name { text-decoration: line-through; color: #8FA6BC; }
+.kio-detail-name { color: #EAF2FB; }
+
 @media (max-width: 900px) {
   .kio-pipeline { grid-template-columns: repeat(3, 1fr); }
   .kio-kpis { display: none; }

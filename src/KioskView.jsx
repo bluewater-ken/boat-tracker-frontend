@@ -282,7 +282,8 @@ function buildBoatDetail(b, aux) {
       : (row.remaining || []).map(cleanItem).filter(Boolean);
     const total = items.length || (row.remaining || []).length;
     if (!total) return null;
-    return { n: w.name || w.id, done: items.filter(i => i.done).length, total, open };
+    const allItems = items.length ? items : (row.remaining || []).map(cleanItem).filter(Boolean).map(name => ({ name, done: false }));
+    return { n: w.name || w.id, done: items.filter(i => i.done).length, total, open, items: allItems };
   }).filter(Boolean);
   const today = new Date().toISOString().slice(0, 10);
   const flags = [];
@@ -298,6 +299,26 @@ function buildBoatDetail(b, aux) {
     target: b.target_date ? fmtMonthDay(b.target_date) : (segs.length ? fmtMonthDay(segs[segs.length - 1].end) : '—'),
     keyParts, lamination, finishing, workcenters, flags,
   };
+}
+
+// The drill-down sections of a boat page, in render order: the three part
+// columns, then each work center. Every section carries its FULL task list
+// (done + not done) so the detail overlay can show everything.
+function sectionsOf(b) {
+  const fromParts = (arr) => (arr || []).map(it => ({
+    name: it.n + (it.d ? ` — ${it.d}` : '') + (it.exp ? `  (exp ${it.exp})` : ''),
+    done: it.s === 'done' || it.s === 'received',
+  }));
+  return [
+    { label: 'Key Parts', tasks: fromParts(b.keyParts) },
+    { label: 'Lamination', tasks: fromParts(b.lamination) },
+    { label: 'Finishing', tasks: fromParts(b.finishing) },
+    ...(b.workcenters || []).map(w => ({
+      label: w.n,
+      tasks: (w.items && w.items.length ? w.items : (w.open || []).map(n => ({ name: n, done: false })))
+        .map(i => ({ name: i.name, done: !!i.done })),
+    })),
+  ];
 }
 
 // Daily overview data from the live feed/parts/issues.
@@ -409,6 +430,11 @@ function KioskView({ demo }) {
   const [aux, setAux] = useState(null); // { lam, fin, parts, std, asm, wcs } for per-boat pages
   const [panel, setPanel] = useState(0);   // index into `pages` (0 = pipeline)
   const [manual, setManual] = useState(false); // arrows browse boat pages
+  // Clicker drill-down focus. boatSel = highlighted floor card on Daily,
+  // sectionSel = highlighted section on a boat page, detail = open section overlay.
+  const [boatSel, setBoatSel] = useState(null);
+  const [sectionSel, setSectionSel] = useState(null);
+  const [detail, setDetail] = useState(null);
   const now = useClock();
   const AUTO = 4;          // pipeline, daily, throughput, glass shop auto-rotate
   const ROTATE_MS = 22000;
@@ -467,12 +493,15 @@ function KioskView({ demo }) {
     return () => clearTimeout(t);
   }, [manual, panel]);
 
-  // After browsing boat pages with the arrows, return to the pipeline when idle.
+  // After browsing / drilling with the clicker, return to the pipeline when idle.
+  // Any focus change (panel, highlight, overlay) restarts the timer.
   useEffect(() => {
     if (!manual) return;
-    const t = setTimeout(() => { setManual(false); setPanel(0); }, RESUME_MS);
+    const t = setTimeout(() => {
+      setManual(false); setPanel(0); setBoatSel(null); setSectionSel(null); setDetail(null);
+    }, RESUME_MS);
     return () => clearTimeout(t);
-  }, [manual, panel]);
+  }, [manual, panel, boatSel, sectionSel, detail]);
 
   const stageOf = (b) => b.global_status;
   const inProd = boats.filter(b => PIPELINE.some(p => p.key === stageOf(b)));
@@ -505,7 +534,9 @@ function KioskView({ demo }) {
   // Build Traveler page reachable with the arrows. The live feed is NOT a page —
   // it runs as a horizontal ticker along the bottom of every screen.
   const pages = ['pipeline', 'daily', 'throughput', 'glass'];
-  if (demo) pages.push({ v: 'traveler', b: DEMO_BOAT_DETAIL });
+  // Demo: give every floor card its own traveler page (reusing the sample detail
+  // with that card's identity) so the Daily → boat drill-down is fully previewable.
+  if (demo) DEMO_FLOOR.forEach(f => pages.push({ v: 'traveler', b: { ...DEMO_BOAT_DETAIL, boat_id: f.boat_id, customer_name: f.customer, hull_color: f.hull, global_status: f.stage } }));
   else if (aux) inProd.forEach(b => pages.push({ v: 'traveler', b: buildBoatDetail(b, aux) }));
   const cur = pages[Math.min(panel, pages.length - 1)];
 
@@ -515,14 +546,76 @@ function KioskView({ demo }) {
   const glassRows = demo ? DEMO_GLASS_ROWS : computeGlassRows(boats, aux?.lam);
   const glassUpcoming = demo ? DEMO_UPCOMING : computeUpcoming(boats, 5);
 
-  const step = (dir) => { setManual(true); setPanel(p => (p + dir + pages.length) % pages.length); };
-  const stepRef = useRef(step); stepRef.current = step;
+  const step = (dir) => { setManual(true); setBoatSel(null); setSectionSel(null); setDetail(null); setPanel(p => (p + dir + pages.length) % pages.length); };
+  // Jump straight to a boat's detail page (from a Daily floor card). Backlog
+  // fillers have no detail page — ignore those.
+  const drillToBoat = (boatId) => {
+    const idx = pages.findIndex(p => typeof p !== 'string' && p.v === 'traveler' && p.b.boat_id === boatId);
+    if (idx < 0) return;
+    setManual(true); setBoatSel(null); setSectionSel(null); setDetail(null); setPanel(idx);
+  };
+
+  // One input-agnostic navigator for both the physical 6-button clicker and the
+  // keyboard. action ∈ up|down|left|right|select|back. Behavior depends on where
+  // focus currently is: board → boat highlight → section highlight → task detail.
+  const FLOOR_COLS = 4;
+  const nav = (action) => {
+    const curPage = pages[Math.min(panel, pages.length - 1)];
+    const onBoat = curPage && typeof curPage !== 'string' && curPage.v === 'traveler';
+
+    if (detail) { if (action === 'back' || action === 'select') setDetail(null); return; }
+
+    // On a boat detail page.
+    if (onBoat) {
+      const secs = sectionsOf(curPage.b);
+      if (sectionSel == null) {
+        if (action === 'left') return step(-1);
+        if (action === 'right') return step(1);
+        if (action === 'up' || action === 'down' || action === 'select') { setManual(true); setSectionSel(0); return; }
+        if (action === 'back') { setManual(true); setSectionSel(null); setBoatSel(null); setPanel(1); return; }
+        return;
+      }
+      const n = secs.length;
+      if (action === 'right' || action === 'down') { setManual(true); setSectionSel(i => Math.min(n - 1, (i ?? 0) + 1)); return; }
+      if (action === 'left' || action === 'up') { setManual(true); setSectionSel(i => Math.max(0, (i ?? 0) - 1)); return; }
+      if (action === 'select') { setManual(true); setDetail(secs[sectionSel]); return; }
+      if (action === 'back') { setSectionSel(null); return; }
+      return;
+    }
+
+    // Daily board with a floor card highlighted.
+    if (curPage === 'daily' && boatSel != null) {
+      const n = floor.length;
+      if (action === 'right') { setManual(true); setBoatSel(i => Math.min(n - 1, (i ?? 0) + 1)); return; }
+      if (action === 'left') { setManual(true); setBoatSel(i => Math.max(0, (i ?? 0) - 1)); return; }
+      if (action === 'down') { setManual(true); setBoatSel(i => Math.min(n - 1, (i ?? 0) + FLOOR_COLS)); return; }
+      if (action === 'up') { setManual(true); setBoatSel(i => Math.max(0, (i ?? 0) - FLOOR_COLS)); return; }
+      if (action === 'select') { drillToBoat(floor[boatSel]?.boat_id); return; }
+      if (action === 'back') { setBoatSel(null); return; }
+      return;
+    }
+
+    // Board level: enter card selection from Daily, else flip boards.
+    if (curPage === 'daily' && (action === 'up' || action === 'down' || action === 'select')) {
+      if (floor.length) { setManual(true); setBoatSel(0); }
+      return;
+    }
+    if (action === 'left') step(-1);
+    else if (action === 'right') step(1);
+    else if (action === 'back') { setManual(false); setPanel(0); }
+  };
+  const navRef = useRef(nav); navRef.current = nav;
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') window.location.href = window.location.pathname;
-      else if (e.key === 'ArrowRight') stepRef.current(1);
-      else if (e.key === 'ArrowLeft') stepRef.current(-1);
-      else if (e.key === 's' || e.key === 'S') playBombDrop(); // test the completion sound
+      const k = e.key;
+      if (k === 'Escape') { window.location.href = window.location.pathname; return; }
+      if (k === 'ArrowUp') navRef.current('up');
+      else if (k === 'ArrowDown') navRef.current('down');
+      else if (k === 'ArrowLeft') navRef.current('left');
+      else if (k === 'ArrowRight') navRef.current('right');
+      else if (k === 'Enter' || k === ' ') { e.preventDefault(); navRef.current('select'); }
+      else if (k === 'Backspace') { e.preventDefault(); navRef.current('back'); }
+      else if (k === 's' || k === 'S') playBombDrop(); // test the completion sound
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -629,15 +722,18 @@ function KioskView({ demo }) {
             })}
           </section>
         ) : cur === 'daily' ? (
-          <DailyOverview floor={floor} alerts={alerts} />
+          <DailyOverview floor={floor} alerts={alerts} sel={boatSel}
+            onPick={(id) => drillToBoat(id)} />
         ) : cur === 'throughput' ? (
           <ThroughputScreen completed={daily.completed} />
         ) : cur === 'glass' ? (
           <GlassGrid rows={glassRows} />
         ) : (
-          <KioskTraveler b={cur.b} />
+          <KioskTraveler b={cur.b} sel={sectionSel} onOpen={(i) => { setManual(true); setDetail(sectionsOf(cur.b)[i]); }} />
         )}
       </main>
+
+      {detail && <SectionDetail section={detail} onClose={() => setDetail(null)} />}
 
       <TickerBar feed={feed} />
     </div>
@@ -730,9 +826,10 @@ function Ring({ pct }) {
   );
 }
 
-function FloorCard({ b }) {
+function FloorCard({ b, active, onOpen }) {
   return (
-    <div className="kio-fcard">
+    <div className={`kio-fcard${active ? ' sel' : ''}${onOpen ? ' clickable' : ''}`}
+      onClick={onOpen ? () => onOpen(b.boat_id) : undefined}>
       <Ring pct={b.overall} />
       <div className="kio-fc-body">
         <div className="kio-fc-head">
@@ -765,17 +862,17 @@ function FloorCard({ b }) {
 
 // Daily Overview = a visual shop floor: Back Line + Front Line boats with a
 // completion ring + work-center bars, plus a slim "needs attention" strip.
-function DailyOverview({ floor, alerts }) {
+function DailyOverview({ floor, alerts, sel, onPick }) {
   return (
     <section className="kio-panel kio-floor">
       <div className="kio-floor-alerts">
         <span className="kio-fa red"><b>{alerts.asap}</b> shop priorities</span>
         <span className="kio-fa amber"><b>{alerts.late}</b> late / delayed parts</span>
         <span className="kio-fa blue"><b>{alerts.notes}</b> open notes</span>
-        <span className="kio-fa-hint">Back Line + Front Line · overall build %</span>
+        <span className="kio-fa-hint">Tap a boat for detail · overall build %</span>
       </div>
       <div className="kio-floor-grid">
-        {floor.map(b => <FloorCard key={b.boat_id} b={b} />)}
+        {floor.map((b, i) => <FloorCard key={b.boat_id} b={b} active={i === sel} onOpen={onPick} />)}
         {floor.length === 0 && <div className="kio-dempty">No boats in Back Line or Front Line right now.</div>}
       </div>
     </section>
@@ -815,13 +912,14 @@ function Kpi({ n, label, accent }) {
   );
 }
 
-function StatList({ title, items }) {
+function StatList({ title, items, active, onOpen }) {
   const isDone = (i) => i.s === 'done' || i.s === 'received';
   const left = items.filter(i => !isDone(i)).length;
   // Not-done first (stable) so if the column clips, it only hides completed items.
   const ordered = [...items].sort((a, b) => (isDone(a) ? 1 : 0) - (isDone(b) ? 1 : 0));
   return (
-    <div className="kio-bcol">
+    <div className={`kio-bcol${active ? ' sel' : ''}${onOpen ? ' clickable' : ''}`}
+      onClick={onOpen}>
       <div className="kio-bcol-head">
         <span>{title}</span>
         {left > 0 ? <em className="kio-left">{left} LEFT</em> : <em className="kio-alldone">✓ DONE</em>}
@@ -842,14 +940,15 @@ function StatList({ title, items }) {
 // Full build traveler: Key Parts / Lamination / Finishing across the top, then
 // Work Centers spanning the full width below (sub-columns) so a boat in heavy
 // assembly can show many individual open tasks.
-function KioskTraveler({ b }) {
+function KioskTraveler({ b, sel, onOpen }) {
   const wcOpen = b.workcenters.reduce((s, w) => s + (w.open?.length || 0), 0);
+  const pick = onOpen ? (i) => () => onOpen(i) : () => undefined;
   return (
     <section className="kio-panel kio-boat kio-traveler">
       <div className="kio-btop">
-        <StatList title="KEY PARTS" items={b.keyParts} />
-        <StatList title="LAMINATION" items={b.lamination} />
-        <StatList title="FINISHING" items={b.finishing} />
+        <StatList title="KEY PARTS" items={b.keyParts} active={sel === 0} onOpen={pick(0)} />
+        <StatList title="LAMINATION" items={b.lamination} active={sel === 1} onOpen={pick(1)} />
+        <StatList title="FINISHING" items={b.finishing} active={sel === 2} onOpen={pick(2)} />
       </div>
       <div className="kio-bwc kio-bcol">
         <div className="kio-bcol-head">
@@ -857,11 +956,13 @@ function KioskTraveler({ b }) {
           {wcOpen > 0 ? <em className="kio-left">{wcOpen} LEFT</em> : <em className="kio-alldone">✓ DONE</em>}
         </div>
         <div className="kio-wc-grid">
-          {b.workcenters.map(w => {
+          {b.workcenters.map((w, wi) => {
             const pct = Math.round((w.done / w.total) * 100);
             const open = w.open || [];
+            const idx = 3 + wi;
             return (
-              <div key={w.n} className="kio-wc">
+              <div key={w.n} className={`kio-wc${sel === idx ? ' sel' : ''}${onOpen ? ' clickable' : ''}`}
+                onClick={onOpen ? pick(idx) : undefined}>
                 <div className="kio-wc-top"><span>{w.n}</span><em>{w.done}/{w.total}</em></div>
                 <div className="kio-wc-bar"><span style={{ width: `${pct}%` }} /></div>
                 {open.length > 0 && (
@@ -875,6 +976,33 @@ function KioskTraveler({ b }) {
         </div>
       </div>
     </section>
+  );
+}
+
+// Full-screen overlay listing every task in one section (done ✓ / not-done ○).
+// Opened by Select-ing a highlighted section (or clicking it); Back / ✕ closes.
+function SectionDetail({ section, onClose }) {
+  const left = section.tasks.filter(t => !t.done).length;
+  const ordered = [...section.tasks].sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0));
+  return (
+    <div className="kio-detail" onClick={onClose}>
+      <div className="kio-detail-card" onClick={e => e.stopPropagation()}>
+        <div className="kio-detail-head">
+          <span className="kio-detail-title">{section.label}</span>
+          <span className="kio-detail-count">{left > 0 ? `${left} remaining` : '✓ all done'}</span>
+          <button className="kio-detail-x" onClick={onClose}>✕</button>
+        </div>
+        <div className="kio-detail-list">
+          {ordered.map((t, i) => (
+            <div key={i} className={`kio-detail-item ${t.done ? 'done' : 'open'}`}>
+              <span className="kio-detail-mark">{t.done ? '✓' : '○'}</span>
+              <span className="kio-detail-name">{t.name}</span>
+            </div>
+          ))}
+          {ordered.length === 0 && <div className="kio-dempty">No tasks in this section.</div>}
+        </div>
+      </div>
+    </div>
   );
 }
 

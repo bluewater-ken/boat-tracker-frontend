@@ -210,6 +210,16 @@ const DEMO_DAILY = {
     { label: '7/22', segs: dSeg(4, 2, 1), total: 7 }, { label: '7/23', segs: dSeg(5, 2, 1), total: 8, today: true },
   ],
 };
+const DEMO_FLOOR = [
+  { boat_id: '28225', customer: 'Trey', hull: 'slategray', stage: 'Back Line', overall: 52, centers: [
+    { name: 'Backline — Hull', done: 18, total: 34, pct: 53 }, { name: 'Backline — Deck', done: 8, total: 12, pct: 67 }, { name: 'Backline — Ring', done: 2, total: 14, pct: 14 } ] },
+  { boat_id: '36C004', customer: 'Hensley', hull: '#155E75', stage: 'Front Line', overall: 78, centers: [
+    { name: 'Front Line', done: 22, total: 30, pct: 73 }, { name: 'Console', done: 9, total: 11, pct: 82 } ] },
+  { boat_id: '26F032', customer: 'Scituate #2', hull: 'goldenrod', stage: 'Back Line', overall: 33, centers: [
+    { name: 'Backline — Hull', done: 9, total: 34, pct: 26 }, { name: 'Backline — Deck', done: 5, total: 12, pct: 42 } ] },
+  { boat_id: '28C012', customer: 'Rourke', hull: '#0F766E', stage: 'Back Line', overall: 61, centers: [
+    { name: 'Backline — Hull', done: 20, total: 34, pct: 59 }, { name: 'Backline — Ring', done: 8, total: 14, pct: 57 } ] },
+];
 
 const STATUS_MARK = { done: '✓', received: '✓', ordered: '◐', progress: '◐', not: '○' };
 const STATUS_CLS = { done: 'ok', received: 'ok', ordered: 'wip', progress: 'wip', not: 'off' };
@@ -316,6 +326,26 @@ function computeDaily(feed, aux, now) {
     return { label: `${+d.slice(5, 7)}/${+d.slice(8, 10)}`, today: d === today, segs, total: segs.reduce((s, x) => s + x.count, 0) };
   });
   return { completed, asap, missing, notes, throughput };
+}
+
+// Shop-floor cards for the visual overview: Back Line + Front Line boats with
+// overall assembly completion (from the CompanyCam work centers, QC excluded)
+// and a per-work-center breakdown.
+function computeFloor(boats, aux) {
+  const asmRows = aux?.asm?.rows || [];
+  const wcs = aux?.wcs || [];
+  const wcName = (id) => { const w = wcs.find(x => x.id === id); return (w && w.name) || id; };
+  return (boats || [])
+    .filter(b => b.global_status === 'Back Line' || b.global_status === 'Front Line')
+    .sort((a, b) => (a.sequence_number || 999) - (b.sequence_number || 999))
+    .map(b => {
+      const centers = asmRows
+        .filter(r => r.boat_id === b.boat_id && r.work_center_id !== 'quality-control')
+        .map(r => { const items = r.items || []; const total = items.length || (r.remaining || []).length; const done = items.filter(i => i.done).length; return { name: wcName(r.work_center_id), done, total, pct: total ? Math.round((done / total) * 100) : 0 }; })
+        .filter(c => c.total > 0);
+      const total = centers.reduce((s, c) => s + c.total, 0), done = centers.reduce((s, c) => s + c.done, 0);
+      return { boat_id: b.boat_id, customer: b.customer_name, hull: b.hull_color, stage: b.global_status, overall: total ? Math.round((done / total) * 100) : 0, centers };
+    });
 }
 
 function KioskView({ demo }) {
@@ -425,6 +455,8 @@ function KioskView({ demo }) {
   const cur = pages[Math.min(panel, pages.length - 1)];
 
   const daily = demo ? DEMO_DAILY : computeDaily(feed, aux, now);
+  const floor = demo ? DEMO_FLOOR : computeFloor(boats, aux);
+  const alerts = { asap: daily.asap.length, late: daily.missing.filter(m => m.late || m.backorder).length, notes: daily.notes.length };
   const glassRows = demo ? DEMO_GLASS_ROWS : computeGlassRows(boats, aux?.lam);
   const glassUpcoming = demo ? DEMO_UPCOMING : computeUpcoming(boats, 5);
 
@@ -542,9 +574,9 @@ function KioskView({ demo }) {
             })}
           </section>
         ) : cur === 'daily' ? (
-          <DailyOverview d={daily} />
+          <DailyOverview floor={floor} alerts={alerts} />
         ) : cur === 'throughput' ? (
-          <ThroughputScreen doneToday={daily.completed.length} />
+          <ThroughputScreen completed={daily.completed} />
         ) : cur === 'glass' ? (
           <GlassGrid rows={glassRows} upcoming={glassUpcoming} />
         ) : (
@@ -629,85 +661,82 @@ function DeptTag({ dept }) {
   return <span className="kio-dept" style={{ color: c, background: `${c}22`, borderColor: `${c}66` }}>{dept}</span>;
 }
 
-// Daily Overview page: completed-today, shop priorities, late/delayed parts, notes, throughput.
-function DailyOverview({ d }) {
+// Circular completion ring.
+function Ring({ pct }) {
+  const R = 42, C = 2 * Math.PI * R;
+  const color = pct >= 80 ? '#34E4B0' : pct >= 40 ? '#FBBF24' : '#5B8DEF';
   return (
-    <section className="kio-panel kio-daily">
-      <div className="kio-dcol">
-        <div className="kio-dhead green"><span>✅ COMPLETED TODAY</span><em>{d.completed.length}</em></div>
-        <AutoScroll className="kio-dlist">
-          {d.completed.map((c, i) => (
-            <div key={i} className="kio-ditem done">
-              <span className="kio-dt-line"><span className="kio-dt-title">{c.title}</span>{c.dept && <DeptTag dept={c.dept} />}</span>
-              <span className="kio-dt-sub">{c.boat_id}{c.actor ? ` · ${c.actor}` : ''} · {timeAgo(c.at)}</span>
+    <svg className="kio-ring" viewBox="0 0 100 100" width="100" height="100" aria-hidden="true">
+      <circle cx="50" cy="50" r={R} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="9" />
+      <circle cx="50" cy="50" r={R} fill="none" stroke={color} strokeWidth="9" strokeLinecap="round"
+        strokeDasharray={C} strokeDashoffset={C * (1 - pct / 100)} transform="rotate(-90 50 50)" />
+      <text x="50" y="55" textAnchor="middle" fontSize="27" fontWeight="900" fill="#fff">{pct}%</text>
+    </svg>
+  );
+}
+
+function FloorCard({ b }) {
+  return (
+    <div className="kio-fcard">
+      <Ring pct={b.overall} />
+      <div className="kio-fc-body">
+        <div className="kio-fc-head">
+          <span className="kio-fc-id">{b.boat_id}</span>
+          {b.hull && <span className="kio-chip" style={{ background: b.hull }} title={b.hull} />}
+          <span className={`kio-fc-stage ${b.stage === 'Front Line' ? 'front' : 'back'}`}>{b.stage}</span>
+        </div>
+        <div className="kio-fc-cust">{b.customer}</div>
+        <div className="kio-fc-centers">
+          {b.centers.map(c => (
+            <div key={c.name} className="kio-fc-wc">
+              <div className="kio-fc-wc-top"><span>{c.name}</span><em>{c.done}/{c.total}</em></div>
+              <div className="kio-fc-bar"><span style={{ width: `${c.pct}%` }} /></div>
             </div>
           ))}
-          {d.completed.length === 0 && <div className="kio-dempty">Nothing completed yet today.</div>}
-        </AutoScroll>
-      </div>
-
-      <div className="kio-dcol">
-        <div className="kio-dsub">
-          <div className="kio-dhead red"><span>🎯 SHOP PRIORITIES</span><em>{d.asap.length}</em></div>
-          <AutoScroll className="kio-dlist">
-            {d.asap.map((a, i) => (
-              <div key={i} className="kio-ditem asap">
-                <span className="kio-dt-line"><span className="kio-dt-title">{a.label}{a.detail ? <em className="kio-dt-spec"> — {a.detail}</em> : ''}</span>{a.dept && <DeptTag dept={a.dept} />}</span>
-                <span className="kio-dt-sub">{a.boat_id}</span>
-              </div>
-            ))}
-            {d.asap.length === 0 && <div className="kio-dempty">No shop priorities.</div>}
-          </AutoScroll>
+          {b.centers.length === 0 && <div className="kio-fc-none">No work-center detail yet</div>}
         </div>
-        {(() => {
-          const late = d.missing.filter(m => m.late || m.backorder);
-          return (
-            <div className="kio-dsub">
-              <div className="kio-dhead amber"><span>⏱ LATE / DELAYED PARTS</span><em>{late.length}</em></div>
-              <AutoScroll className="kio-dlist">
-                {late.map((m, i) => (
-                  <div key={i} className={`kio-ditem ${m.backorder ? 'back' : 'late'}`}>
-                    <span className="kio-dt-line"><span className="kio-dt-title">{m.part}{m.detail ? <em className="kio-dt-spec"> — {m.detail}</em> : ''}</span>
-                      {m.backorder ? <span className="kio-tag red">BACKORDER</span> : <span className="kio-tag amber">LATE</span>}</span>
-                    <span className="kio-dt-sub">{m.boat_id} · {m.status}</span>
-                    {m.exp && <span className="kio-exp">expected {m.exp}</span>}
-                  </div>
-                ))}
-                {late.length === 0 && <div className="kio-dempty">Nothing late or delayed.</div>}
-              </AutoScroll>
-            </div>
-          );
-        })()}
       </div>
+    </div>
+  );
+}
 
-      <div className="kio-dcol">
-        <div className="kio-dsub" style={{ flex: '1 1 0' }}>
-          <div className="kio-dhead"><span>📝 NOTES</span><em>{d.notes.length}</em></div>
-          <AutoScroll className="kio-dlist">
-            {d.notes.map((n, i) => (
-              <div key={i} className="kio-ditem note">
-                <span className="kio-dt-line">
-                  <span className="kio-dt-title">{n.text}</span>
-                  {n.tag && <span className="kio-dept" style={{ color: noteColor(n.tag), background: `${noteColor(n.tag)}22`, borderColor: `${noteColor(n.tag)}66` }}>{n.tag}</span>}
-                </span>
-                {n.boat_id && <span className="kio-dt-sub">{n.boat_id}</span>}
-              </div>
-            ))}
-            {d.notes.length === 0 && <div className="kio-dempty">No open notes.</div>}
-          </AutoScroll>
-        </div>
+// Daily Overview = a visual shop floor: Back Line + Front Line boats with a
+// completion ring + work-center bars, plus a slim "needs attention" strip.
+function DailyOverview({ floor, alerts }) {
+  return (
+    <section className="kio-panel kio-floor">
+      <div className="kio-floor-alerts">
+        <span className="kio-fa red"><b>{alerts.asap}</b> shop priorities</span>
+        <span className="kio-fa amber"><b>{alerts.late}</b> late / delayed parts</span>
+        <span className="kio-fa blue"><b>{alerts.notes}</b> open notes</span>
+        <span className="kio-fa-hint">Back Line + Front Line · overall build %</span>
+      </div>
+      <div className="kio-floor-grid">
+        {floor.map(b => <FloorCard key={b.boat_id} b={b} />)}
+        {floor.length === 0 && <div className="kio-dempty">No boats in Back Line or Front Line right now.</div>}
       </div>
     </section>
   );
 }
 
-// Full-screen Throughput board — the Admin completions chart at full size.
-function ThroughputScreen({ doneToday }) {
+// Full-screen Throughput board — the Admin completions chart + today's completions.
+function ThroughputScreen({ completed }) {
   return (
     <section className="kio-panel kio-thruscreen">
       <div className="kio-thru-side">
-        <div className="kio-thru-stat"><span className="kio-thru-n">{doneToday}</span><span className="kio-thru-l">DONE TODAY</span></div>
-        <div className="kio-thru-note">Jobs checked off per day, stacked by department. Bars = daily count · line = 7-day average · QC split out.</div>
+        <div className="kio-thru-stat"><span className="kio-thru-n">{completed.length}</span><span className="kio-thru-l">DONE TODAY</span></div>
+        <div className="kio-thru-done">
+          <div className="kio-dhead green"><span>✅ COMPLETED TODAY</span></div>
+          <AutoScroll className="kio-dlist">
+            {completed.map((c, i) => (
+              <div key={i} className="kio-ditem done">
+                <span className="kio-dt-line"><span className="kio-dt-title">{c.title}</span>{c.dept && <DeptTag dept={c.dept} />}</span>
+                <span className="kio-dt-sub">{c.boat_id}{c.actor ? ` · ${c.actor}` : ''} · {timeAgo(c.at)}</span>
+              </div>
+            ))}
+            {completed.length === 0 && <div className="kio-dempty">Nothing completed yet today.</div>}
+          </AutoScroll>
+        </div>
       </div>
       <div className="kio-thru-big"><CompletionsChart embedded days={30} /></div>
     </section>

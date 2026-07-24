@@ -224,6 +224,10 @@ const DEMO_FLOOR = [
     ['Parts', 15, 15], ['Glass Shop', 11, 11], ['Back Line', 48, 48], ['Consoles', 18, 18], ['Front Line', 26, 30], ['QC', 6, 14], ['Finishing', 4, 9]]) },
   { boat_id: '25T043', customer: 'Svoboda', hull: 'darkgoldenrod', stage: 'Front Line', overall: 64, eta: 'Aug 9', sched: { status: 'behind', days: 5 }, phases: dPh([
     ['Parts', 17, 20], ['Glass Shop', 11, 11], ['Back Line', 76, 78], ['Consoles', 34, 61], ['Front Line', 23, 40], ['QC', 0, 48], ['Finishing', 9, 9]]) },
+  { boat_id: '26F033', customer: 'Halloran', hull: 'firebrick', stage: 'Back Line', overall: 44, eta: 'Aug 22', sched: { status: 'ahead', days: 2 }, phases: dPh([
+    ['Parts', 13, 15], ['Glass Shop', 9, 11], ['Back Line', 24, 48], ['Consoles', 2, 18], ['Finishing', 0, 9]]) },
+  { boat_id: '30S011', customer: 'Costa', hull: '#4B6CB7', stage: 'Front Line', overall: 71, eta: 'Aug 6', sched: { status: 'behind', days: 3 }, phases: dPh([
+    ['Parts', 15, 15], ['Glass Shop', 11, 11], ['Back Line', 44, 48], ['Consoles', 12, 18], ['Front Line', 14, 30], ['QC', 2, 14], ['Finishing', 2, 9]]) },
 ];
 
 const STATUS_MARK = { done: '✓', received: '✓', ordered: '◐', progress: '◐', not: '○' };

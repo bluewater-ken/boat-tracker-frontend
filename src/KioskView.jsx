@@ -224,10 +224,10 @@ const DEMO_FLOOR = [
     ['Parts', 15, 15], ['Glass Shop', 11, 11], ['Back Line', 48, 48], ['Consoles', 18, 18], ['Front Line', 26, 30], ['QC', 6, 14], ['Finishing', 4, 9]]) },
   { boat_id: '25T043', customer: 'Svoboda', hull: 'darkgoldenrod', stage: 'Front Line', overall: 64, eta: 'Aug 9', sched: { status: 'behind', days: 5 }, phases: dPh([
     ['Parts', 17, 20], ['Glass Shop', 11, 11], ['Back Line', 76, 78], ['Consoles', 34, 61], ['Front Line', 23, 40], ['QC', 0, 48], ['Finishing', 9, 9]]) },
-  { boat_id: '26F033', customer: 'Halloran', hull: 'firebrick', stage: 'Back Line', overall: 44, eta: 'Aug 22', sched: { status: 'ahead', days: 2 }, phases: dPh([
-    ['Parts', 13, 15], ['Glass Shop', 9, 11], ['Back Line', 24, 48], ['Consoles', 2, 18], ['Finishing', 0, 9]]) },
-  { boat_id: '30S011', customer: 'Costa', hull: '#4B6CB7', stage: 'Front Line', overall: 71, eta: 'Aug 6', sched: { status: 'behind', days: 3 }, phases: dPh([
-    ['Parts', 15, 15], ['Glass Shop', 11, 11], ['Back Line', 44, 48], ['Consoles', 12, 18], ['Front Line', 14, 30], ['QC', 2, 14], ['Finishing', 2, 9]]) },
+  { boat_id: '26F033', customer: 'Halloran', hull: 'firebrick', stage: 'Glass', overall: 22, eta: 'Sep 2', sched: { status: 'ahead', days: 5 }, phases: dPh([
+    ['Parts', 11, 15], ['Glass Shop', 6, 11]]) },
+  { boat_id: '30S011', customer: 'Costa', hull: '#4B6CB7', stage: 'Pre-Prod', overall: 12, eta: 'Sep 14', sched: null, phases: dPh([
+    ['Parts', 4, 15], ['Glass Shop', 1, 11]]) },
 ];
 
 const STATUS_MARK = { done: '✓', received: '✓', ordered: '◐', progress: '◐', not: '○' };
@@ -349,18 +349,21 @@ const asmBucket = (name, id) => {
   return 'Back Line';
 };
 
-// Shop-floor cards: Back Line + Front Line boats with an overall completion ring
-// and a per-phase breakdown (Parts -> Glass -> Back Line -> Consoles -> Front
-// Line -> QC -> Finishing), in build order.
+const STAGE_CLASS = { 'Front Line': 'front', 'Back Line': 'back' };
+const STAGE_ABBR = { 'Pre-Production': 'Pre-Prod', 'Glass Shop': 'Glass', 'Back Line': 'Back Line', 'Front Line': 'Front Line', 'QC': 'QC', 'Backlog': 'Backlog' };
+const FLOOR_MAX = 8;
+
+// Shop-floor cards: Back Line + Front Line boats first, then fill up to 8 with the
+// next boats in line (Glass Shop -> Pre-Prod -> Backlog, by build order). Each card
+// = an overall ring + per-phase bars (Parts -> Glass -> Back Line -> Consoles ->
+// Front Line -> QC -> Finishing).
 function computeFloor(boats, aux) {
   const asmRows = aux?.asm?.rows || [];
   const wcs = aux?.wcs || [];
   const parts = aux?.parts || [], lam = aux?.lam || [], fin = aux?.fin || [];
   const wcName = (id) => { const w = wcs.find(x => x.id === id); return (w && w.name) || id; };
-  return (boats || [])
-    .filter(b => b.global_status === 'Back Line' || b.global_status === 'Front Line')
-    .sort((a, b) => (a.sequence_number || 999) - (b.sequence_number || 999))
-    .map(b => {
+  const bySeq = (a, b) => (a.sequence_number || 999) - (b.sequence_number || 999);
+  const cardOf = (b) => {
       const pFor = parts.filter(p => p.boat_id === b.boat_id && !p.na);
       const lamBy = {}; for (const r of lam) if (r.boat_id === b.boat_id) lamBy[r.task_name] = r;
       const lamApp = KLAM_TASKS.map(t => lamBy[t]).filter(r => r && !r.na);
@@ -390,7 +393,14 @@ function computeFloor(boats, aux) {
         sched = { status: d > 1 ? 'behind' : d < -1 ? 'ahead' : 'ontime', days: Math.abs(d) };
       }
       return { boat_id: b.boat_id, customer: b.customer_name, hull: b.hull_color, stage: b.global_status, overall: tot ? Math.round((don / tot) * 100) : 0, phases, eta: end ? fmtMonthDay(end) : null, sched };
-    });
+  };
+  const bs = boats || [];
+  let cards = bs.filter(b => b.global_status === 'Back Line' || b.global_status === 'Front Line').sort(bySeq).map(cardOf);
+  if (cards.length < FLOOR_MAX) {
+    const fillers = bs.filter(b => ['Glass Shop', 'Pre-Production', 'Backlog'].includes(b.global_status)).sort(bySeq).slice(0, FLOOR_MAX - cards.length);
+    cards = cards.concat(fillers.map(cardOf));
+  }
+  return cards;
 }
 
 function KioskView({ demo }) {
@@ -728,7 +738,7 @@ function FloorCard({ b }) {
         <div className="kio-fc-head">
           <span className="kio-fc-id">{b.boat_id}</span>
           {b.hull && <span className="kio-chip" style={{ background: b.hull }} title={b.hull} />}
-          <span className={`kio-fc-stage ${b.stage === 'Front Line' ? 'front' : 'back'}`}>{b.stage}</span>
+          <span className={`kio-fc-stage ${STAGE_CLASS[b.stage] || 'other'}`}>{STAGE_ABBR[b.stage] || b.stage}</span>
         </div>
         <div className="kio-fc-cust">{b.customer}</div>
         {b.eta && (

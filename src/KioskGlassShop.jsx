@@ -3,19 +3,19 @@
 // builds the rows (live or demo) and hands them in.
 
 export const GS_PARTS = ['Glass Kit', 'Hull', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid'];
-const GS_LEGEND = [['pulled', 'Pulled'], ['onmold', 'On mold'], ['wip', 'In progress'], ['open', 'Mold open'], ['busy', 'Mold occupied'], ['wait', 'Not started']];
+const GS_LEGEND = [['pulled', 'Pulled'], ['onmold', 'Complete / on mold'], ['wip', 'In progress'], ['open', 'Mold open'], ['busy', 'Mold unavailable'], ['na', 'Not applicable']];
 
-// Lamination status -> a cell { label, cls }. cls drives the color (see CSS).
+// Lamination status -> a cell { label, cls }, matching the desktop Lamination tab.
+// Desktop defaults a blank/unknown status to "Mold Unavailable", so we do too.
 export function cellOf(status, na) {
-  if (na) return { label: 'N/A', cls: 'wait' };
+  if (na) return { label: 'Not Applicable', cls: 'na' };
   switch (status) {
     case 'Pulled': return { label: 'Pulled', cls: 'pulled' };
-    case 'Complete/On Mold': return { label: 'On mold', cls: 'onmold' };
+    case 'Complete/On Mold': return { label: 'Complete/On Mold', cls: 'onmold' };
     case 'Complete': return { label: 'Complete', cls: 'pulled' };
-    case 'In Progress': return { label: 'In progress', cls: 'wip' };
-    case 'Mold Open': return { label: 'Mold open', cls: 'open' };
-    case 'Mold Unavailable': return { label: 'Mold occupied', cls: 'busy' };
-    default: return { label: '—', cls: 'wait' };
+    case 'In Progress': return { label: 'In Progress', cls: 'wip' };
+    case 'Mold Open': return { label: 'Mold Open', cls: 'open' };
+    default: return { label: 'Mold Unavailable', cls: 'busy' };
   }
 }
 

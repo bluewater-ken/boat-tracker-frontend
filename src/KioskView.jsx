@@ -210,7 +210,7 @@ const DEMO_DAILY = {
     { label: '7/22', segs: dSeg(4, 2, 1), total: 7 }, { label: '7/23', segs: dSeg(5, 2, 1), total: 8, today: true },
   ],
 };
-const dPh = (arr) => arr.map(([name, done, total]) => ({ name, done, total, pct: Math.round((done / total) * 100) }));
+const dPh = (arr) => arr.map(([name, done, total]) => ({ name, done, total, pct: total ? Math.round((done / total) * 100) : 0 }));
 const DEMO_FLOOR = [
   { boat_id: '28225', customer: 'Trey', hull: 'slategray', stage: 'Back Line', overall: 55, eta: 'Aug 20', sched: { status: 'behind', days: 6 }, phases: dPh([
     ['Parts', 12, 15], ['Glass Shop', 10, 11], ['Back Line', 28, 48], ['Consoles', 3, 18], ['QC', 0, 14], ['Finishing', 1, 9]]) },
@@ -225,9 +225,9 @@ const DEMO_FLOOR = [
   { boat_id: '25T043', customer: 'Svoboda', hull: 'darkgoldenrod', stage: 'Front Line', overall: 64, eta: 'Aug 9', sched: { status: 'behind', days: 5 }, phases: dPh([
     ['Parts', 17, 20], ['Glass Shop', 11, 11], ['Back Line', 76, 78], ['Consoles', 34, 61], ['Front Line', 23, 40], ['QC', 0, 48], ['Finishing', 9, 9]]) },
   { boat_id: '26F033', customer: 'Halloran', hull: 'firebrick', stage: 'Glass', overall: 22, eta: 'Sep 2', sched: { status: 'ahead', days: 5 }, phases: dPh([
-    ['Parts', 11, 15], ['Glass Shop', 6, 11]]) },
+    ['Parts', 11, 15], ['Glass Shop', 6, 11], ['Back Line', 0, 0], ['Consoles', 0, 0], ['Front Line', 0, 0], ['QC', 0, 0], ['Finishing', 0, 0]]) },
   { boat_id: '30S011', customer: 'Costa', hull: '#4B6CB7', stage: 'Pre-Prod', overall: 12, eta: 'Sep 14', sched: null, phases: dPh([
-    ['Parts', 4, 15], ['Glass Shop', 1, 11]]) },
+    ['Parts', 4, 15], ['Glass Shop', 1, 11], ['Back Line', 0, 0], ['Consoles', 0, 0], ['Front Line', 0, 0], ['QC', 0, 0], ['Finishing', 0, 0]]) },
 ];
 
 const STATUS_MARK = { done: '✓', received: '✓', ordered: '◐', progress: '◐', not: '○' };
@@ -383,7 +383,7 @@ function computeFloor(boats, aux) {
         { name: 'Front Line', ...buckets['Front Line'] },
         { name: 'QC', ...buckets['QC'] },
         { name: 'Finishing', done: finApp.filter(r => r.status === 'Complete').length, total: finApp.length },
-      ].filter(p => p.total > 0).map(p => ({ ...p, pct: Math.round((p.done / p.total) * 100) }));
+      ].map(p => ({ ...p, pct: p.total ? Math.round((p.done / p.total) * 100) : 0 }));
       const tot = phases.reduce((s, p) => s + p.total, 0), don = phases.reduce((s, p) => s + p.done, 0);
       const segs = b.segments || [];
       const end = segs.length ? segs[segs.length - 1].end : null;
@@ -751,8 +751,8 @@ function FloorCard({ b }) {
         )}
         <div className="kio-fc-centers">
           {b.phases.map(p => (
-            <div key={p.name} className="kio-fc-wc">
-              <div className="kio-fc-wc-top"><span>{p.name}</span><em>{p.done}/{p.total}</em></div>
+            <div key={p.name} className={`kio-fc-wc ${p.total ? '' : 'idle'}`}>
+              <div className="kio-fc-wc-top"><span>{p.name}</span><em>{p.total ? `${p.done}/${p.total}` : 'not started'}</em></div>
               <div className="kio-fc-bar"><span style={{ width: `${p.pct}%`, background: phaseColor(p.name) }} /></div>
             </div>
           ))}

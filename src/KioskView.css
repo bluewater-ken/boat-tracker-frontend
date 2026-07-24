@@ -428,6 +428,8 @@
 .kio-detail-count { font-size: 16px; font-weight: 700; color: #9FB2C6; white-space: nowrap; }
 .kio-detail-count b { color: #2DD4BF; font-size: 19px; }
 .kio-detail-camtot { font-size: 15px; font-weight: 800; color: #9DB8F5; white-space: nowrap; }
+button.kio-detail-camtot { background: rgba(157,184,245,0.14); border: 1px solid rgba(157,184,245,0.35); border-radius: 7px; padding: 4px 11px; cursor: pointer; font-family: inherit; }
+button.kio-detail-camtot:hover { background: rgba(157,184,245,0.28); color: #fff; }
 /* Body: every task, flowed into columns so nothing scrolls. */
 .kio-detail-list { flex: 1; min-height: 0; overflow: hidden; padding: 14px 22px 18px;
   column-gap: 26px; column-fill: balance; }
@@ -446,6 +448,8 @@
 .kio-detail-meta { margin-left: auto; flex: none; display: flex; align-items: center; gap: 8px; padding-top: 1px; }
 .kio-detail-exp { font-size: 12.5px; font-weight: 800; font-style: normal; color: #FBD26B; white-space: nowrap; }
 .kio-detail-cam { font-size: 12.5px; font-weight: 800; font-style: normal; color: #9DB8F5; white-space: nowrap; }
+button.kio-detail-cam { background: rgba(157,184,245,0.14); border: 1px solid rgba(157,184,245,0.35); border-radius: 6px; padding: 2px 8px; cursor: pointer; line-height: 1.4; font-family: inherit; }
+button.kio-detail-cam:hover { background: rgba(157,184,245,0.3); color: #fff; }
 
 @media (max-width: 900px) {
   .kio-pipeline { grid-template-columns: repeat(3, 1fr); }

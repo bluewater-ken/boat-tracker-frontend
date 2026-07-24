@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from './api';
 import Logo from './Logo';
 import CompletionsChart from './CompletionsChart';
+import PhotoLightbox from './PhotoLightbox';
 import { GlassGrid, computeGlassRows, computeUpcoming, DEMO_GLASS_ROWS, DEMO_UPCOMING } from './KioskGlassShop';
 import './KioskView.css';
 
@@ -161,7 +162,23 @@ const DEMO_BOAT_DETAIL = {
     { n: 'Leaning Post', s: 'not' }, { n: 'Buckets', s: 'not' },
   ],
   workcenters: [
-    { n: 'Backline — Hull', done: 4, total: 18, open: ['Take photos of motors', 'Drill/cut transom thru-hull', 'Rig for windlass', 'Install fuel tanks', 'Install rig tube', 'Install anchor liner', 'Install forward fish boxes', 'Install coffin box', 'Install fresh water tank', 'Install aft fish boxes', 'Paint bilge and transom', 'Foam all hull areas', 'Set floor', 'Bond stringers'] },
+    { n: 'Backline — Hull', wcId: 'backline-hull', done: 4, total: 14, photos: 5, open: ['Drill/cut transom thru-hull', 'Rig for windlass', 'Install fuel tanks', 'Install rig tube', 'Install anchor liner', 'Install forward fish boxes', 'Install coffin box', 'Install fresh water tank', 'Install aft fish boxes', 'Bond stringers'],
+      items: [
+        { name: 'Take photos of motors', done: true, photos: 3, itemId: 'd1' },
+        { name: 'Paint bilge and transom', done: true, photos: 2, itemId: 'd2' },
+        { name: 'Foam all hull areas', done: true, itemId: 'd3' },
+        { name: 'Set floor', done: true, itemId: 'd4' },
+        { name: 'Drill/cut transom thru-hull', done: false, itemId: 'd5' },
+        { name: 'Rig for windlass', done: false, itemId: 'd6' },
+        { name: 'Install fuel tanks', done: false, desc: 'Twin 90-gal aluminum', itemId: 'd7' },
+        { name: 'Install rig tube', done: false, itemId: 'd8' },
+        { name: 'Install anchor liner', done: false, itemId: 'd9' },
+        { name: 'Install forward fish boxes', done: false, itemId: 'd10' },
+        { name: 'Install coffin box', done: false, itemId: 'd11' },
+        { name: 'Install fresh water tank', done: false, itemId: 'd12' },
+        { name: 'Install aft fish boxes', done: false, itemId: 'd13' },
+        { name: 'Bond stringers', done: false, itemId: 'd14' },
+      ] },
     { n: 'Backline — Deck', done: 8, total: 12, open: ['Dry fit to hull', 'Mate deck to hull', 'Bond deck seam', 'Install rub rail'] },
     { n: 'Backline — Ring', done: 0, total: 14, open: ['Cut and trim flange', 'Cut out deck cleats', 'Cut out fuel fills', 'Cut fwd nav light', 'Check livewell for leaks', 'Install deck cleats', 'Install rod holders', 'Install bolster clips', 'Install baitwell lights', 'Drill mounting holes', 'Fit hatches', 'Seal gunnels', 'Rig plumbing', 'Final trim'] },
     { n: 'Console & Hardtop', done: 2, total: 16, open: ['Cut out console door', 'Install binnacle', 'Install helm', 'Install gauge', 'Install joystick', 'Install steering (electric)', 'Install kill switch', 'Install MFDs', 'Electronics mounting', 'Install switch panel', 'Wire nav lights', 'Mount stereo', 'Fit windshield', 'Install grab rail'] },
@@ -169,6 +186,13 @@ const DEMO_BOAT_DETAIL = {
   ],
   flags: [{ t: 'QC PUNCH LIST', c: 'warn' }],
 };
+// Canned photos for the demo photo viewer (no CompanyCam backend in demo mode).
+const demoPic = (bg, label) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='1000' height='750'><rect width='100%' height='100%' fill='${bg}'/><text x='500' y='390' font-family='sans-serif' font-size='54' fill='white' text-anchor='middle'>${label}</text></svg>`)}`;
+const DEMO_PHOTOS = [
+  { full_url: demoPic('#0E7C5A', 'Motor install — port'), captured_at: '2026-07-23T14:20:00Z', creator_name: 'Jacob', task_title: 'Take photos of motors' },
+  { full_url: demoPic('#1B3A6B', 'Motor install — starboard'), captured_at: '2026-07-23T14:22:00Z', creator_name: 'Jacob', task_title: 'Take photos of motors' },
+  { full_url: demoPic('#155E75', 'Transom rigging'), captured_at: '2026-07-23T14:25:00Z', creator_name: 'Jacob', task_title: 'Take photos of motors' },
+];
 const dSeg = (a, p, s) => [{ dept: 'Assembly', color: '#22D3EE', count: a }, { dept: 'Parts', color: '#A3E635', count: p }, { dept: 'Stage', color: '#FBBF24', count: s }];
 const DEMO_DAILY = {
   completed: [
@@ -277,7 +301,7 @@ function buildBoatDetail(b, aux) {
     const row = (asm?.rows || []).find(r => r.boat_id === b.boat_id && r.work_center_id === w.id);
     if (!row) return null;
     const items = (row.items || []).map(i => ({
-      name: cleanItem(i.name), done: !!i.done, desc: i.description || '', photos: i.photo_count || 0,
+      name: cleanItem(i.name), done: !!i.done, desc: i.description || '', photos: i.photo_count || 0, itemId: i.item_id,
     })).filter(i => i.name);
     // Older/delivered boats have no items[] — fall back to the open "remaining" list.
     const open = items.length ? items.filter(i => !i.done).map(i => i.name)
@@ -285,7 +309,7 @@ function buildBoatDetail(b, aux) {
     const total = items.length || (row.remaining || []).length;
     if (!total) return null;
     const allItems = items.length ? items : (row.remaining || []).map(cleanItem).filter(Boolean).map(name => ({ name, done: false }));
-    return { n: w.name || w.id, done: items.filter(i => i.done).length, total, open, items: allItems, ccUrl: row.cc_url || null, photos: row.photo_count || 0 };
+    return { n: w.name || w.id, wcId: w.id, done: items.filter(i => i.done).length, total, open, items: allItems, ccUrl: row.cc_url || null, photos: row.photo_count || 0 };
   }).filter(Boolean);
   const today = new Date().toISOString().slice(0, 10);
   const flags = [];
@@ -320,9 +344,9 @@ function sectionsOf(b) {
     { label: 'Lamination', tasks: part(b.lamination), kind: 'lam' },
     { label: 'Finishing', tasks: part(b.finishing), kind: 'fin' },
     ...(b.workcenters || []).map(w => ({
-      label: w.n, kind: 'wc', ccUrl: w.ccUrl, photos: w.photos,
+      label: w.n, kind: 'wc', wcId: w.wcId, ccUrl: w.ccUrl, photos: w.photos,
       tasks: (w.items && w.items.length ? w.items : (w.open || []).map(n => ({ name: n, done: false })))
-        .map(i => ({ name: i.name, state: i.done ? 'done' : 'not', desc: i.desc || '', photos: i.photos || 0 })),
+        .map(i => ({ name: i.name, state: i.done ? 'done' : 'not', desc: i.desc || '', photos: i.photos || 0, itemId: i.itemId })),
     })),
   ];
 }
@@ -441,6 +465,14 @@ function KioskView({ demo }) {
   const [boatSel, setBoatSel] = useState(null);
   const [sectionSel, setSectionSel] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [photos, setPhotos] = useState(null); // { list, index, caption } — CompanyCam viewer
+  // Load a task's (or a whole work center's) CompanyCam photos into the viewer.
+  const openPhotos = async (url, caption) => {
+    if (demo) { setPhotos({ list: DEMO_PHOTOS, index: 0, caption }); return; }
+    try { const r = await apiFetch(url); const list = r && r.ok ? await r.json() : []; if (list.length) setPhotos({ list, index: 0, caption }); }
+    catch { /* no viewer if the fetch fails */ }
+  };
+  const photosRef = useRef(null); photosRef.current = photos;
   const now = useClock();
   const AUTO = 4;          // pipeline, daily, throughput, glass shop auto-rotate
   const ROTATE_MS = 22000;
@@ -614,6 +646,8 @@ function KioskView({ demo }) {
   useEffect(() => {
     const onKey = (e) => {
       const k = e.key;
+      // While the photo viewer is open it owns the keyboard (its own Esc/arrows).
+      if (photosRef.current) return;
       if (k === 'Escape') { window.location.href = window.location.pathname; return; }
       if (k === 'ArrowUp') navRef.current('up');
       else if (k === 'ArrowDown') navRef.current('down');
@@ -739,7 +773,12 @@ function KioskView({ demo }) {
         )}
       </main>
 
-      {detail && <SectionDetail boat={detail.boat} section={detail.section} onClose={() => setDetail(null)} />}
+      {detail && <SectionDetail boat={detail.boat} section={detail.section} onClose={() => setDetail(null)} onPhotos={openPhotos} />}
+
+      {photos && (
+        <PhotoLightbox photos={photos.list} index={photos.index} caption={photos.caption}
+          onIndex={(i) => setPhotos(p => ({ ...p, index: i }))} onClose={() => setPhotos(null)} />
+      )}
 
       <TickerBar feed={feed} />
     </div>
@@ -990,7 +1029,7 @@ function KioskTraveler({ b, sel, onOpen }) {
 // or a part's expected date). All tasks flow into auto-sized columns so nothing
 // scrolls. Opened by Select-ing a highlighted section (or clicking it); Back / ✕ closes.
 const DETAIL_MARK = { done: '✓', mid: '◐', not: '○' };
-function SectionDetail({ boat, section, onClose }) {
+function SectionDetail({ boat, section, onClose, onPhotos }) {
   const tasks = section.tasks || [];
   const total = tasks.length;
   const doneN = tasks.filter(t => t.state === 'done').length;
@@ -1019,7 +1058,9 @@ function SectionDetail({ boat, section, onClose }) {
           <span className="kio-detail-count">
             <b>{doneN}</b>/{total} done{left > 0 ? ` · ${left} left` : ' · ✓ complete'}
           </span>
-          {section.photos > 0 && <span className="kio-detail-camtot">📷 {section.photos}</span>}
+          {section.photos > 0 && (section.wcId
+            ? <button className="kio-detail-camtot" onClick={() => onPhotos(`/api/assembly/${boat.boat_id}/${section.wcId}/photos`, `${section.label} · all photos`)}>📷 {section.photos}</button>
+            : <span className="kio-detail-camtot">📷 {section.photos}</span>)}
         </div>
         <div className="kio-detail-list" style={{ columnCount: cols }}>
           {ordered.map((t, i) => (
@@ -1032,7 +1073,9 @@ function SectionDetail({ boat, section, onClose }) {
               {(t.exp || t.photos > 0) && (
                 <span className="kio-detail-meta">
                   {t.exp && <em className="kio-detail-exp">exp {t.exp}</em>}
-                  {t.photos > 0 && <em className="kio-detail-cam">📷 {t.photos}</em>}
+                  {t.photos > 0 && (t.itemId
+                    ? <button className="kio-detail-cam" onClick={() => onPhotos(`/api/assembly/item/${t.itemId}/photos`, t.name)}>📷 {t.photos}</button>
+                    : <em className="kio-detail-cam">📷 {t.photos}</em>)}
                 </span>
               )}
             </div>

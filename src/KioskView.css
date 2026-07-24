@@ -115,11 +115,11 @@
 .kio-bcol-head em { font-style: normal; font-size: 13px; padding: 2px 9px; border-radius: 6px; }
 .kio-bcol-head em.kio-left { color: #FBBF24; background: rgba(251,191,36,0.14); border: 1px solid rgba(251,191,36,0.45); }
 .kio-bcol-head em.kio-alldone { color: #34E4B0; background: rgba(52,228,176,0.12); border: 1px solid rgba(52,228,176,0.4); }
-.kio-bcol-list { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; overflow: hidden; flex: 1 1 0; min-height: 0; }
-.kio-bitem { flex: none; display: flex; align-items: center; gap: 11px; font-size: 18px; }
+.kio-bcol-list { display: flex; flex-direction: column; gap: 5px; padding-top: 12px; overflow: hidden; flex: 1 1 0; min-height: 0; }
+.kio-bitem { flex: none; display: flex; align-items: center; gap: 9px; font-size: 15px; }
 /* Done recedes; what's left (wip / not-started) pops so the wall shows the gaps. */
 .kio-bitem.ok { opacity: 0.42; }
-.kio-bmark { width: 26px; height: 26px; flex: none; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; }
+.kio-bmark { width: 20px; height: 20px; flex: none; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; }
 .kio-bitem.ok .kio-bmark { background: rgba(52,228,176,0.16); color: #34E4B0; border: 1px solid rgba(52,228,176,0.4); }
 .kio-bitem.wip .kio-bmark { background: rgba(251,191,36,0.2); color: #FBBF24; border: 1px solid rgba(251,191,36,0.55); }
 .kio-bitem.off .kio-bmark { background: rgba(240,153,123,0.18); color: #F0997B; border: 1px solid rgba(240,153,123,0.55); }

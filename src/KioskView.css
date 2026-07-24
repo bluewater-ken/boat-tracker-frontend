@@ -419,7 +419,11 @@
 .kio-detail-cust { font-size: 20px; font-weight: 700; color: #cfe0f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kio-detail-stage { font-size: 13px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #22D3EE; background: rgba(34,211,238,0.14); border: 1px solid rgba(34,211,238,0.3); padding: 3px 9px; border-radius: 6px; white-space: nowrap; }
 .kio-detail-tgt { font-size: 14px; font-weight: 800; color: #FBD26B; white-space: nowrap; }
+.kio-detail-hint { margin-left: auto; flex: none; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; color: #9DB8F5; background: rgba(157,184,245,0.12); border: 1px solid rgba(157,184,245,0.28); padding: 5px 11px; border-radius: 8px; white-space: nowrap; }
+.kio-detail-hint + .kio-detail-x { margin-left: 12px; }
 .kio-detail-x { margin-left: auto; flex: none; background: rgba(255,255,255,0.08); border: none; color: #cfe0f0; font-size: 20px; line-height: 1; padding: 9px 14px; border-radius: 8px; cursor: pointer; }
+/* Clicker photo highlight — a bright ring on the selected photo task. */
+.kio-detail-item.photosel { outline: 2px solid #22D3EE; outline-offset: 0; box-shadow: 0 0 0 2px rgba(34,211,238,0.35), 0 0 18px rgba(34,211,238,0.45); background: rgba(34,211,238,0.14); }
 /* Row 2: section title + progress bar + counts. */
 .kio-detail-sub { flex: none; display: flex; align-items: center; gap: 18px; padding: 12px 22px; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .kio-detail-title { font-size: 22px; font-weight: 900; color: #fff; letter-spacing: 0.5px; white-space: nowrap; }

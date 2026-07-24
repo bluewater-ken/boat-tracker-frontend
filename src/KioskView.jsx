@@ -465,6 +465,7 @@ function KioskView({ demo }) {
   const [boatSel, setBoatSel] = useState(null);
   const [sectionSel, setSectionSel] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [photoSel, setPhotoSel] = useState(0); // clicker highlight among a section's photo tasks
   const [photos, setPhotos] = useState(null); // { list, index, caption } — CompanyCam viewer
   // Load a task's (or a whole work center's) CompanyCam photos into the viewer.
   const openPhotos = async (url, caption) => {
@@ -601,7 +602,17 @@ function KioskView({ demo }) {
     const curPage = pages[Math.min(panel, pages.length - 1)];
     const onBoat = curPage && typeof curPage !== 'string' && curPage.v === 'traveler';
 
-    if (detail) { if (action === 'back' || action === 'select') setDetail(null); return; }
+    // Overlay open: ↑/↓ (or ←/→) step the highlight through the tasks that have
+    // photos; Select opens the highlighted task's photos; Back closes the overlay.
+    if (detail) {
+      if (action === 'back') { setDetail(null); return; }
+      const pts = photoTasksOf(detail.section);
+      if (!pts.length) { if (action === 'select') setDetail(null); return; }
+      if (action === 'up' || action === 'left') { setPhotoSel(i => (i - 1 + pts.length) % pts.length); return; }
+      if (action === 'down' || action === 'right') { setPhotoSel(i => (i + 1) % pts.length); return; }
+      if (action === 'select') { const t = pts[Math.min(photoSel, pts.length - 1)]; if (t) openPhotos(`/api/assembly/item/${t.itemId}/photos`, t.name); return; }
+      return;
+    }
 
     // On a boat detail page.
     if (onBoat) {
@@ -616,7 +627,7 @@ function KioskView({ demo }) {
       const n = secs.length;
       if (action === 'right' || action === 'down') { setManual(true); setSectionSel(i => Math.min(n - 1, (i ?? 0) + 1)); return; }
       if (action === 'left' || action === 'up') { setManual(true); setSectionSel(i => Math.max(0, (i ?? 0) - 1)); return; }
-      if (action === 'select') { setManual(true); setDetail({ boat: curPage.b, section: secs[sectionSel] }); return; }
+      if (action === 'select') { setManual(true); setPhotoSel(0); setDetail({ boat: curPage.b, section: secs[sectionSel] }); return; }
       if (action === 'back') { setSectionSel(null); return; }
       return;
     }
@@ -769,11 +780,11 @@ function KioskView({ demo }) {
         ) : cur === 'glass' ? (
           <GlassGrid rows={glassRows} />
         ) : (
-          <KioskTraveler b={cur.b} sel={sectionSel} onOpen={(i) => { setManual(true); setDetail({ boat: cur.b, section: sectionsOf(cur.b)[i] }); }} />
+          <KioskTraveler b={cur.b} sel={sectionSel} onOpen={(i) => { setManual(true); setPhotoSel(0); setDetail({ boat: cur.b, section: sectionsOf(cur.b)[i] }); }} />
         )}
       </main>
 
-      {detail && <SectionDetail boat={detail.boat} section={detail.section} onClose={() => setDetail(null)} onPhotos={openPhotos} />}
+      {detail && <SectionDetail boat={detail.boat} section={detail.section} onClose={() => setDetail(null)} onPhotos={openPhotos} photoSel={photoSel} />}
 
       {photos && (
         <PhotoLightbox photos={photos.list} index={photos.index} caption={photos.caption}
@@ -1029,16 +1040,23 @@ function KioskTraveler({ b, sel, onOpen }) {
 // or a part's expected date). All tasks flow into auto-sized columns so nothing
 // scrolls. Opened by Select-ing a highlighted section (or clicking it); Back / ✕ closes.
 const DETAIL_MARK = { done: '✓', mid: '◐', not: '○' };
-function SectionDetail({ boat, section, onClose, onPhotos }) {
+// Shared task ordering (open first, done last) + the photo-bearing subset the
+// clicker steps through. Both the overlay and the nav handler use these so the
+// ↑/↓ highlight lines up exactly with what's on screen.
+const DETAIL_RANK = { not: 0, mid: 1, done: 2 };
+const orderedTasks = (tasks) => [...(tasks || [])].sort((a, b) => DETAIL_RANK[a.state] - DETAIL_RANK[b.state]);
+const photoTasksOf = (section) => orderedTasks(section?.tasks).filter(t => t.photos > 0 && t.itemId);
+
+function SectionDetail({ boat, section, onClose, onPhotos, photoSel }) {
   const tasks = section.tasks || [];
   const total = tasks.length;
   const doneN = tasks.filter(t => t.state === 'done').length;
   const left = total - doneN;
   const pct = total ? Math.round((doneN / total) * 100) : 0;
-  // Open / in-progress first so the shop sees what's left; done sink to the bottom.
-  const rank = { not: 0, mid: 1, done: 2 };
-  const ordered = [...tasks].sort((a, b) => rank[a.state] - rank[b.state]);
+  const ordered = orderedTasks(tasks);
   const cols = total <= 12 ? 2 : total <= 28 ? 3 : total <= 48 ? 4 : 5;
+  const nPhoto = ordered.filter(t => t.photos > 0 && t.itemId).length;
+  let photoIdx = -1; // running index of photo-bearing tasks, to match the highlight
   return (
     <div className="kio-detail" onClick={onClose}>
       <div className="kio-detail-card" onClick={e => e.stopPropagation()}>
@@ -1050,6 +1068,7 @@ function SectionDetail({ boat, section, onClose, onPhotos }) {
             <span className="kio-detail-stage">{boat.global_status}{boat.stageFill != null ? ` · ${boat.stageFill}%` : ''}</span>
             {boat.target && boat.target !== '—' && <span className="kio-detail-tgt">◆ {boat.target}</span>}
           </div>
+          {nPhoto > 0 && <span className="kio-detail-hint">📷 {nPhoto} with photos · ↑↓ to pick · Select to view</span>}
           <button className="kio-detail-x" onClick={onClose}>✕</button>
         </div>
         <div className="kio-detail-sub">
@@ -1063,23 +1082,28 @@ function SectionDetail({ boat, section, onClose, onPhotos }) {
             : <span className="kio-detail-camtot">📷 {section.photos}</span>)}
         </div>
         <div className="kio-detail-list" style={{ columnCount: cols }}>
-          {ordered.map((t, i) => (
-            <div key={i} className={`kio-detail-item ${t.state}`}>
-              <span className="kio-detail-mark">{DETAIL_MARK[t.state]}</span>
-              <span className="kio-detail-body">
-                <span className="kio-detail-name">{t.name}</span>
-                {t.desc && <span className="kio-detail-desc">{t.desc}</span>}
-              </span>
-              {(t.exp || t.photos > 0) && (
-                <span className="kio-detail-meta">
-                  {t.exp && <em className="kio-detail-exp">exp {t.exp}</em>}
-                  {t.photos > 0 && (t.itemId
-                    ? <button className="kio-detail-cam" onClick={() => onPhotos(`/api/assembly/item/${t.itemId}/photos`, t.name)}>📷 {t.photos}</button>
-                    : <em className="kio-detail-cam">📷 {t.photos}</em>)}
+          {ordered.map((t, i) => {
+            const hasPhotos = t.photos > 0 && t.itemId;
+            if (hasPhotos) photoIdx += 1;
+            const selected = hasPhotos && photoIdx === photoSel;
+            return (
+              <div key={i} className={`kio-detail-item ${t.state}${selected ? ' photosel' : ''}`}>
+                <span className="kio-detail-mark">{DETAIL_MARK[t.state]}</span>
+                <span className="kio-detail-body">
+                  <span className="kio-detail-name">{t.name}</span>
+                  {t.desc && <span className="kio-detail-desc">{t.desc}</span>}
                 </span>
-              )}
-            </div>
-          ))}
+                {(t.exp || t.photos > 0) && (
+                  <span className="kio-detail-meta">
+                    {t.exp && <em className="kio-detail-exp">exp {t.exp}</em>}
+                    {t.photos > 0 && (t.itemId
+                      ? <button className="kio-detail-cam" onClick={() => onPhotos(`/api/assembly/item/${t.itemId}/photos`, t.name)}>📷 {t.photos}</button>
+                      : <em className="kio-detail-cam">📷 {t.photos}</em>)}
+                  </span>
+                )}
+              </div>
+            );
+          })}
           {total === 0 && <div className="kio-dempty">No tasks in this section.</div>}
         </div>
       </div>

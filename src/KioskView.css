@@ -111,8 +111,12 @@
 .kio-bstage-v { font-size: 22px; font-weight: 900; color: #FBBF24; text-shadow: 0 0 14px rgba(251,191,36,0.5); }
 
 /* traveler layout: top row of 3, then a full-width Work Centers block */
-.kio-btop { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; flex: 1 1 0; min-height: 0; }
-.kio-bwc { flex: 1.4 1 0; min-height: 0; overflow: hidden; }
+/* The top row and the work-center row share the height in proportion to how much
+   each actually has to show (flex-grow set inline from the fullest column's count),
+   so whichever needs the most room gets it and there's the least scrolling.
+   Both keep a small floor so their headers always show. */
+.kio-btop { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; flex: 1 1 0; min-height: 74px; align-items: stretch; }
+.kio-bwc { flex: 1 1 0; min-height: 130px; overflow: hidden; }
 .kio-wc-grid { display: flex; flex-direction: row; gap: 26px; padding-top: 12px; overflow: hidden; flex: 1; min-height: 0; }
 .kio-wc-grid > .kio-wc { flex: 1 1 0; min-width: 0; min-height: 0; }
 .kio-bcol { display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-radius: 14px; padding: 12px 14px;
@@ -122,6 +126,7 @@
 .kio-bcol-head em.kio-left { color: #FBBF24; background: rgba(251,191,36,0.14); border: 1px solid rgba(251,191,36,0.45); }
 .kio-bcol-head em.kio-alldone { color: #34E4B0; background: rgba(52,228,176,0.12); border: 1px solid rgba(52,228,176,0.4); }
 .kio-bcol-list { display: flex; flex-direction: column; gap: 5px; padding-top: 12px; overflow: hidden; flex: 1 1 0; min-height: 0; }
+.kio-ball-done { color: #34E4B0; font-size: 15px; font-weight: 700; opacity: 0.7; padding: 2px 4px; }
 .kio-bitem { flex: none; display: flex; align-items: center; gap: 9px; font-size: 15px; }
 /* Done recedes; what's left (wip / not-started) pops so the wall shows the gaps. */
 .kio-bitem.ok { opacity: 0.42; }

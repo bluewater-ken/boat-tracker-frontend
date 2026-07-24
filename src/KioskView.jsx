@@ -974,9 +974,10 @@ function Kpi({ n, label, accent }) {
 
 function StatList({ title, items, active, onOpen }) {
   const isDone = (i) => i.s === 'done' || i.s === 'received';
-  const left = items.filter(i => !isDone(i)).length;
-  // Not-done first (stable) so if the column clips, it only hides completed items.
-  const ordered = [...items].sort((a, b) => (isDone(a) ? 1 : 0) - (isDone(b) ? 1 : 0));
+  // Like the work centers: show only what's LEFT (the completed items just add
+  // clutter and scrolling on the wall). The header still tallies them.
+  const remaining = items.filter(i => !isDone(i));
+  const left = remaining.length;
   return (
     <div className={`kio-bcol${active ? ' sel' : ''}${onOpen ? ' clickable' : ''}`}
       onClick={onOpen}>
@@ -985,13 +986,14 @@ function StatList({ title, items, active, onOpen }) {
         {left > 0 ? <em className="kio-left">{left} LEFT</em> : <em className="kio-alldone">✓ DONE</em>}
       </div>
       <AutoScroll className="kio-bcol-list">
-        {ordered.map(it => (
+        {remaining.map(it => (
           <div key={it.n} className={`kio-bitem ${STATUS_CLS[it.s]}`}>
             <span className="kio-bmark">{STATUS_MARK[it.s]}</span>
             <span className="kio-bname">{it.n}{it.d ? <em> — {it.d}</em> : ''}</span>
             {it.exp && <span className="kio-bexp">exp {it.exp}</span>}
           </div>
         ))}
+        {left === 0 && <div className="kio-ball-done">✓ All complete</div>}
       </AutoScroll>
     </div>
   );
@@ -1003,14 +1005,20 @@ function StatList({ title, items, active, onOpen }) {
 function KioskTraveler({ b, sel, onOpen }) {
   const wcOpen = b.workcenters.reduce((s, w) => s + (w.open?.length || 0), 0);
   const pick = onOpen ? (i) => () => onOpen(i) : () => undefined;
+  // Split the vertical space between the two rows in proportion to how much each
+  // has to show — the fullest column of each drives it — so the busier row gets
+  // more room and scrolls less.
+  const notDone = (arr) => (arr || []).filter(i => !(i.s === 'done' || i.s === 'received')).length;
+  const topMax = Math.max(1, notDone(b.keyParts), notDone(b.lamination), notDone(b.finishing));
+  const wcMax = Math.max(1, ...b.workcenters.map(w => w.open?.length || 0));
   return (
     <section className="kio-panel kio-boat kio-traveler">
-      <div className="kio-btop">
+      <div className="kio-btop" style={{ flexGrow: topMax }}>
         <StatList title="KEY PARTS" items={b.keyParts} active={sel === 0} onOpen={pick(0)} />
         <StatList title="LAMINATION" items={b.lamination} active={sel === 1} onOpen={pick(1)} />
         <StatList title="FINISHING" items={b.finishing} active={sel === 2} onOpen={pick(2)} />
       </div>
-      <div className="kio-bwc kio-bcol">
+      <div className="kio-bwc kio-bcol" style={{ flexGrow: wcMax }}>
         <div className="kio-bcol-head">
           <span>WORK CENTERS</span>
           {wcOpen > 0 ? <em className="kio-left">{wcOpen} LEFT</em> : <em className="kio-alldone">✓ DONE</em>}

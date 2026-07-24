@@ -20,7 +20,7 @@ export function cellOf(status, na) {
 }
 
 const STAGE_ORDER = ['Pre-Production', 'Glass Shop', 'Back Line', 'Front Line', 'QC'];
-const STAGE_SHORT = { 'Pre-Production': 'Pre-Prod', 'Glass Shop': 'Glass', 'Back Line': 'Back Line', 'Front Line': 'Front Line', 'QC': 'QC' };
+const STAGE_SHORT = { 'Pre-Production': 'Pre-Prod', 'Glass Shop': 'Glass', 'Back Line': 'Back Line', 'Front Line': 'Front Line', 'QC': 'QC', 'Backlog': 'Backlog' };
 const lamDone = (r) => !!r && ['Pulled', 'Complete', 'Complete/On Mold'].includes(r.status);
 
 // Build glass-shop rows: every in-production boat from Pre-Production onward, kept
@@ -35,13 +35,16 @@ export function computeGlassRows(boats, lam) {
     const applicable = GS_PARTS.map(p => lamBy[b.boat_id] && lamBy[b.boat_id][p]).filter(r => r && !r.na);
     return applicable.length > 0 && !applicable.every(lamDone);
   };
-  return (boats || [])
-    .filter(inGlass)
-    .sort((a, b) => (STAGE_ORDER.indexOf(a.global_status) - STAGE_ORDER.indexOf(b.global_status)) || ((a.sequence_number || 999) - (b.sequence_number || 999)))
-    .map(b => ({
-      boat_id: b.boat_id, customer: b.customer_name, stage: STAGE_SHORT[b.global_status] || b.global_status, hull: b.hull_color,
-      cells: GS_PARTS.map(p => { const r = lamBy[b.boat_id] && lamBy[b.boat_id][p]; return cellOf(r && r.status, r && r.na); }),
-    }));
+  const rowOf = (b) => ({
+    boat_id: b.boat_id, customer: b.customer_name, stage: STAGE_SHORT[b.global_status] || b.global_status, hull: b.hull_color,
+    cells: GS_PARTS.map(p => { const r = lamBy[b.boat_id] && lamBy[b.boat_id][p]; return cellOf(r && r.status, r && r.na); }),
+  });
+  const bySeq = (a, b) => (a.sequence_number || 999) - (b.sequence_number || 999);
+  const bs = boats || [];
+  const active = bs.filter(inGlass).sort((a, b) => (STAGE_ORDER.indexOf(a.global_status) - STAGE_ORDER.indexOf(b.global_status)) || bySeq(a, b));
+  // Fill the rest of the board with the queued boats (Backlog), in build order.
+  const queued = bs.filter(b => b.global_status === 'Backlog').sort(bySeq);
+  return active.concat(queued).slice(0, 12).map(rowOf);
 }
 
 // The next boats queued to enter (Backlog, by build order) — shown as a "Next up" strip.
@@ -60,6 +63,11 @@ export const DEMO_GLASS_ROWS = [
   ['26F031', 'Scituate #1', 'Glass', 'firebrick', ['P', 'P', 'P', 'OM', 'OM', 'OM', 'OM', 'OM', 'O', 'W', 'MU', '_']],
   ['26F033', 'Halloran', 'Glass', 'goldenrod', ['P', 'OM', 'OM', 'W', 'W', 'O', 'MU', 'W', '_', '_', '_', '_']],
   ['28225', 'Trey', 'Back Line', 'slategray', ['P', 'P', 'OM', 'P', 'OM', 'OM', 'W', 'OM', 'O', 'W', 'MU', '_']],
+  ['25T074', 'Whitaker', 'Backlog', 'teal', Array(12).fill('_')],
+  ['26F035', 'Nguyen', 'Backlog', 'darkred', Array(12).fill('_')],
+  ['30S011', 'Costa', 'Backlog', '#4B6CB7', Array(12).fill('_')],
+  ['25T077', 'Bianchi', 'Backlog', 'sienna', Array(12).fill('_')],
+  ['28C014', 'Ortiz', 'Backlog', 'darkslateblue', Array(12).fill('_')],
 ].map(([id, cust, stage, hull, st]) => ({ boat_id: id, customer: cust, stage, hull, cells: st.map(c => cellOf(c === '_' ? null : DEMO_CODE[c], false)) }));
 export const DEMO_UPCOMING = [
   { boat_id: '25T074', customer: 'Whitaker', hull: 'teal' },
@@ -69,7 +77,7 @@ export const DEMO_UPCOMING = [
   { boat_id: '28C014', customer: 'Ortiz', hull: 'darkslateblue' },
 ];
 
-export function GlassGrid({ rows, upcoming }) {
+export function GlassGrid({ rows }) {
   return (
     <section className="kio-panel kio-glass">
       <div className="gs-toolbar">
@@ -95,17 +103,6 @@ export function GlassGrid({ rows, upcoming }) {
         ))}
         {rows.length === 0 && <div className="gs-empty">No boats in the glass shop right now.</div>}
       </div>
-      {upcoming && upcoming.length > 0 && (
-        <div className="gs-upcoming">
-          <span className="gs-up-label">Next up</span>
-          {upcoming.map(u => (
-            <span key={u.boat_id} className="gs-up-chip">
-              {u.hull && <i className="gs-chip" style={{ background: u.hull }} title={u.hull} />}
-              <b>{u.boat_id}</b><em>{u.customer}</em>
-            </span>
-          ))}
-        </div>
-      )}
     </section>
   );
 }

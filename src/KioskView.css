@@ -358,7 +358,7 @@
 .gs-sw { width: 12px; height: 12px; border-radius: 3px; }
 .gs-sw.pulled { background: #6FE9D3; } .gs-sw.onmold { background: #C4EE7E; } .gs-sw.wip { background: #FBD26B; } .gs-sw.open { background: #9DB8F5; } .gs-sw.busy { background: #9DAAB8; } .gs-sw.na { background: #5A6B7A; }
 .gs-grid { display: flex; flex-direction: column; gap: 5px; flex: 1; min-height: 0; overflow: hidden; }
-.gs-row { display: flex; gap: 5px; align-items: stretch; }
+.gs-row { flex: none; display: flex; gap: 5px; align-items: stretch; }
 .gs-boat { flex: 0 0 200px; min-width: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: center; padding: 4px 12px; border-radius: 7px; background: #0E1726; border-left: 3px solid #22D3EE; }
 .gs-boat-top { display: flex; align-items: center; gap: 8px; }
 .gs-id { font-size: 16px; font-weight: 900; color: #fff; letter-spacing: 0.5px; font-variant-numeric: tabular-nums; }

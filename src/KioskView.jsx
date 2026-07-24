@@ -633,7 +633,7 @@ function KioskView({ demo }) {
         ) : cur === 'throughput' ? (
           <ThroughputScreen completed={daily.completed} />
         ) : cur === 'glass' ? (
-          <GlassGrid rows={glassRows} upcoming={glassUpcoming} />
+          <GlassGrid rows={glassRows} />
         ) : (
           <KioskTraveler b={cur.b} />
         )}

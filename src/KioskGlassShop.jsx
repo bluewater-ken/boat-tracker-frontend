@@ -19,7 +19,6 @@ export function cellOf(status, na) {
   }
 }
 
-const STAGE_ORDER = ['Pre-Production', 'Glass Shop', 'Back Line', 'Front Line', 'QC'];
 const STAGE_SHORT = { 'Pre-Production': 'Pre-Prod', 'Glass Shop': 'Glass', 'Back Line': 'Back Line', 'Front Line': 'Front Line', 'QC': 'QC', 'Backlog': 'Backlog' };
 const lamDone = (r) => !!r && ['Pulled', 'Complete', 'Complete/On Mold'].includes(r.status);
 
@@ -41,10 +40,9 @@ export function computeGlassRows(boats, lam) {
   });
   const bySeq = (a, b) => (a.sequence_number || 999) - (b.sequence_number || 999);
   const bs = boats || [];
-  const active = bs.filter(inGlass).sort((a, b) => (STAGE_ORDER.indexOf(a.global_status) - STAGE_ORDER.indexOf(b.global_status)) || bySeq(a, b));
-  // Fill the rest of the board with the queued boats (Backlog), in build order.
-  const queued = bs.filter(b => b.global_status === 'Backlog').sort(bySeq);
-  return active.concat(queued).slice(0, 12).map(rowOf);
+  // Build order (sequence) across active glass boats + the queued backlog — matches
+  // the desktop Lamination tab's # column (most-advanced boat first, backlog last).
+  return bs.filter(b => inGlass(b) || b.global_status === 'Backlog').sort(bySeq).slice(0, 12).map(rowOf);
 }
 
 // The next boats queued to enter (Backlog, by build order) — shown as a "Next up" strip.
@@ -58,11 +56,11 @@ export function computeUpcoming(boats, n = 5) {
 
 const DEMO_CODE = { P: 'Pulled', OM: 'Complete/On Mold', C: 'Complete', W: 'In Progress', O: 'Mold Open', MU: 'Mold Unavailable' };
 export const DEMO_GLASS_ROWS = [
-  ['25T072', 'Ferro', 'Pre-Prod', 'navy', ['OM', 'W', 'MU', '_', '_', '_', '_', '_', '_', '_', '_', '_']],
-  ['30S009', '7 Sports', 'Pre-Prod', 'seagreen', ['C', 'OM', 'W', 'MU', '_', '_', '_', '_', '_', '_', '_', '_']],
+  ['28225', 'Trey', 'Back Line', 'slategray', ['P', 'P', 'OM', 'P', 'OM', 'OM', 'W', 'OM', 'O', 'W', 'MU', '_']],
   ['26F031', 'Scituate #1', 'Glass', 'firebrick', ['P', 'P', 'P', 'OM', 'OM', 'OM', 'OM', 'OM', 'O', 'W', 'MU', '_']],
   ['26F033', 'Halloran', 'Glass', 'goldenrod', ['P', 'OM', 'OM', 'W', 'W', 'O', 'MU', 'W', '_', '_', '_', '_']],
-  ['28225', 'Trey', 'Back Line', 'slategray', ['P', 'P', 'OM', 'P', 'OM', 'OM', 'W', 'OM', 'O', 'W', 'MU', '_']],
+  ['30S009', '7 Sports', 'Pre-Prod', 'seagreen', ['C', 'OM', 'W', 'MU', '_', '_', '_', '_', '_', '_', '_', '_']],
+  ['25T072', 'Ferro', 'Pre-Prod', 'navy', ['OM', 'W', 'MU', '_', '_', '_', '_', '_', '_', '_', '_', '_']],
   ['25T074', 'Whitaker', 'Backlog', 'teal', Array(12).fill('_')],
   ['26F035', 'Nguyen', 'Backlog', 'darkred', Array(12).fill('_')],
   ['30S011', 'Costa', 'Backlog', '#4B6CB7', Array(12).fill('_')],

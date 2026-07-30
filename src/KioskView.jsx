@@ -657,19 +657,27 @@ function KioskView({ demo }) {
   useEffect(() => {
     const onKey = (e) => {
       const k = e.key;
-      // While the photo viewer is open it owns the keyboard (its own Esc/arrows);
-      // the clicker's Back button (Backspace) closes it too.
+      // Accept the several keys a remote's Back / OK button may send, so most
+      // 2.4G air-mouse remotes work with no per-device tweak.
+      const isBack = k === 'Backspace' || k === 'Escape' || k === 'BrowserBack' || k === 'GoBack';
+      const isSelect = k === 'Enter' || k === ' ' || k === 'Spacebar';
+
+      // Leave kiosk mode: a DELIBERATE combo (Shift+Esc), not a bare Escape — a
+      // remote's Back often sends Escape, and that should go back, not exit.
+      if (k === 'Escape' && e.shiftKey) { window.location.href = window.location.pathname; return; }
+
+      // While the photo viewer is open it owns the arrows (its own ←/→); Back closes it.
       if (photosRef.current) {
-        if (k === 'Backspace') { e.preventDefault(); setPhotos(null); }
+        if (isBack) { e.preventDefault(); setPhotos(null); }
         return;
       }
-      if (k === 'Escape') { window.location.href = window.location.pathname; return; }
-      if (k === 'ArrowUp') navRef.current('up');
-      else if (k === 'ArrowDown') navRef.current('down');
-      else if (k === 'ArrowLeft') navRef.current('left');
-      else if (k === 'ArrowRight') navRef.current('right');
-      else if (k === 'Enter' || k === ' ') { e.preventDefault(); navRef.current('select'); }
-      else if (k === 'Backspace') { e.preventDefault(); navRef.current('back'); }
+      if (k === 'ArrowUp') { e.preventDefault(); navRef.current('up'); }
+      else if (k === 'ArrowDown') { e.preventDefault(); navRef.current('down'); }
+      else if (k === 'ArrowLeft') { e.preventDefault(); navRef.current('left'); }
+      else if (k === 'ArrowRight') { e.preventDefault(); navRef.current('right'); }
+      else if (isSelect) { e.preventDefault(); navRef.current('select'); }
+      else if (isBack) { e.preventDefault(); navRef.current('back'); }
+      else if (k === 'Home' || k === 'BrowserHome') { setManual(false); setPanel(0); setBoatSel(null); setSectionSel(null); setDetail(null); } // Home → overview
       else if (k === 's' || k === 'S') playBombDrop(); // test the completion sound
     };
     window.addEventListener('keydown', onKey);

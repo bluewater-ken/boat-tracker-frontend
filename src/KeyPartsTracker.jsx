@@ -193,16 +193,17 @@ function KeyPartsTracker() {
   const setDate = (boatId, partName, isCustom, field, val) => {
     save(boatId, partName, isCustom, { [field]: val || null });
   };
-  // Commit the typed spec/description (on blur / Enter / close), not on every keystroke:
-  // save the final value and remember it as a suggestion for next time.
+  // Commit the typed spec/description or custom note (on blur / Enter / close), not on
+  // every keystroke: save the final value and — for standard parts only — remember it
+  // as a spec suggestion for next time.
   const commitDescription = () => {
-    if (descDraft == null || !menu || menu.isCustom) { setDescDraft(null); return; }
+    if (descDraft == null || !menu) { setDescDraft(null); return; }
     const partName = menu.partName;
     const val = descDraft.trim();
     const cur = getRow(menu.boatId, partName).description || '';
     if (val !== cur) {
-      save(menu.boatId, partName, false, { description: val || null });
-      if (val && !(specOptions[partName] || []).includes(val)) {
+      save(menu.boatId, partName, menu.isCustom, { description: val || null });
+      if (!menu.isCustom && val && !(specOptions[partName] || []).includes(val)) {
         setSpecOptions(prev => ({ ...prev, [partName]: [...(prev[partName] || []), val] }));
       }
     }
@@ -311,7 +312,7 @@ function KeyPartsTracker() {
       {menu.isCustom ? (
         <>
           <MenuLabel>Notes</MenuLabel>
-          <textarea className="am-notes" value={menuRow.description || ''} placeholder="Notes for this part (supplier, lead time, details)..." onChange={e => save(menu.boatId, menu.partName, true, { description: e.target.value || null })} />
+          <textarea className="am-notes" value={descDraft ?? (menuRow.description || '')} placeholder="Notes for this part (supplier, lead time, details)..." onChange={e => setDescDraft(e.target.value)} onBlur={commitDescription} />
         </>
       ) : (
         <>

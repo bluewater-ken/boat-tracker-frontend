@@ -106,6 +106,9 @@ function KeyPartsTracker() {
   const [customFilter, setCustomFilter] = useState('all'); // all | std | cust — filter the "All custom parts" pool
   // Remembered spec/description options per part name (grows as values are entered).
   const [specOptions, setSpecOptions] = useState(DUMMY_SPEC_OPTIONS);
+  // Draft for the spec/description field while typing — committed on blur/Enter/close
+  // so we don't save (or remember as a suggestion) every intermediate keystroke.
+  const [descDraft, setDescDraft] = useState(null);
 
   useEffect(() => { init(); }, []);
 
@@ -190,16 +193,25 @@ function KeyPartsTracker() {
   const setDate = (boatId, partName, isCustom, field, val) => {
     save(boatId, partName, isCustom, { [field]: val || null });
   };
-  // Set the spec/description; remember new values per part name for future picks.
-  const setDescription = (boatId, partName, isCustom, val) => {
-    save(boatId, partName, isCustom, { description: val || null });
-    if (val && !(specOptions[partName] || []).includes(val)) {
-      setSpecOptions(prev => ({ ...prev, [partName]: [...(prev[partName] || []), val] }));
+  // Commit the typed spec/description (on blur / Enter / close), not on every keystroke:
+  // save the final value and remember it as a suggestion for next time.
+  const commitDescription = () => {
+    if (descDraft == null || !menu || menu.isCustom) { setDescDraft(null); return; }
+    const partName = menu.partName;
+    const val = descDraft.trim();
+    const cur = getRow(menu.boatId, partName).description || '';
+    if (val !== cur) {
+      save(menu.boatId, partName, false, { description: val || null });
+      if (val && !(specOptions[partName] || []).includes(val)) {
+        setSpecOptions(prev => ({ ...prev, [partName]: [...(prev[partName] || []), val] }));
+      }
     }
+    setDescDraft(null);
   };
 
   const openMenu = (e, boatId, partName, isCustom = false) => {
     if (!isOps) return;
+    setDescDraft(null); // fresh part — don't carry a stale draft
     setMenu({ boatId, partName, isCustom, x: e.clientX, y: e.clientY });
   };
 
@@ -289,7 +301,7 @@ function KeyPartsTracker() {
   const menuIdx = STATUSES.indexOf(menuStatus);
 
   const actionMenu = menu && (
-    <ActionMenu anchor={{ x: menu.x, y: menu.y }} title={menu.partName} subtitle={`${menu.boatId}${menuBoat ? ' · ' + menuBoat.customer_name : ''}`} onClose={() => setMenu(null)}>
+    <ActionMenu anchor={{ x: menu.x, y: menu.y }} title={menu.partName} subtitle={`${menu.boatId}${menuBoat ? ' · ' + menuBoat.customer_name : ''}`} onClose={() => { commitDescription(); setMenu(null); }}>
       <MenuBtn label={menuIdx >= STATUSES.length - 1 ? 'Received' : `Advance to ${STATUSES[menuIdx + 1]} ›`} primary disabled={menuNa || menuIdx >= STATUSES.length - 1} onClick={() => advance(menu.boatId, menu.partName, menu.isCustom)} />
       <MenuBtn label={menuIdx <= 0 ? '‹ Step back' : `‹ Back to ${STATUSES[menuIdx - 1]}`} disabled={menuNa || menuIdx <= 0} onClick={() => stepBack(menu.boatId, menu.partName, menu.isCustom)} />
       <MenuBtn label={menuNa ? 'Clear N/A' : 'Set Not Applicable'} onClick={() => toggleNa(menu.boatId, menu.partName, menu.isCustom)} />
@@ -304,7 +316,7 @@ function KeyPartsTracker() {
       ) : (
         <>
           <MenuLabel>Description / spec</MenuLabel>
-          <SmartInput className="am-spec-input" storeKey={`spec:${menu.partName}`} options={specOptions[menu.partName] || []} value={menuRow.description || ''} placeholder="e.g. Triple Suzuki 350" onChange={v => setDescription(menu.boatId, menu.partName, false, v)} />
+          <SmartInput className="am-spec-input" storeKey={`spec:${menu.partName}`} options={specOptions[menu.partName] || []} value={descDraft ?? (menuRow.description || '')} placeholder="e.g. Triple Suzuki 350" onChange={v => setDescDraft(v)} onEnter={commitDescription} onBlur={commitDescription} />
           <div className="am-spec-hint">Pick a saved spec or type a new one (saved for next time). ✕ removes a suggestion.</div>
         </>
       )}

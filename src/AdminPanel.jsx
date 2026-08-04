@@ -8,6 +8,7 @@ import TimelineAdmin from './TimelineAdmin';
 import CompletionsChart from './CompletionsChart';
 import BoatReportsAdmin from './BoatReportsAdmin';
 import PaymentsAdmin from './PaymentsAdmin';
+import PhotoExport from './PhotoExport';
 import './AdminPanel.css';
 
 // Admin tab — management screens. Any Ops user sees Rules / Timeline / Throughput /
@@ -20,6 +21,7 @@ const OPS_SECTIONS = [
   { key: 'timeline', label: 'Timeline' },
   { key: 'throughput', label: 'Throughput' },
   { key: 'reports', label: 'Boat Reports' },
+  { key: 'photos', label: 'Photo Export' },
 ];
 
 function AdminPanel() {
@@ -49,6 +51,7 @@ function AdminPanel() {
         {shown === 'timeline' && canTimeline && <TimelineAdmin />}
         {shown === 'throughput' && <CompletionsChart />}
         {shown === 'reports' && <BoatReportsAdmin />}
+        {shown === 'photos' && <PhotoExport />}
         {shown === 'payments' && isKen && <PaymentsAdmin />}
       </div>
     </div>

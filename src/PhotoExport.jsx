@@ -20,6 +20,7 @@ function PhotoExport() {
   const [motor, setMotor] = useState('Suzuki');
   const [task, setTask] = useState('prop');
 
+  const [allWc, setAllWc] = useState(false); // show every work-center photo, not just task-tagged
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState(null); // { byBoat, flat, stats }
   const [lightbox, setLightbox] = useState(null); // { index }
@@ -91,19 +92,22 @@ function PhotoExport() {
         // 2) Fallback: photos on the whole work center, kept if their caption/title
         //    mentions the task (catches photos added to the project, not the item).
         for (const m of matchRows) {
-          let total = 0, kept = 0;
+          let total = 0, kept = 0; const titles = new Set();
           try {
             const r = await apiFetch(`/api/assembly/${b.boat_id}/${encodeURIComponent(m.wcId)}/photos`);
             const list = r.ok ? await r.json() : [];
             total = list.length;
             for (const ph of list) {
-              const title = clean(ph.task_title || '').toLowerCase();
-              if (tk && !title.includes(tk)) continue;
+              const rawTitle = clean(ph.task_title || '');
+              if (rawTitle) titles.add(rawTitle);
+              const matchTitle = tk && rawTitle.toLowerCase().includes(tk);
+              if (!allWc && !matchTitle) continue; // "show all" keeps everything on the work center
               const k = ph.full_url || ph.web_url || ph.thumb_url;
-              if (k && !seen.has(k)) { seen.add(k); kept++; boatPhotos.push(push(ph, b, ph.task_title || task)); }
+              if (k && !seen.has(k)) { seen.add(k); kept++; boatPhotos.push(push(ph, b, ph.task_title || m.wcName)); }
             }
           } catch { total = -1; }
-          dbg.lines.push(`work center "${m.wcName}": ${total} photo(s) total, ${kept} tagged "${tk}"`);
+          const sample = [...titles].slice(0, 10);
+          dbg.lines.push(`work center "${m.wcName}": ${total} photo(s) total, ${kept} ${allWc ? 'kept (all)' : `tagged "${tk}"`}${sample.length ? ` · labels seen: ${sample.join(' | ')}` : ''}`);
         }
         byBoat.push({ boat: b, motor: motorOf(b.boat_id), photos: boatPhotos });
         debug.push(dbg);
@@ -145,6 +149,10 @@ function PhotoExport() {
         </label>
         <button className="pex-run" onClick={run} disabled={running}>{running ? 'Searching…' : 'Find photos'}</button>
       </div>
+      <label className="pex-check">
+        <input type="checkbox" checked={allWc} onChange={e => setAllWc(e.target.checked)} />
+        Show <b>all</b> photos from the matching work centers (ignore the task label) — use when the shots aren’t tagged with the task
+      </label>
 
       {results && (
         <div className="pex-summary">

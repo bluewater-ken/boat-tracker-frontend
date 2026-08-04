@@ -12,6 +12,9 @@
 .pex-run:hover { background: #1E4E7E; }
 .pex-run:disabled { opacity: 0.6; cursor: default; }
 
+.pex-check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #5A6B7A; margin-top: -4px; }
+.pex-check input { width: 16px; height: 16px; }
+.pex-check b { color: #173A5E; }
 .pex-summary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 15px; color: #33475B; }
 .pex-summary b { color: #173A5E; }
 .pex-copy { margin-left: 8px; padding: 6px 12px; border: 1px solid #CBD5E0; border-radius: 7px; background: #fff; font-size: 13px; font-weight: 700; color: #173A5E; cursor: pointer; }

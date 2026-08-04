@@ -55,39 +55,60 @@ function PhotoExport() {
       );
       const flat = [];
       const byBoat = [];
+      const debug = [];
       let withTask = 0;
+      const push = (ph, b, item) => {
+        const entry = { ...ph, gi: flat.length, boat_id: b.boat_id, customer: b.customer_name, model: b.boat_model, motor: motorOf(b.boat_id), item };
+        flat.push(entry); return entry;
+      };
       for (const b of matched) {
-        // Items on this boat whose checklist name matches the task filter.
-        const items = [];
-        for (const r of asmRows) {
-          if (r.boat_id !== b.boat_id) continue;
-          for (const it of (r.items || [])) {
-            if (!tk || clean(it.name).toLowerCase().includes(tk)) {
-              items.push({ ...it, wc: r.work_center_name || r.work_center_id });
-            }
-          }
-        }
-        if (!items.length) continue;
+        // Work-center rows on this boat that carry a name-matching checklist item.
+        const matchRows = (asmRows || [])
+          .filter(r => r.boat_id === b.boat_id)
+          .map(r => ({
+            wcId: r.work_center_id, wcName: r.work_center_name || r.work_center_id,
+            items: (r.items || []).filter(it => !tk || clean(it.name).toLowerCase().includes(tk)),
+          }))
+          .filter(m => m.items.length);
+        if (!matchRows.length) continue;
         withTask++;
+        const seen = new Set();
         const boatPhotos = [];
-        for (const it of items) {
-          if (!it.item_id || it.photo_count === 0) continue;
+        const dbg = { boat: b.boat_id, cust: b.customer_name, lines: [] };
+        // 1) Photos attached directly to the matching checklist item.
+        for (const m of matchRows) for (const it of m.items) {
+          const nm = clean(it.name);
+          if (!it.item_id) { dbg.lines.push(`item "${nm}": no item_id`); continue; }
+          let n = 0;
           try {
             const r = await apiFetch(`/api/assembly/item/${it.item_id}/photos`);
             const list = r.ok ? await r.json() : [];
-            for (const ph of list) {
-              const entry = {
-                ...ph, gi: flat.length,
-                boat_id: b.boat_id, customer: b.customer_name, model: b.boat_model,
-                motor: motorOf(b.boat_id), item: clean(it.name),
-              };
-              flat.push(entry); boatPhotos.push(entry);
-            }
-          } catch { /* skip an item that fails to load */ }
+            n = list.length;
+            for (const ph of list) { const k = ph.full_url || ph.web_url || ph.thumb_url; if (k && !seen.has(k)) { seen.add(k); boatPhotos.push(push(ph, b, nm)); } }
+          } catch { n = -1; }
+          dbg.lines.push(`item "${nm}" (photo_count=${it.photo_count ?? '?'}): ${n} photo(s)`);
         }
-        byBoat.push({ boat: b, motor: motorOf(b.boat_id), tasks: [...new Set(items.map(i => clean(i.name)))], photos: boatPhotos });
+        // 2) Fallback: photos on the whole work center, kept if their caption/title
+        //    mentions the task (catches photos added to the project, not the item).
+        for (const m of matchRows) {
+          let total = 0, kept = 0;
+          try {
+            const r = await apiFetch(`/api/assembly/${b.boat_id}/${encodeURIComponent(m.wcId)}/photos`);
+            const list = r.ok ? await r.json() : [];
+            total = list.length;
+            for (const ph of list) {
+              const title = clean(ph.task_title || '').toLowerCase();
+              if (tk && !title.includes(tk)) continue;
+              const k = ph.full_url || ph.web_url || ph.thumb_url;
+              if (k && !seen.has(k)) { seen.add(k); kept++; boatPhotos.push(push(ph, b, ph.task_title || task)); }
+            }
+          } catch { total = -1; }
+          dbg.lines.push(`work center "${m.wcName}": ${total} photo(s) total, ${kept} tagged "${tk}"`);
+        }
+        byBoat.push({ boat: b, motor: motorOf(b.boat_id), photos: boatPhotos });
+        debug.push(dbg);
       }
-      setResults({ byBoat, flat, stats: { matched: matched.length, withTask, photos: flat.length } });
+      setResults({ byBoat, flat, debug, stats: { matched: matched.length, withTask, photos: flat.length } });
     } finally { setRunning(false); }
   };
 
@@ -136,8 +157,19 @@ function PhotoExport() {
 
       {results && results.stats.photos === 0 && (
         <div className="pex-empty">
-          No photos found for those filters. Check the task wording (try just “prop”), the motor text, or the model.
-          {results.stats.matched > 0 && results.stats.withTask === 0 && ' None of the matching boats have a checklist item with that name yet.'}
+          <div>No photos came back for those filters. Check the task wording (try just “prop”), the motor text, or the model.
+          {results.stats.matched > 0 && results.stats.withTask === 0 && ' None of the matching boats have a checklist item with that name yet.'}</div>
+          {results.debug && results.debug.length > 0 && (
+            <details className="pex-debug" open>
+              <summary>Diagnostics — what was checked</summary>
+              {results.debug.map(d => (
+                <div key={d.boat} className="pex-dbg-boat">
+                  <b>{d.boat}{d.cust ? ` · ${d.cust}` : ''}</b>
+                  <ul>{d.lines.map((l, i) => <li key={i}>{l}</li>)}</ul>
+                </div>
+              ))}
+            </details>
+          )}
         </div>
       )}
 

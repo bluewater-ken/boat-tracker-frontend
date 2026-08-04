@@ -74,7 +74,7 @@ function PhotoExport() {
         withTask++;
         const seen = new Set();
         const boatPhotos = [];
-        const dbg = { boat: b.boat_id, cust: b.customer_name, lines: [] };
+        const dbg = { boat: b.boat_id, cust: b.customer_name, lines: [`motor spec read: "${motorOf(b.boat_id) || '(none)'}"`] };
         // 1) Photos attached directly to the matching checklist item.
         for (const m of matchRows) for (const it of m.items) {
           const nm = clean(it.name);

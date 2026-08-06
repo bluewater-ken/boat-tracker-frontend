@@ -57,6 +57,12 @@
 .kpt-bid { font-size: 12px; font-weight: 700; color: #1c1c1c; }
 .kpt-bmeta { font-size: 11px; color: #5F6B73; }
 .kpt-bhull { font-size: 11px; color: #2E92D6; font-style: italic; }
+/* Countdown to production (Glass Shop) start, so parts can be ordered to lead time. */
+.kpt-bstart { font-size: 11px; font-weight: 800; color: #5F6B73; margin-top: 2px; letter-spacing: 0.2px; }
+.kpt-bstart.soon { color: #B8860B; }
+.kpt-bstart.urgent { color: #C0392B; }
+.kpt-bstart.started { color: #2E7D46; font-weight: 700; }
+.kpt-boat-row .kpt-bstart { font-size: 12px; }
 
 .kpt-cell {
   position: relative;

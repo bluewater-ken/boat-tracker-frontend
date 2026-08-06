@@ -109,19 +109,32 @@ function KeyPartsTracker() {
   // Draft for the spec/description field while typing — committed on blur/Enter/close
   // so we don't save (or remember as a suggestion) every intermediate keystroke.
   const [descDraft, setDescDraft] = useState(null);
+  // boat_id -> projected production (Glass Shop) start date, for the countdown.
+  const [prodStart, setProdStart] = useState({});
 
   useEffect(() => { init(); }, []);
 
   const init = async () => {
     try {
       setLoading(true);
-      const [b, sp, all, cn] = await Promise.all([
+      const [b, sp, all, cn, tl] = await Promise.all([
         apiFetch('/api/boats').then(r => r.json()),
         apiFetch('/api/parts/standard').then(r => r.json()),
         apiFetch('/api/parts').then(r => r.json()),
         apiFetch('/api/parts/custom-names').then(r => r.json()),
+        apiFetch('/api/timeline').then(r => (r.ok ? r.json() : null)).catch(() => null),
       ]);
       setBoats(b);
+      // Projected production start = the boat's Glass Shop (lamination) segment start,
+      // else its first timeline segment — so Parts can count down to build start.
+      const ps = {};
+      for (const g of (tl?.groups || [])) {
+        if (g.kind !== 'boat') continue;
+        const segs = g.segments || [];
+        const startSeg = segs.find(s => s.name === 'Glass Shop') || segs[0];
+        if (startSeg?.start) ps[g.key] = startSeg.start;
+      }
+      setProdStart(ps);
       setStandardParts(sp);
       // custom-names may arrive as plain strings (legacy) or {name, is_standard}
       // objects once BACKEND_CUSTOM_STANDARD_BRIEF ships. Normalize both.
@@ -293,6 +306,20 @@ function KeyPartsTracker() {
     b.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
     b.boat_model?.toLowerCase().includes(search.toLowerCase())));
 
+  // Countdown to a boat's production (Glass Shop) start, for ordering long-lead parts.
+  const startInfo = (boat) => {
+    if (!boat || boat.global_status === 'Delivered') return null;
+    const iso = prodStart[boat.boat_id];
+    if (!iso) return null;
+    const start = new Date(String(iso).slice(0, 10) + 'T00:00:00');
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const days = Math.round((start - today) / 86400000);
+    const when = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (days > 0) return { text: `▶ production in ${days} day${days === 1 ? '' : 's'} · ${when}`, cls: days <= 30 ? 'urgent' : days <= 60 ? 'soon' : '' };
+    if (days === 0) return { text: '▶ production starts today', cls: 'urgent' };
+    return { text: 'in production', cls: 'started' };
+  };
+
   if (loading) return <div className="loading">Loading parts...</div>;
 
   const menuBoat = menu ? boats.find(b => b.boat_id === menu.boatId) : null;
@@ -390,6 +417,7 @@ function KeyPartsTracker() {
                   <td className="kpt-boatcell">
                     <div className="kpt-bid">{boat.boat_id} · {boat.customer_name} {boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>}</div>
                     <div className="kpt-bmeta">{boat.boat_model} · <span className="kpt-bhull">{boat.hull_color}</span></div>
+                    {(() => { const si = startInfo(boat); return si && <div className={`kpt-bstart ${si.cls}`}>{si.text}</div>; })()}
                   </td>
                   {standardParts.map(p => {
                     const row = getRow(boat.boat_id, p);
@@ -480,6 +508,7 @@ function KeyPartsTracker() {
             <div key={boat.boat_id} className={`kpt-boat-row ${selectedBoat?.boat_id === boat.boat_id ? 'selected' : ''}`} onClick={() => pickBoat(boat)}>
               <div className="kpt-bid">{boat.boat_id} - {boat.customer_name} {boat.is_spare && <span className="spare-tag">SPARE / REFIT / SERVICE</span>}</div>
               <div className="kpt-bhull">{boat.hull_color} {boat.boat_model}</div>
+              {(() => { const si = startInfo(boat); return si && <div className={`kpt-bstart ${si.cls}`}>{si.text}</div>; })()}
             </div>
           ))}
         </div>

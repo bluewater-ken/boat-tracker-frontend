@@ -306,7 +306,7 @@ function KeyPartsTracker() {
     b.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
     b.boat_model?.toLowerCase().includes(search.toLowerCase())));
 
-  // Countdown to a boat's production (Glass Shop) start, for ordering long-lead parts.
+  // Countdown to a boat's lamination (Glass Shop) start, for ordering long-lead parts.
   const startInfo = (boat) => {
     if (!boat || boat.global_status === 'Delivered') return null;
     const iso = prodStart[boat.boat_id];
@@ -315,8 +315,8 @@ function KeyPartsTracker() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const days = Math.round((start - today) / 86400000);
     const when = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    if (days > 0) return { text: `▶ production in ${days} day${days === 1 ? '' : 's'} · ${when}`, cls: days <= 30 ? 'urgent' : days <= 60 ? 'soon' : '' };
-    if (days === 0) return { text: '▶ production starts today', cls: 'urgent' };
+    if (days > 0) return { text: `▶ lamination in ${days} day${days === 1 ? '' : 's'} · ${when}`, cls: days <= 30 ? 'urgent' : days <= 60 ? 'soon' : '' };
+    if (days === 0) return { text: '▶ lamination starts today', cls: 'urgent' };
     return { text: 'in production', cls: 'started' };
   };
 

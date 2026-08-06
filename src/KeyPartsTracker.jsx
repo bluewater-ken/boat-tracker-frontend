@@ -125,13 +125,12 @@ function KeyPartsTracker() {
         apiFetch('/api/timeline').then(r => (r.ok ? r.json() : null)).catch(() => null),
       ]);
       setBoats(b);
-      // Projected production start = the boat's Glass Shop (lamination) segment start,
-      // else its first timeline segment — so Parts can count down to build start.
+      // Countdown target = the boat's Back Line (assembly) segment start — that's when
+      // parts get installed, so it's the deadline to order to lead time.
       const ps = {};
       for (const g of (tl?.groups || [])) {
         if (g.kind !== 'boat') continue;
-        const segs = g.segments || [];
-        const startSeg = segs.find(s => s.name === 'Glass Shop') || segs[0];
+        const startSeg = (g.segments || []).find(s => s.name === 'Back Line');
         if (startSeg?.start) ps[g.key] = startSeg.start;
       }
       setProdStart(ps);
@@ -306,7 +305,7 @@ function KeyPartsTracker() {
     b.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
     b.boat_model?.toLowerCase().includes(search.toLowerCase())));
 
-  // Countdown to a boat's lamination (Glass Shop) start, for ordering long-lead parts.
+  // Countdown to a boat's Back Line (assembly) start, for ordering long-lead parts.
   const startInfo = (boat) => {
     if (!boat || boat.global_status === 'Delivered') return null;
     const iso = prodStart[boat.boat_id];
@@ -315,8 +314,8 @@ function KeyPartsTracker() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const days = Math.round((start - today) / 86400000);
     const when = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    if (days > 0) return { text: `▶ lamination in ${days} day${days === 1 ? '' : 's'} · ${when}`, cls: days <= 30 ? 'urgent' : days <= 60 ? 'soon' : '' };
-    if (days === 0) return { text: '▶ lamination starts today', cls: 'urgent' };
+    if (days > 0) return { text: `▶ back line in ${days} day${days === 1 ? '' : 's'} · ${when}`, cls: days <= 30 ? 'urgent' : days <= 60 ? 'soon' : '' };
+    if (days === 0) return { text: '▶ back line starts today', cls: 'urgent' };
     return { text: 'in production', cls: 'started' };
   };
 

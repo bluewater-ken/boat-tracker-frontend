@@ -18,6 +18,7 @@ const ShopFeed = lazy(() => import('./ShopFeed'));
 const AdminPanel = lazy(() => import('./AdminPanel'));
 const AskBoss = lazy(() => import('./AskBoss'));
 const ShopReport = lazy(() => import('./ShopReport'));
+const DocsLibrary = lazy(() => import('./DocsLibrary'));
 const KioskView = lazy(() => import('./KioskView'));
 
 // Shop-floor wall display: ?kiosk=1 renders a full-screen board (needs login,
@@ -32,6 +33,7 @@ const BASE_TABS = [
   { key: 'assembly', label: 'Assembly' },
   { key: 'parts', label: 'Parts' },
   { key: 'feed', label: 'Shop Feed' },
+  { key: 'docs', label: 'Docs' },
   { key: 'gantt', label: 'Timeline' },
 ];
 
@@ -115,6 +117,7 @@ function App() {
             {shownTab === 'assembly' && <AssemblyTracker />}
             {shownTab === 'gantt' && canView(user, 'gantt') && <GanttChart />}
             {shownTab === 'feed' && <ShopFeed initialView="issues" initialPostingOpen={reportIssueOpen} />}
+            {shownTab === 'docs' && <DocsLibrary />}
             {shownTab === 'admin' && isOps && <AdminPanel />}
           </Suspense>
         </main>

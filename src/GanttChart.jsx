@@ -288,6 +288,7 @@ function GanttChart() {
       if (dDays === 0) return;
       let start = String(s.start).slice(0, 10), end = String(s.end).slice(0, 10);
       if (mode === 'move') { start = shiftDate(start, dDays); end = shiftDate(end, dDays); }
+      else if (mode === 'resizeL') { start = shiftDate(start, dDays); if (start > end) start = end; }
       else { end = shiftDate(end, dDays); if (end < start) end = start; }
       try {
         const r = await apiFetch('/api/timeline/pins', {
@@ -405,24 +406,26 @@ function GanttChart() {
     const dm = segDrag && segDrag.gkey === g.key && segDrag.name === s.name ? segDrag : null;
     if (dm) {
       if (dm.mode === 'move') left += dm.dDays * px;
+      else if (dm.mode === 'resizeL') { const d = dm.dDays * px; left += d; wd = Math.max(px, wd - d); }
       else wd = Math.max(px, wd + dm.dDays * px);
     }
     const editable = isOps && g.kind !== 'slot';
-    // Body drag slides the WHOLE bar (length kept, dates shift); the right-edge
-    // handle changes the end date (length). Both save as a pin. Actual (past)
-    // bars: end-edge drag only — the recorded start stays put.
+    // Body drag slides the WHOLE bar (length kept, dates shift); the LEFT edge changes
+    // the start date, the RIGHT edge changes the end date. All save as a pin. Actual
+    // (past) bars: end-edge drag only — the recorded start stays put.
     const canDrag = editable && s.kind !== 'hold' && s.kind !== 'actual';
     const endOnly = editable && s.kind === 'actual';
-    const title = `${s.name}: ${String(s.start).slice(0, 10)} → ${String(s.end).slice(0, 10)}${s.duration_note ? ` · ${s.duration_note}` : ''}${s.fill_note ? ` · ${s.fill_note}` : ''}${canDrag ? ' · drag bar = shift dates · drag right edge = change length' : endOnly ? ' · drag right edge = adjust end date' : ''}`;
+    const title = `${s.name}: ${String(s.start).slice(0, 10)} → ${String(s.end).slice(0, 10)}${s.duration_note ? ` · ${s.duration_note}` : ''}${s.fill_note ? ` · ${s.fill_note}` : ''}${canDrag ? ' · drag bar = shift both · drag either edge = change that date' : endOnly ? ' · drag right edge = adjust end date' : ''}`;
     const bodyDown = canDrag ? (e) => beginSegDrag(e, g, s, 'move') : undefined;
     const holdClick = (e) => { e.stopPropagation(); if (!editable || guardDraft()) return; openPinEditor(g, s); };
+    const rszL = canDrag && <span className="gantt-rsz gantt-rsz-left" onPointerDown={(e) => beginSegDrag(e, g, s, 'resizeL')} title="Drag to change the start date" />;
     const rsz = (canDrag || endOnly) && <span className="gantt-rsz" onPointerDown={(e) => beginSegDrag(e, g, s, 'resize')} title="Drag to change the end date" />;
     const dragCls = canDrag ? 'draggable' : endOnly ? 'resizable' : '';
     if (s.kind === 'hold') {
       return <div key={s.name + s.start} className={`gantt-bar gantt-hold ${editable ? 'clickable' : ''}`} style={{ left, width: wd }} title={title} onClick={holdClick}><span className="gantt-pinmark">📌</span></div>;
     }
     if (s.kind === 'projected') {
-      return <div key={s.name + s.start} className={`gantt-bar gantt-proj ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, borderColor: color }} title={title} onPointerDown={bodyDown}>{rsz}</div>;
+      return <div key={s.name + s.start} className={`gantt-bar gantt-proj ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, borderColor: color }} title={title} onPointerDown={bodyDown}>{rszL}{rsz}</div>;
     }
     // Current stage, or a pinned stage that's still in progress (has a live fill) —
     // draw it as a bordered bar with the work-completion fill; add 📌 when pinned.
@@ -431,7 +434,7 @@ function GanttChart() {
         <div key={s.name + s.start} className={`gantt-bar gantt-current ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, borderColor: color }} title={title} onPointerDown={bodyDown}>
           <div className="gantt-fill" style={{ width: `${s.fill_pct ?? 0}%`, background: color }} />
           {s.kind === 'pinned' && <span className="gantt-pinmark">📌</span>}
-          {rsz}
+          {rszL}{rsz}
         </div>
       );
     }
@@ -442,7 +445,7 @@ function GanttChart() {
       return (
         <div key={s.name + s.start} className={`gantt-bar gantt-proj ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, borderColor: color }} title={title} onPointerDown={bodyDown}>
           <span className="gantt-pinmark">📌</span>
-          {rsz}
+          {rszL}{rsz}
         </div>
       );
     }

@@ -89,6 +89,9 @@
   display: inline-block; font-size: 8px; font-weight: 800; letter-spacing: 0.2px;
   color: #fff; border-radius: 3px; padding: 0 4px; line-height: 1.5; white-space: nowrap;
 }
+/* Flag icons — Late / Backordered / Unsatisfactory as small icons instead of text. */
+.kpt-flagicons { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px; margin-top: 1px; }
+.kpt-flagicon { display: inline-flex; align-items: center; line-height: 0; }
 .kpt-cellspec { font-size: 9px; font-style: italic; margin-top: 1px; opacity: 0.9; line-height: 1.15; }
 
 .kpt-legend { position: sticky; left: 0; background: #fff; padding: 12px 16px; border-top: 1px solid #E6E9EC; }

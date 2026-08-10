@@ -45,13 +45,14 @@ const effFlags = (row) => ({
   flag_unsatisfactory: !!row.flag_unsatisfactory,
 });
 
-// Active flags as bold text chips (they wrap/stack) — the corner icons were too
-// small to notice.
+// Active flags as icons (Late = clock, Backordered = hourglass, Unsatisfactory =
+// flag). ORDER ASAP stays a text tag; Partial rides the cell color, not a chip.
 function FlagChips({ flags }) {
-  // Partial is carried by the cell color (see cellStatusOf), not a chip.
   const on = KEYPARTS_FLAGS.filter(f => f.key !== 'flag_partial' && flags[f.key]);
   if (!on.length) return null;
-  return <span className="kpt-flagchips">{on.map(f => <span key={f.key} className="kpt-flagchip" style={{ background: f.color }}>{f.label}</span>)}</span>;
+  return <span className="kpt-flagicons">{on.map(f => (
+    <span key={f.key} className="kpt-flagicon" title={f.label}><f.Icon size={15} color={f.color} /></span>
+  ))}</span>;
 }
 
 // Date label: order date once Ordered, plus expected (Ordered) or actual (Received).
@@ -658,7 +659,7 @@ function Legend() {
       <div className="kpt-legend-row">
         <span className="kpt-legend-item"><span className="kpt-asap">ORDER ASAP</span> Priority to order — set it, clears once Ordered</span>
         {KEYPARTS_FLAGS.filter(f => f.key !== 'flag_partial').map(f => (
-          <span key={f.key} className="kpt-legend-item"><span className="kpt-flagchip" style={{ background: f.color }}>{f.label}</span></span>
+          <span key={f.key} className="kpt-legend-item"><span className="kpt-flagicon" title={f.label}><f.Icon size={15} color={f.color} /></span> {f.label}</span>
         ))}
       </div>
       <div className="kpt-legend-note">Cell color = status. Cells read: “—” not ordered · “→ exp M/D” on order, expected date · “◐ exp M/D” partially received, waiting on the rest · “✓ M/D” received on that date · “N/A” not applicable (excluded from counts). Hover (or tap) a cell for full detail incl. the order date. Late auto-flags once past the expected date. Ops-only editing.</div>

@@ -99,6 +99,13 @@
 .gantt-deliv-muted { color: #A9B2B9; }
 .gantt-targetbtn { flex: 0 0 auto; margin-left: auto; background: none; border: none; color: #173A5E; font-size: 13px; cursor: pointer; padding: 2px 4px; opacity: 0.55; }
 .gantt-targetbtn:hover { opacity: 1; }
+/* Manual-boat badge (also the "reset to Auto" control for Ops). */
+.gantt-manual { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 800; letter-spacing: 0.2px; color: #8a5a00; background: rgba(224,169,59,0.18); border: 1px solid rgba(224,169,59,0.55); border-radius: 10px; padding: 1px 8px; cursor: pointer; white-space: nowrap; }
+.gantt-manual:hover:not(:disabled) { background: rgba(224,169,59,0.32); }
+.gantt-manual:disabled { cursor: default; }
+/* "behind pinned date" conflict on a Manual boat's current stage. */
+.gantt-bar.conflict { box-shadow: 0 0 0 2px rgba(163,45,45,0.7); }
+.gantt-conflict { position: absolute; top: -9px; left: -4px; font-size: 11px; line-height: 1; color: #A32D2D; }
 .gantt-slotdel { flex: 0 0 auto; margin-left: auto; background: none; border: none; color: #9AA5AD; font-size: 12px; cursor: pointer; padding: 2px 4px; }
 .gantt-slotdel:hover { color: #A32D2D; }
 /* "Today" pill on the today line, in the month header */

@@ -303,6 +303,16 @@ function GanttChart() {
     window.addEventListener('pointerup', onUp);
   };
 
+  // Reset a Manual boat back to Auto — clears its manual pins so the forecast takes over.
+  const resetToAuto = async (g) => {
+    if (!window.confirm(`Reset ${g.title} to Auto?\n\nThis clears the dates you set and hands the boat back to the forecast.`)) return;
+    try {
+      const r = await apiFetch(`/api/timeline/manual/${encodeURIComponent(g.key)}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error();
+      init(true);
+    } catch { alert('Could not reset to Auto.'); }
+  };
+
   // Quarter row (top): Q1–Q4 + year, spanning three months each.
   const quarters = [];
   { let d = new Date(min);
@@ -415,11 +425,12 @@ function GanttChart() {
     // (past) bars: end-edge drag only — the recorded start stays put.
     const canDrag = editable && s.kind !== 'hold' && s.kind !== 'actual';
     const endOnly = editable && s.kind === 'actual';
-    const title = `${s.name}: ${String(s.start).slice(0, 10)} → ${String(s.end).slice(0, 10)}${s.duration_note ? ` · ${s.duration_note}` : ''}${s.fill_note ? ` · ${s.fill_note}` : ''}${canDrag ? ' · drag bar = shift both · drag either edge = change that date' : endOnly ? ' · drag right edge = adjust end date' : ''}`;
+    const title = `${s.name}: ${String(s.start).slice(0, 10)} → ${String(s.end).slice(0, 10)}${s.duration_note ? ` · ${s.duration_note}` : ''}${s.fill_note ? ` · ${s.fill_note}` : ''}${s.conflict ? ` · ⚠ ${s.conflict}` : ''}${canDrag ? ' · drag bar = shift both · drag either edge = change that date' : endOnly ? ' · drag right edge = adjust end date' : ''}`;
     const bodyDown = canDrag ? (e) => beginSegDrag(e, g, s, 'move') : undefined;
     const holdClick = (e) => { e.stopPropagation(); if (!editable || guardDraft()) return; openPinEditor(g, s); };
     const rszL = canDrag && <span className="gantt-rsz gantt-rsz-left" onPointerDown={(e) => beginSegDrag(e, g, s, 'resizeL')} title="Drag to change the start date" />;
     const rsz = (canDrag || endOnly) && <span className="gantt-rsz" onPointerDown={(e) => beginSegDrag(e, g, s, 'resize')} title="Drag to change the end date" />;
+    const conflict = s.conflict && <span className="gantt-conflict" title={s.conflict}>⚠</span>;
     const dragCls = canDrag ? 'draggable' : endOnly ? 'resizable' : '';
     if (s.kind === 'hold') {
       return <div key={s.name + s.start} className={`gantt-bar gantt-hold ${editable ? 'clickable' : ''}`} style={{ left, width: wd }} title={title} onClick={holdClick}><span className="gantt-pinmark">📌</span></div>;
@@ -431,9 +442,10 @@ function GanttChart() {
     // draw it as a bordered bar with the work-completion fill; add 📌 when pinned.
     if (s.kind === 'current' || (s.kind === 'pinned' && s.fill_pct != null)) {
       return (
-        <div key={s.name + s.start} className={`gantt-bar gantt-current ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, borderColor: color }} title={title} onPointerDown={bodyDown}>
+        <div key={s.name + s.start} className={`gantt-bar gantt-current ${dragCls} ${s.conflict ? 'conflict' : ''} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, borderColor: color }} title={title} onPointerDown={bodyDown}>
           <div className="gantt-fill" style={{ width: `${s.fill_pct ?? 0}%`, background: color }} />
           {s.kind === 'pinned' && <span className="gantt-pinmark">📌</span>}
+          {conflict}
           {rszL}{rsz}
         </div>
       );
@@ -577,6 +589,13 @@ function GanttChart() {
                   <div className="gantt-gmeta">
                     <div className="gantt-gline1">
                       <span className="gantt-gtitle" title={g.title}>{g.title}</span>
+                      {g.kind === 'boat' && g.manual && (
+                        <button className="gantt-manual" disabled={!isOps}
+                          title={`Manual — dates locked${g.manual_since ? ` since ${String(g.manual_since).slice(0, 10)}` : ''}.${isOps ? ' Click to reset to Auto.' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); if (!isOps || guardDraft()) return; resetToAuto(g); }}>
+                          📌 Manual{isOps ? ' · reset' : ''}
+                        </button>
+                      )}
                       {isOps && g.kind === 'boat' && (
                         <button className="gantt-targetbtn" title="Set target delivery" onClick={(e) => { e.stopPropagation(); if (guardDraft()) return; setEditor({ type: 'target', key: g.key, title: g.title, date: g.target_date ? String(g.target_date).slice(0, 10) : '' }); }}>◆</button>
                       )}

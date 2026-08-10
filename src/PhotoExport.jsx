@@ -21,6 +21,7 @@ function PhotoExport() {
   const [task, setTask] = useState('prop');
 
   const [allWc, setAllWc] = useState(false); // show every work-center photo, not just task-tagged
+  const [fullSearch, setFullSearch] = useState(false); // hit the whole CompanyCam library, not just synced data
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState(null); // { byBoat, flat, stats }
   const [lightbox, setLightbox] = useState(null); // { index }
@@ -44,7 +45,38 @@ function PhotoExport() {
   );
   const motorOf = (boatId) => (parts.find(p => p.boat_id === boatId && isMotor(p.part_name))?.description || '');
 
+  // Search the whole CompanyCam library (all projects, incl. delivered) via the
+  // backend's live CompanyCam lookup — reaches past what we've synced.
+  const runFull = async () => {
+    setRunning(true); setResults(null); setLightbox(null);
+    try {
+      const params = new URLSearchParams();
+      params.set('term', task.trim());
+      if (model.trim()) params.set('model', model.trim());
+      if (motor.trim()) params.set('motor', motor.trim());
+      const r = await apiFetch(`/api/companycam/search?${params.toString()}`);
+      if (!r.ok) {
+        setResults({ byBoat: [], flat: [], debug: [{ boat: '—', lines: [r.status === 404 ? 'CompanyCam search endpoint not available yet (backend task pending).' : `Search failed (HTTP ${r.status}).`] }], stats: { matched: 0, withTask: 0, photos: 0 } });
+        return;
+      }
+      const data = await r.json();
+      const flat = []; const byBoat = [];
+      for (const b of (data.boats || [])) {
+        const photos = [];
+        for (const ph of (b.photos || [])) {
+          const entry = { ...ph, gi: flat.length, boat_id: b.boat_id, customer: b.customer_name, model: b.boat_model, motor: b.motor, item: ph.task_title || task };
+          flat.push(entry); photos.push(entry);
+        }
+        if (photos.length) byBoat.push({ boat: { boat_id: b.boat_id, customer_name: b.customer_name, boat_model: b.boat_model }, motor: b.motor, photos });
+      }
+      const st = data.stats || {};
+      setResults({ byBoat, flat, debug: [], stats: { matched: st.boats_matched ?? (data.boats || []).length, withTask: st.boats_with_photos ?? byBoat.length, photos: st.photos ?? flat.length } });
+    } catch { setResults({ byBoat: [], flat: [], debug: [{ boat: '—', lines: ['CompanyCam search failed — check the connection.'] }], stats: { matched: 0, withTask: 0, photos: 0 } }); }
+    finally { setRunning(false); }
+  };
+
   const run = async () => {
+    if (fullSearch) return runFull();
     setRunning(true); setResults(null); setLightbox(null);
     try {
       const ml = model.trim().toLowerCase();
@@ -150,9 +182,15 @@ function PhotoExport() {
         <button className="pex-run" onClick={run} disabled={running}>{running ? 'Searching…' : 'Find photos'}</button>
       </div>
       <label className="pex-check">
-        <input type="checkbox" checked={allWc} onChange={e => setAllWc(e.target.checked)} />
-        Show <b>all</b> photos from the matching work centers (ignore the task label) — use when the shots aren’t tagged with the task
+        <input type="checkbox" checked={fullSearch} onChange={e => setFullSearch(e.target.checked)} />
+        <b>Search all of CompanyCam</b> — every project incl. delivered boats (not just what we’ve synced). Slower; hits CompanyCam directly.
       </label>
+      {!fullSearch && (
+        <label className="pex-check">
+          <input type="checkbox" checked={allWc} onChange={e => setAllWc(e.target.checked)} />
+          Show <b>all</b> photos from the matching work centers (ignore the task label) — use when the shots aren’t tagged with the task
+        </label>
+      )}
 
       {results && (
         <div className="pex-summary">

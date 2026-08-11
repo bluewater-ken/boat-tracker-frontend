@@ -5,6 +5,26 @@
 .pay-intro { font-size: 12px; color: #8A969E; margin: 0; }
 .pay-export { padding: 9px 16px; font-size: 13px; font-weight: 700; color: #1F3D07; background: #9CCB62; border: none; border-radius: 7px; cursor: pointer; }
 .pay-export:hover { background: #8fbf55; }
+.pay-pdf { padding: 9px 16px; font-size: 13px; font-weight: 700; color: #fff; background: #173A5E; border: none; border-radius: 7px; cursor: pointer; margin-right: 8px; }
+.pay-pdf:hover { background: #1E4E7E; }
+
+/* PDF report — hidden on screen; on print it's the only thing shown. */
+.pay-print { display: none; }
+.pay-print-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #173A5E; padding-bottom: 6px; margin-bottom: 10px; }
+.pay-print-title { font-size: 18px; font-weight: 800; color: #173A5E; }
+.pay-print-date { font-size: 12px; color: #555; }
+.pay-print-h { font-size: 13px; color: #173A5E; margin: 16px 0 4px; page-break-after: avoid; }
+.pay-print-table { width: 100%; border-collapse: collapse; font-size: 10px; page-break-inside: auto; }
+.pay-print-table th { text-align: left; border-bottom: 1px solid #999; padding: 3px 6px; background: #EEF3F8; }
+.pay-print-table td { padding: 2px 6px; border-bottom: 1px solid #E4E9EE; }
+.pay-print-table tr { page-break-inside: avoid; }
+@media print {
+  body * { visibility: hidden; }
+  .pay-print, .pay-print * { visibility: visible; }
+  .pay-print { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 0; color: #000; }
+  .pay-print .pay-svg { width: 100%; height: auto; }
+  @page { margin: 12mm; }
+}
 
 /* due / overdue strip */
 .pay-alerts { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }

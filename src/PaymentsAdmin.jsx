@@ -496,7 +496,19 @@ function PaymentsAdmin() {
         plans[r.boat.boat_id]?.contract_price ?? '',
       ].map(esc).join(',')),
     ];
-    const blob = new Blob([lines.join('\r\n')], { type: 'text/csv' });
+    // Recognized revenue (accrual) — one row per boat, by invoice date.
+    const revRows = deliveries.slice().sort((a, b) => a.date.localeCompare(b.date));
+    const revLines = [
+      '',
+      ['Recognized revenue (accrual)'].map(esc).join(','),
+      ['Boat', 'Customer', 'Model', 'Invoice date', 'Recognized revenue', 'Status'].map(esc).join(','),
+      ...revRows.map(d => [
+        d.boat.boat_id, d.boat.customer_name, d.boat.boat_model,
+        d.date, d.revenue != null ? d.revenue.toFixed(2) : '',
+        d.actual ? 'Invoiced' : 'Planned',
+      ].map(esc).join(',')),
+    ];
+    const blob = new Blob([lines.concat(revLines).join('\r\n')], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `bluewater-payments-${todayStr()}.csv`;
@@ -539,7 +551,8 @@ function PaymentsAdmin() {
     <div className="pay">
       <div className="pay-topbar">
         <p className="pay-intro">Payment schedules per boat — expected dates follow the live Timeline until marked paid. Visible to you only.</p>
-        <button className="pay-export" onClick={exportCsv}>⬇ Export CSV for CFO</button>
+        <button className="pay-pdf" onClick={() => window.print()}>📄 PDF report</button>
+        <button className="pay-export" onClick={exportCsv}>⬇ Export CSV</button>
       </div>
 
       {(overdue.length > 0 || dueSoon.length > 0) && (
@@ -785,6 +798,41 @@ function PaymentsAdmin() {
             </>
           )}
         </div>
+      </div>
+
+      {/* Print-only PDF report: charts + data tables (hidden on screen; 📄 PDF report → print). */}
+      <div className="pay-print">
+        <div className="pay-print-head">
+          <span className="pay-print-title">Bluewater — Payments &amp; Revenue</span>
+          <span className="pay-print-date">{new Date(todayStr() + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+        </div>
+        <h3 className="pay-print-h">Cash flow (monthly)</h3>
+        <PayChart rows={allRows} mode="months" pick={null} onPick={() => {}} />
+        <h3 className="pay-print-h">Recognized revenue — accrual (monthly)</h3>
+        <DeliveryChart deliveries={deliveries} mode="months" pick={null} onPick={() => {}} />
+        <h3 className="pay-print-h">Recognized revenue by boat</h3>
+        <table className="pay-print-table">
+          <thead><tr><th>Boat</th><th>Customer</th><th>Model</th><th>Invoice date</th><th>Recognized revenue</th><th>Status</th></tr></thead>
+          <tbody>
+            {deliveries.slice().sort((a, b) => a.date.localeCompare(b.date)).map((d, i) => (
+              <tr key={i}><td>{d.boat.boat_id}</td><td>{d.boat.customer_name}</td><td>{d.boat.boat_model}</td><td>{fmtD(d.date)}</td><td>{money(d.revenue)}</td><td>{d.actual ? 'Invoiced' : 'Planned'}</td></tr>
+            ))}
+          </tbody>
+        </table>
+        <h3 className="pay-print-h">Payment schedule</h3>
+        <table className="pay-print-table">
+          <thead><tr><th>Boat</th><th>Customer</th><th>Milestone</th><th>Amount</th><th>Expected</th><th>Status</th><th>Paid</th></tr></thead>
+          <tbody>
+            {allRows.slice().sort((a, b) => (a.exp || '9999').localeCompare(b.exp || '9999')).map((r, i) => (
+              <tr key={i}>
+                <td>{r.boat.boat_id}</td><td>{r.boat.customer_name}</td>
+                <td>{r.m.label}</td><td>{money(r.amount)}</td>
+                <td>{fmtD(r.exp)}</td><td>{STATUS_LABEL[r.status]}</td>
+                <td>{r.m.paid_at ? fmtD(r.m.paid_at) : ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -421,28 +421,18 @@ function PaymentsAdmin() {
   const overdue = allRows.filter(r => r.status === 'overdue').sort((a, b) => (a.exp || '').localeCompare(b.exp || ''));
   const dueSoon = allRows.filter(r => r.status === 'due').sort((a, b) => (a.exp || '').localeCompare(b.exp || ''));
 
-  // Accrual view: recognize a boat's full contract price on delivery. Delivered boats
-  // land on their real delivered date (actual); the rest on their planned/projected
-  // delivery (◆ target date, else the projected QC completion from the timeline).
+  // Accrual view: recognize a boat's full contract price in its DELIVERY month, taken
+  // from the plan's dedicated Delivery date field (set on this tab, to match the books).
+  // A boat only charts once that date is set. Past date = delivered (green); future =
+  // planned (blue). Independent of payments, target dates, and QC.
   const deliveries = [];
   for (const b of boats) {
     if (b.is_spare) continue; // service / refit / spare — not a new-boat delivery
-    if (isDelivered(b) && !delivered[b.boat_id] && !tlBy[b.boat_id]?.target_date) continue; // delivered but no date known
-    const rev = plans[b.boat_id]?.contract_price ?? null;
-    if (delivered[b.boat_id]) {
-      deliveries.push({ boat: b, date: String(delivered[b.boat_id]).slice(0, 10), revenue: rev, actual: true });
-    } else if (!isDelivered(b)) {
-      const g = tlBy[b.boat_id];
-      const qc = (g?.segments || []).find(s => s.name === 'QC');
-      // Prefer the ◆ target delivery date (boat's own, then the timeline's); fall back
-      // to the projected QC completion only when no target is set.
-      const proj = b.target_date ? String(b.target_date).slice(0, 10)
-        : g?.target_date ? String(g.target_date).slice(0, 10)
-        : (qc ? String(qc.end).slice(0, 10) : null);
-      if (proj) deliveries.push({ boat: b, date: proj, revenue: rev, actual: false });
-    }
+    const dd = plans[b.boat_id]?.delivery_date;
+    if (!dd) continue;
+    const date = String(dd).slice(0, 10);
+    deliveries.push({ boat: b, date, revenue: plans[b.boat_id]?.contract_price ?? null, actual: date < todayStr() });
   }
-  const delivBucketDate = (d) => d.date;
 
   const save = async (path, body, method = 'PUT') => {
     const r = await apiFetch(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -451,7 +441,7 @@ function PaymentsAdmin() {
   };
   const savePlan = async (boatId, patch) => {
     const cur = plans[boatId] || {};
-    await save(`/api/payments/plan/${encodeURIComponent(boatId)}`, { contract_price: cur.contract_price ?? null, contract_date: cur.contract_date ?? null, notes: cur.notes ?? null, ...patch });
+    await save(`/api/payments/plan/${encodeURIComponent(boatId)}`, { contract_price: cur.contract_price ?? null, contract_date: cur.contract_date ?? null, delivery_date: cur.delivery_date ?? null, notes: cur.notes ?? null, ...patch });
     init();
   };
   const saveMs = async (id, patch) => { await save(`/api/payments/milestone/${id}`, patch); init(); };
@@ -673,6 +663,10 @@ function PaymentsAdmin() {
                 <label>Contract signed
                   <input type="date" defaultValue={selPlan.contract_date ? String(selPlan.contract_date).slice(0, 10) : ''} key={sel + 'd' + (selPlan.contract_date ?? '')}
                     onBlur={e => savePlan(sel, { contract_date: e.target.value || null })} />
+                </label>
+                <label>Delivery date <span className="pay-fieldnote">(accrual — books)</span>
+                  <input type="date" defaultValue={selPlan.delivery_date ? String(selPlan.delivery_date).slice(0, 10) : ''} key={sel + 'dd' + (selPlan.delivery_date ?? '')}
+                    onBlur={e => savePlan(sel, { delivery_date: e.target.value || null })} />
                 </label>
               </div>
 

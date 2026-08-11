@@ -159,6 +159,109 @@ function buildBuckets(rows, mode) {
   return { keys, by, niceMax: Math.ceil(barMax / step) * step, todayKey, outFwd, ytdOpen, prevYearTotal, prevYear };
 }
 
+// ---- accrual view: recognize each boat's FULL contract price on delivery ----
+// deliveries: [{ boat, date, revenue, actual }] — actual = already delivered (green),
+// else the planned/projected delivery (blue). Buckets by the same weeks/months window.
+function buildDeliveryBuckets(deliveries, mode) {
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const t = new Date(todayStr() + 'T00:00:00');
+  const sIso = iso(addMonths(t, -3)), eIso = iso(addMonths(t, 8));
+  const keyer = mode === 'weeks' ? mondayOf : (d) => d.slice(0, 7);
+  const todayKey = keyer(todayStr());
+  const keys = [];
+  if (mode === 'weeks') { let c = mondayOf(sIso); const end = mondayOf(eIso); while (c <= end) { keys.push(c); c = nextWeek(c); } }
+  else { let [y, m] = sIso.slice(0, 7).split('-').map(Number); const [ey, em] = eIso.slice(0, 7).split('-').map(Number); while (y < ey || (y === ey && m <= em)) { keys.push(`${y}-${String(m).padStart(2, '0')}`); if (++m > 12) { m = 1; y++; } } }
+  const by = {}; for (const k of keys) by[k] = { delivRev: 0, planRev: 0, delivUnits: 0, planUnits: 0, rows: [] };
+  const thisYear = todayStr().slice(0, 4), janFirst = `${thisYear}-01-01`, prevYear = String(+thisYear - 1);
+  let ytdOpen = 0, prevYearRev = 0, prevYearUnits = 0, outFwdRev = 0, outFwdUnits = 0;
+  for (const d of deliveries) {
+    if (!d.date) continue;
+    if (d.actual) {
+      if (d.date >= janFirst && d.date < sIso) ytdOpen += (d.revenue || 0);
+      if (d.date.slice(0, 4) === prevYear) { prevYearRev += (d.revenue || 0); prevYearUnits += 1; }
+    }
+    const k = keyer(d.date);
+    if (!by[k]) { if (k > keys[keys.length - 1]) { outFwdRev += (d.revenue || 0); outFwdUnits += 1; } continue; }
+    if (d.actual) { by[k].delivRev += (d.revenue || 0); by[k].delivUnits += 1; }
+    else { by[k].planRev += (d.revenue || 0); by[k].planUnits += 1; }
+    by[k].rows.push(d);
+  }
+  const barMax = Math.max(1, ...keys.map(k => by[k].delivRev + by[k].planRev));
+  const step = Math.pow(10, Math.floor(Math.log10(barMax)));
+  return { keys, by, niceMax: Math.ceil(barMax / step) * step, todayKey, ytdOpen, prevYearRev, prevYearUnits, prevYear, outFwdRev, outFwdUnits };
+}
+
+const DELIV_COLOR = '#1D9E75';   // delivered / recognized
+const PLAN_COLOR = '#5B8DEF';    // planned / projected
+
+function DeliveryChart({ deliveries, mode, pick, onPick }) {
+  const { keys, by, niceMax, todayKey, ytdOpen, prevYearRev, prevYearUnits, prevYear, outFwdRev, outFwdUnits } = buildDeliveryBuckets(deliveries, mode);
+  if (!keys.length) return <div className="pay-quiet" style={{ padding: '10px 2px' }}>No deliveries to chart yet.</div>;
+  const W = 760, H = 210, L = 52, R = 96, T = 16, B = 34;
+  const plotW = W - L - R, plotH = H - T - B, slot = plotW / keys.length;
+  const bw = Math.max(3, Math.min(30, slot * 0.68));
+  const x = (i) => L + slot * (i + 0.5);
+  const y = (v) => T + plotH - (plotH * v) / niceMax;
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(niceMax * f));
+  const kMoney = (v) => (v >= 1000 ? `$${Math.round(v / 1000).toLocaleString()}k` : `$${Math.round(v)}`);
+  const label = (k) => mode === 'weeks' ? (() => { const [, m, d] = k.split('-'); return `${+m}/${+d}`; })() : (() => { const [yy, mm] = k.split('-'); return new Date(+yy, +mm - 1, 1).toLocaleDateString('en-US', { month: 'short' }); })();
+  const todayI = keys.indexOf(todayKey), lastI = keys.length - 1, step = Math.ceil(keys.length / 12);
+
+  // Cumulative recognized revenue: delivered accrues up to today (recognized YTD),
+  // planned continues it forward (pipeline). Shared scale with the prior-year line.
+  const cumTotal = ytdOpen + keys.reduce((s, k) => s + by[k].delivRev + by[k].planRev, 0);
+  const cumMax = Math.max(1, prevYearRev, cumTotal);
+  const yc = (v) => T + plotH - (plotH * v) / cumMax;
+  let acc = ytdOpen; const cum = keys.map(k => { acc += by[k].delivRev + by[k].planRev; return acc; });
+  const pastPts = keys.map((k, i) => k <= todayKey ? `${x(i)},${yc(cum[i])}` : null).filter(Boolean).join(' ');
+  const fwdPts = keys.map((k, i) => k >= todayKey ? `${x(i)},${yc(cum[i])}` : null).filter(Boolean).join(' ');
+  const recognizedYtd = ytdOpen + keys.reduce((s, k, i) => s + (keys[i] <= todayKey ? by[k].delivRev : 0), 0);
+
+  return (
+    <>
+      <svg className="pay-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Deliveries and recognized revenue">
+        {ticks.map((tk, i) => (
+          <g key={i}>
+            <line x1={L} y1={y(tk)} x2={W - R} y2={y(tk)} stroke="#EEF1F4" />
+            <text x={L - 6} y={y(tk) + 3} textAnchor="end" fontSize="9" fill="#8A969E">{kMoney(tk)}</text>
+          </g>
+        ))}
+        {todayI >= 0 && <line x1={x(todayI) - slot / 2} y1={T} x2={x(todayI) - slot / 2} y2={T + plotH} stroke="#2E92D6" strokeDasharray="3 3" />}
+        {prevYearRev > 0 && (
+          <g>
+            <line x1={L} y1={yc(prevYearRev)} x2={W - R} y2={yc(prevYearRev)} stroke="#64707A" strokeWidth="1.4" strokeDasharray="2 3" />
+            <text x={W - R + 4} y={yc(prevYearRev) + 3} fontSize="8.5" fontWeight="700" fill="#64707A">{`${prevYear}: ${kMoney(prevYearRev)} · ${prevYearUnits}`}</text>
+          </g>
+        )}
+        {keys.map((k, i) => {
+          const on = pick === k; const units = by[k].delivUnits + by[k].planUnits;
+          let yTop = y(0);
+          const segs = [['delivRev', DELIV_COLOR], ['planRev', PLAN_COLOR]];
+          return (
+            <g key={k}>
+              {segs.map(([key, color]) => {
+                const v = by[k][key]; if (!v) return null;
+                const h = (plotH * v) / niceMax; yTop -= h;
+                return <rect key={key} x={x(i) - bw / 2} y={yTop} width={bw} height={h} fill={color}
+                  stroke={on ? '#173A5E' : 'none'} strokeWidth={on ? 1.5 : 0} style={{ cursor: 'pointer' }}
+                  onClick={() => onPick(pick === k ? null : k)}><title>{`${label(k)} — ${key === 'delivRev' ? 'Delivered' : 'Planned'}: ${money(v)}`}</title></rect>;
+              })}
+              {units > 0 && <text x={x(i)} y={yTop - 3} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#33475B">{units}</text>}
+              {i % step === 0 && <text x={x(i)} y={H - 12} textAnchor="middle" fontSize="8.5" fill="#8A969E">{label(k)}</text>}
+            </g>
+          );
+        })}
+        {pastPts && <polyline points={pastPts} fill="none" stroke="#0F6E56" strokeWidth="2" strokeLinejoin="round" />}
+        {fwdPts && <polyline points={fwdPts} fill="none" stroke="#534AB7" strokeWidth="2" strokeDasharray="4 3" strokeLinejoin="round" />}
+        {recognizedYtd > 0 && todayI > 0 && <text x={x(todayI) - slot / 2 - 3} y={yc(recognizedYtd) - 4} textAnchor="end" fontSize="9" fontWeight="700" fill="#0F6E56">YTD {kMoney(recognizedYtd)}</text>}
+        {cumTotal > recognizedYtd && <text x={x(lastI) + 4} y={yc(cumTotal) + 3} fontSize="9" fontWeight="700" fill="#534AB7">{`Pipeline ${kMoney(cumTotal)}`}</text>}
+        <line x1={L} y1={y(0)} x2={W - R} y2={y(0)} stroke="#D6DBE0" />
+      </svg>
+      {outFwdRev > 0 && <div className="pay-chart-note">+ {money(outFwdRev)} / {outFwdUnits} boat{outFwdUnits === 1 ? '' : 's'} planned beyond this window.</div>}
+    </>
+  );
+}
+
 function PayChart({ rows, mode, pick, onPick }) {
   const { keys, by, niceMax, todayKey, outFwd, ytdOpen, prevYearTotal, prevYear } = buildBuckets(rows, mode);
   if (!keys.length) return <div className="pay-quiet" style={{ padding: '10px 2px' }}>No dated payments to chart yet.</div>;
@@ -275,6 +378,7 @@ function PaymentsAdmin() {
   const [showCompleted, setShowCompleted] = useState(false); // reveal rolled-off boats
   const [cumMode, setCumMode] = useState('today');     // today | quarter (cumulative reset)
   const [chartPick, setChartPick] = useState(null);    // bucket key clicked
+  const [delivPick, setDelivPick] = useState(null);    // delivery-chart bucket clicked
 
   useEffect(() => { init(); }, []);
   const init = async () => {
@@ -316,6 +420,24 @@ function PaymentsAdmin() {
   }
   const overdue = allRows.filter(r => r.status === 'overdue').sort((a, b) => (a.exp || '').localeCompare(b.exp || ''));
   const dueSoon = allRows.filter(r => r.status === 'due').sort((a, b) => (a.exp || '').localeCompare(b.exp || ''));
+
+  // Accrual view: recognize a boat's full contract price on delivery. Delivered boats
+  // land on their real delivered date (actual); the rest on their planned/projected
+  // delivery (◆ target date, else the projected QC completion from the timeline).
+  const deliveries = [];
+  for (const b of boats) {
+    if (isDelivered(b) && !delivered[b.boat_id] && !tlBy[b.boat_id]?.target_date) continue; // delivered but no date known
+    const rev = plans[b.boat_id]?.contract_price ?? null;
+    if (delivered[b.boat_id]) {
+      deliveries.push({ boat: b, date: String(delivered[b.boat_id]).slice(0, 10), revenue: rev, actual: true });
+    } else if (!isDelivered(b)) {
+      const g = tlBy[b.boat_id];
+      const qc = (g?.segments || []).find(s => s.name === 'QC');
+      const proj = g?.target_date ? String(g.target_date).slice(0, 10) : (qc ? String(qc.end).slice(0, 10) : null);
+      if (proj) deliveries.push({ boat: b, date: proj, revenue: rev, actual: false });
+    }
+  }
+  const delivBucketDate = (d) => d.date;
 
   const save = async (path, body, method = 'PUT') => {
     const r = await apiFetch(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -431,8 +553,8 @@ function PaymentsAdmin() {
               <span><i className="pay-cumline pay-cum-dashed" />dashed = on-time (excl. overdue)</span>
             </span>
             <span className="pay-chart-zoom">
-              <button className={chartMode === 'weeks' ? 'on' : ''} onClick={() => { setChartMode('weeks'); setChartPick(null); }}>Weeks</button>
-              <button className={chartMode === 'months' ? 'on' : ''} onClick={() => { setChartMode('months'); setChartPick(null); }}>Months</button>
+              <button className={chartMode === 'weeks' ? 'on' : ''} onClick={() => { setChartMode('weeks'); setChartPick(null); setDelivPick(null); }}>Weeks</button>
+              <button className={chartMode === 'months' ? 'on' : ''} onClick={() => { setChartMode('months'); setChartPick(null); setDelivPick(null); }}>Months</button>
             </span>
           </div>
           <PayChart rows={allRows} mode={chartMode} pick={chartPick} onPick={setChartPick} />
@@ -451,6 +573,42 @@ function PaymentsAdmin() {
                     <span className="pay-drow-label">{r.m.label}</span>
                     <span className="pay-drow-amt">{money(r.amount)}</span>
                     <span className="pay-drow-st">{STATUS_LABEL[r.status]}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {deliveries.length > 0 && (
+        <div className="pay-chart">
+          <div className="pay-chart-head">
+            <span className="pay-chart-title">Deliveries &amp; recognized revenue (accrual) — {chartMode === 'weeks' ? 'weekly' : 'monthly'}</span>
+            <span className="pay-chart-legend">
+              <span><i style={{ background: DELIV_COLOR }} />Delivered</span>
+              <span><i style={{ background: PLAN_COLOR }} />Planned</span>
+              <span><i className="pay-cumline pay-cum-collected" />Recognized (YTD)</span>
+              <span><i className="pay-cumline pay-cum-forward" />+ pipeline</span>
+              <span><i className="pay-cumline pay-cum-prevyear" />Last year</span>
+              <span className="pay-legend-note"># above bar = boats</span>
+            </span>
+          </div>
+          <DeliveryChart deliveries={deliveries} mode={chartMode} pick={delivPick} onPick={setDelivPick} />
+          {delivPick && (() => {
+            const inBucket = deliveries.filter(d => chartMode === 'weeks' ? mondayOf(d.date) === delivPick : d.date.slice(0, 7) === delivPick)
+              .sort((a, b) => a.date.localeCompare(b.date));
+            const sum = inBucket.reduce((s, d) => s + (d.revenue || 0), 0);
+            return (
+              <div className="pay-chart-detail">
+                <div className="pay-chart-detail-head">{inBucket.length} boat{inBucket.length === 1 ? '' : 's'} · {money(sum)}<button onClick={() => setDelivPick(null)}>✕</button></div>
+                {inBucket.map((d, i) => (
+                  <button key={i} className={`pay-chart-drow pay-drow-${d.actual ? 'paid' : 'upcoming'}`} onClick={() => setSel(d.boat.boat_id)}>
+                    <span>{fmtD(d.date)}</span>
+                    <span>{d.boat.boat_id} · {d.boat.customer_name}</span>
+                    <span className="pay-drow-label">{d.actual ? 'Delivered' : 'Planned'}</span>
+                    <span className="pay-drow-amt">{money(d.revenue)}</span>
+                    <span className="pay-drow-st">{d.actual ? 'DELIVERED' : 'PLANNED'}</span>
                   </button>
                 ))}
               </div>

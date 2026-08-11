@@ -381,9 +381,9 @@ function PaymentsAdmin() {
   const [delivPick, setDelivPick] = useState(null);    // delivery-chart bucket clicked
 
   useEffect(() => { init(); }, []);
-  const init = async () => {
+  const init = async (quiet) => {
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       const [p, b, t] = await Promise.all([
         apiFetch('/api/payments').catch(() => null),
         apiFetch('/api/boats').then(r => r.json()).catch(() => []),
@@ -391,7 +391,7 @@ function PaymentsAdmin() {
       ]);
       setBoats(b); setTl(t);
       setData(p && p.ok ? await p.json() : 'off');
-    } finally { setLoading(false); }
+    } finally { if (!quiet) setLoading(false); }
   };
 
   if (loading) return <div className="loading">Loading payments...</div>;
@@ -421,14 +421,15 @@ function PaymentsAdmin() {
   const overdue = allRows.filter(r => r.status === 'overdue').sort((a, b) => (a.exp || '').localeCompare(b.exp || ''));
   const dueSoon = allRows.filter(r => r.status === 'due').sort((a, b) => (a.exp || '').localeCompare(b.exp || ''));
 
-  // Accrual view: recognize a boat's full contract price in its DELIVERY month, taken
-  // from the plan's dedicated Delivery date field (set on this tab, to match the books).
-  // A boat only charts once that date is set. Past date = delivered (green); future =
-  // planned (blue). Independent of payments, target dates, and QC.
+  // Accrual view: recognize a boat's full contract price in its INVOICE month, from the
+  // plan's Invoice date field (matches the books). Defaults to the boat's QC final date
+  // (projected completion) until Ken overrides it. Past = invoiced (green); future =
+  // planned (blue). Independent of payment timing.
+  const qcFinal = (id) => { const qc = (tlBy[id]?.segments || []).find(s => s.name === 'QC'); return qc ? String(qc.end).slice(0, 10) : null; };
   const deliveries = [];
   for (const b of boats) {
-    if (b.is_spare) continue; // service / refit / spare — not a new-boat delivery
-    const dd = plans[b.boat_id]?.delivery_date;
+    if (b.is_spare) continue; // service / refit / spare — not a new-boat sale
+    const dd = plans[b.boat_id]?.invoice_date || qcFinal(b.boat_id);
     if (!dd) continue;
     const date = String(dd).slice(0, 10);
     deliveries.push({ boat: b, date, revenue: plans[b.boat_id]?.contract_price ?? null, actual: date < todayStr() });
@@ -441,19 +442,19 @@ function PaymentsAdmin() {
   };
   const savePlan = async (boatId, patch) => {
     const cur = plans[boatId] || {};
-    await save(`/api/payments/plan/${encodeURIComponent(boatId)}`, { contract_price: cur.contract_price ?? null, contract_date: cur.contract_date ?? null, delivery_date: cur.delivery_date ?? null, notes: cur.notes ?? null, ...patch });
-    init();
+    await save(`/api/payments/plan/${encodeURIComponent(boatId)}`, { contract_price: cur.contract_price ?? null, contract_date: cur.contract_date ?? null, invoice_date: cur.invoice_date ?? null, notes: cur.notes ?? null, ...patch });
+    init(true);
   };
-  const saveMs = async (id, patch) => { await save(`/api/payments/milestone/${id}`, patch); init(); };
-  const addMs = async (boatId, m, order) => { await save('/api/payments/milestone', { boat_id: boatId, sort_order: order, ...m }, 'POST'); init(); };
-  const delMs = async (id) => { if (!window.confirm('Remove this payment milestone?')) return; const r = await apiFetch(`/api/payments/milestone/${id}`, { method: 'DELETE' }); if (!r.ok) alert('Delete failed.'); init(); };
+  const saveMs = async (id, patch) => { await save(`/api/payments/milestone/${id}`, patch); init(true); };
+  const addMs = async (boatId, m, order) => { await save('/api/payments/milestone', { boat_id: boatId, sort_order: order, ...m }, 'POST'); init(true); };
+  const delMs = async (id) => { if (!window.confirm('Remove this payment milestone?')) return; const r = await apiFetch(`/api/payments/milestone/${id}`, { method: 'DELETE' }); if (!r.ok) alert('Delete failed.'); init(true); };
   const applyTemplate = async (boatId, name) => {
     const existing = msFor(boatId);
     if (existing.length && !window.confirm(`Replace the ${existing.length} existing milestone(s) with the "${name}" template?`)) return;
     for (const m of existing) await apiFetch(`/api/payments/milestone/${m.id}`, { method: 'DELETE' });
     let i = 0;
     for (const m of TEMPLATES[name]) await save('/api/payments/milestone', { boat_id: boatId, sort_order: i++, ...m }, 'POST');
-    init();
+    init(true);
   };
 
   // ---- CFO export: CSV, one row per payment, sorted by expected date ----
@@ -579,9 +580,9 @@ function PaymentsAdmin() {
       {deliveries.length > 0 && (
         <div className="pay-chart">
           <div className="pay-chart-head">
-            <span className="pay-chart-title">Deliveries &amp; recognized revenue (accrual) — {chartMode === 'weeks' ? 'weekly' : 'monthly'}</span>
+            <span className="pay-chart-title">Recognized revenue (accrual) — {chartMode === 'weeks' ? 'weekly' : 'monthly'}</span>
             <span className="pay-chart-legend">
-              <span><i style={{ background: DELIV_COLOR }} />Delivered</span>
+              <span><i style={{ background: DELIV_COLOR }} />Invoiced</span>
               <span><i style={{ background: PLAN_COLOR }} />Planned</span>
               <span><i className="pay-cumline pay-cum-collected" />Recognized (YTD)</span>
               <span><i className="pay-cumline pay-cum-forward" />+ pipeline</span>
@@ -601,9 +602,9 @@ function PaymentsAdmin() {
                   <button key={i} className={`pay-chart-drow pay-drow-${d.actual ? 'paid' : 'upcoming'}`} onClick={() => setSel(d.boat.boat_id)}>
                     <span>{fmtD(d.date)}</span>
                     <span>{d.boat.boat_id} · {d.boat.customer_name}</span>
-                    <span className="pay-drow-label">{d.actual ? 'Delivered' : 'Planned'}</span>
+                    <span className="pay-drow-label">{d.actual ? 'Invoiced' : 'Planned'}</span>
                     <span className="pay-drow-amt">{money(d.revenue)}</span>
-                    <span className="pay-drow-st">{d.actual ? 'DELIVERED' : 'PLANNED'}</span>
+                    <span className="pay-drow-st">{d.actual ? 'INVOICED' : 'PLANNED'}</span>
                   </button>
                 ))}
               </div>
@@ -664,9 +665,12 @@ function PaymentsAdmin() {
                   <input type="date" defaultValue={selPlan.contract_date ? String(selPlan.contract_date).slice(0, 10) : ''} key={sel + 'd' + (selPlan.contract_date ?? '')}
                     onBlur={e => savePlan(sel, { contract_date: e.target.value || null })} />
                 </label>
-                <label>Delivery date <span className="pay-fieldnote">(accrual — books)</span>
-                  <input type="date" defaultValue={selPlan.delivery_date ? String(selPlan.delivery_date).slice(0, 10) : ''} key={sel + 'dd' + (selPlan.delivery_date ?? '')}
-                    onBlur={e => savePlan(sel, { delivery_date: e.target.value || null })} />
+                <label>Invoice date <span className="pay-fieldnote">(accrual — defaults to QC finish)</span>
+                  {(() => {
+                    const eff = selPlan.invoice_date ? String(selPlan.invoice_date).slice(0, 10) : (qcFinal(sel) || '');
+                    return <input type="date" defaultValue={eff} key={sel + 'iv' + (selPlan.invoice_date ?? eff)}
+                      onBlur={e => { const v = e.target.value || null; if ((v || '') !== eff) savePlan(sel, { invoice_date: v }); }} />;
+                  })()}
                 </label>
               </div>
 

@@ -434,7 +434,11 @@ function PaymentsAdmin() {
     } else if (!isDelivered(b)) {
       const g = tlBy[b.boat_id];
       const qc = (g?.segments || []).find(s => s.name === 'QC');
-      const proj = g?.target_date ? String(g.target_date).slice(0, 10) : (qc ? String(qc.end).slice(0, 10) : null);
+      // Prefer the ◆ target delivery date (boat's own, then the timeline's); fall back
+      // to the projected QC completion only when no target is set.
+      const proj = b.target_date ? String(b.target_date).slice(0, 10)
+        : g?.target_date ? String(g.target_date).slice(0, 10)
+        : (qc ? String(qc.end).slice(0, 10) : null);
       if (proj) deliveries.push({ boat: b, date: proj, revenue: rev, actual: false });
     }
   }

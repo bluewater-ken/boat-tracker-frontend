@@ -426,6 +426,7 @@ function PaymentsAdmin() {
   // delivery (◆ target date, else the projected QC completion from the timeline).
   const deliveries = [];
   for (const b of boats) {
+    if (b.is_spare) continue; // service / refit / spare — not a new-boat delivery
     if (isDelivered(b) && !delivered[b.boat_id] && !tlBy[b.boat_id]?.target_date) continue; // delivered but no date known
     const rev = plans[b.boat_id]?.contract_price ?? null;
     if (delivered[b.boat_id]) {

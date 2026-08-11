@@ -217,6 +217,18 @@ function DeliveryChart({ deliveries, mode, pick, onPick }) {
   const fwdPts = keys.map((k, i) => k >= todayKey ? `${x(i)},${yc(cum[i])}` : null).filter(Boolean).join(' ');
   const recognizedYtd = ytdOpen + keys.reduce((s, k, i) => s + (keys[i] <= todayKey ? by[k].delivRev : 0), 0);
 
+  // Per-quarter cumulative (resets $0 each quarter) — mirrors the top chart's sawtooth.
+  const qOf = (k) => { const [yy, mm] = k.split('-'); return `${yy}-${Math.floor((+mm - 1) / 3)}`; };
+  const qSegs = []; let qCur = null, qAll = 0, qSeg = null;
+  keys.forEach((k, i) => {
+    const q = qOf(k);
+    if (q !== qCur) { if (qSeg) qSegs.push(qSeg); qCur = q; qAll = 0; qSeg = { firstI: i, all: [], endAll: 0, endI: i, qNum: Math.floor((+k.split('-')[1] - 1) / 3) + 1 }; }
+    qAll += by[k].delivRev + by[k].planRev;
+    qSeg.all.push([i, qAll]); qSeg.endAll = qAll; qSeg.endI = i;
+  });
+  if (qSeg) qSegs.push(qSeg);
+  const pts = (arr) => arr.map(([i, v]) => `${x(i)},${yc(v)}`).join(' ');
+
   return (
     <>
       <svg className="pay-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Deliveries and recognized revenue">
@@ -251,6 +263,15 @@ function DeliveryChart({ deliveries, mode, pick, onPick }) {
             </g>
           );
         })}
+        {/* faint quarter boundaries */}
+        {qSegs.slice(1).map((s, i) => <line key={'qb' + i} x1={x(s.firstI) - slot / 2} y1={T} x2={x(s.firstI) - slot / 2} y2={T + plotH} stroke="#EDEBF9" />)}
+        {/* per-quarter cumulative (coral sawtooth, resets each quarter) */}
+        {qSegs.map((s, i) => (
+          <g key={'q' + i}>
+            <polyline points={pts(s.all)} fill="none" stroke="#D85A30" strokeWidth="1.8" strokeLinejoin="round" />
+            {s.endAll > 0 && <text x={x(s.endI)} y={yc(s.endAll) - 4} textAnchor="middle" fontSize="8" fontWeight="700" fill="#D85A30">{`Q${s.qNum} ${kMoney(s.endAll)}`}</text>}
+          </g>
+        ))}
         {pastPts && <polyline points={pastPts} fill="none" stroke="#0F6E56" strokeWidth="2" strokeLinejoin="round" />}
         {fwdPts && <polyline points={fwdPts} fill="none" stroke="#534AB7" strokeWidth="2" strokeDasharray="4 3" strokeLinejoin="round" />}
         {recognizedYtd > 0 && todayI > 0 && <text x={x(todayI) - slot / 2 - 3} y={yc(recognizedYtd) - 4} textAnchor="end" fontSize="9" fontWeight="700" fill="#0F6E56">YTD {kMoney(recognizedYtd)}</text>}
@@ -586,6 +607,7 @@ function PaymentsAdmin() {
               <span><i style={{ background: PLAN_COLOR }} />Planned</span>
               <span><i className="pay-cumline pay-cum-collected" />Recognized (YTD)</span>
               <span><i className="pay-cumline pay-cum-forward" />+ pipeline</span>
+              <span><i className="pay-cumline pay-cum-quarter" />Per quarter</span>
               <span><i className="pay-cumline pay-cum-prevyear" />Last year</span>
               <span className="pay-legend-note"># above bar = boats</span>
             </span>

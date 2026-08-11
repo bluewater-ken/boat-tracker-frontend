@@ -275,7 +275,7 @@ function GanttChart() {
     const onMove = (ev) => {
       const dx = ev.clientX - info.x0;
       if (Math.abs(dx) > 3) info.moved = true;
-      setSegDrag({ gkey: g.key, name: s.name, mode, dDays: Math.round(dx / px) });
+      setSegDrag({ gkey: g.key, name: s.name, mode, dDays: Math.round(dx / px), start: s.start, end: s.end, clientX: ev.clientX, clientY: ev.clientY });
     };
     const onUp = async (ev) => {
       window.removeEventListener('pointermove', onMove);
@@ -770,6 +770,16 @@ function GanttChart() {
           </div>
         </div>
       )}
+      {/* Live date readout while dragging a bar — so you don't have to eyeball the gridlines. */}
+      {segDrag && segDrag.start && (() => {
+        const s = String(segDrag.start).slice(0, 10), e = String(segDrag.end).slice(0, 10);
+        const ns = shiftDate(s, segDrag.dDays), ne = shiftDate(e, segDrag.dDays);
+        const f = (iso) => { const d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); };
+        const text = segDrag.mode === 'move' ? `${f(ns)} → ${f(ne)}`
+          : segDrag.mode === 'resizeL' ? `start ${f(ns > e ? e : ns)}`
+          : `end ${f(ne < s ? s : ne)}`;
+        return <div className="gantt-dragtip" style={{ left: segDrag.clientX, top: segDrag.clientY - 38 }}>{text}</div>;
+      })()}
     </div>
   );
 }

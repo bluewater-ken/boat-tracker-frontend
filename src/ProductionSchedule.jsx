@@ -112,6 +112,29 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
           }
         }
       }
+      // Per-stage % straight from the CompanyCam work centers (matched by name), so a
+      // stage shows REAL progress even before the boat is advanced into it — e.g. the
+      // crew finishing Back Line early while the boat is still marked Glass Shop. Matches
+      // the Assembly tab; avoids relying on the timeline projector's fill_pct.
+      const wcName = {}; for (const w of asm?.work_centers || []) wcName[w.id] = w.name || '';
+      const STAGE_WC = { 'Back Line': /back\s*line/i, 'Front Line': /front/i, 'QC': /qc|quality/i };
+      const stageAgg = {}; // { boat_id: { stage: {done,total} } }
+      for (const r of asm?.rows || []) {
+        if (!r.total_items) continue;
+        const name = wcName[r.work_center_id] || r.work_center_id || '';
+        for (const [stage, re] of Object.entries(STAGE_WC)) {
+          if (re.test(name)) {
+            const s = ((stageAgg[r.boat_id] ||= {})[stage] ||= { done: 0, total: 0 });
+            s.done += r.completed_items; s.total += r.total_items;
+            break; // a work center belongs to one stage
+          }
+        }
+      }
+      for (const bid in stageAgg) {
+        const per = {};
+        for (const st in stageAgg[bid]) { const a = stageAgg[bid][st]; if (a.total) per[st] = Math.round(100 * a.done / a.total); }
+        (ex[bid] ||= {}).stagePct = per;
+      }
       // Spare/Refit/Service boats: aggregate their CompanyCam checklist(s) (any work
       // center) into one %, shown in the QC pip — mirrors the Assembly board's routing,
       // so their refit checklist shows real progress instead of a forced-green stage.
@@ -185,6 +208,9 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
     if (seg.key === 'Pre-Production' && ex.parts != null) return { pct: ex.parts, real: true };
     // Spare/Refit/Service boat's checklist shows real progress in QC (matches Assembly board).
     if (boat.is_spare && seg.key === 'QC' && ex.asmPct != null) return { pct: ex.asmPct, real: true };
+    // Assembly-backed stages (Back Line / Front Line / QC): use the live CompanyCam
+    // work-center % so they match the Assembly tab and show early progress.
+    if (ex.stagePct && ex.stagePct[seg.key] != null) return { pct: ex.stagePct[seg.key], real: true };
     return stagePct(boat, stageIdx, seg.key);
   };
 

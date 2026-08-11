@@ -425,10 +425,12 @@ function GanttChart() {
     // (past) bars: end-edge drag only — the recorded start stays put.
     const canDrag = editable && s.kind !== 'hold' && s.kind !== 'actual';
     const endOnly = editable && s.kind === 'actual';
-    const title = `${s.name}: ${String(s.start).slice(0, 10)} → ${String(s.end).slice(0, 10)}${s.duration_note ? ` · ${s.duration_note}` : ''}${s.fill_note ? ` · ${s.fill_note}` : ''}${s.conflict ? ` · ⚠ ${s.conflict}` : ''}${canDrag ? ' · drag bar = shift both · drag either edge = change that date' : endOnly ? ' · drag right edge = adjust end date' : ''}`;
+    const title = `${s.name}: ${String(s.start).slice(0, 10)} → ${String(s.end).slice(0, 10)}${s.duration_note ? ` · ${s.duration_note}` : ''}${s.fill_note ? ` · ${s.fill_note}` : ''}${s.conflict ? ` · ⚠ ${s.conflict}` : ''}${canDrag ? ' · drag bar = shift both · drag either edge = change that date' : endOnly ? ' · drag either edge = adjust that date' : ''}`;
     const bodyDown = canDrag ? (e) => beginSegDrag(e, g, s, 'move') : undefined;
     const holdClick = (e) => { e.stopPropagation(); if (!editable || guardDraft()) return; openPinEditor(g, s); };
-    const rszL = canDrag && <span className="gantt-rsz gantt-rsz-left" onPointerDown={(e) => beginSegDrag(e, g, s, 'resizeL')} title="Drag to change the start date" />;
+    // Both edges are draggable whenever any editing is allowed — including completed
+    // (actual) bars, so a wrong stage-entry date can be corrected (backend honors it).
+    const rszL = (canDrag || endOnly) && <span className="gantt-rsz gantt-rsz-left" onPointerDown={(e) => beginSegDrag(e, g, s, 'resizeL')} title="Drag to change the start date" />;
     const rsz = (canDrag || endOnly) && <span className="gantt-rsz" onPointerDown={(e) => beginSegDrag(e, g, s, 'resize')} title="Drag to change the end date" />;
     const conflict = s.conflict && <span className="gantt-conflict" title={s.conflict}>⚠</span>;
     const dragCls = canDrag ? 'draggable' : endOnly ? 'resizable' : '';
@@ -461,10 +463,10 @@ function GanttChart() {
         </div>
       );
     }
-    // actual — real history
+    // actual — real history (both edges draggable to correct a wrong stage date)
     return (
       <div key={s.name + s.start} className={`gantt-bar gantt-solid ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, background: color }} title={title} onPointerDown={bodyDown}>
-        {rsz}
+        {rszL}{rsz}
       </div>
     );
   };

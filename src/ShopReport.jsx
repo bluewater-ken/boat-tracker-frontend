@@ -130,7 +130,7 @@ function ShopReport({ onClose }) {
           <div className="report-section-title">Every boat, at a glance</div>
           <table className="report-table">
             <thead><tr>
-              <th className="rc-boat">#  Boat · Customer</th><th>Stage</th><th>Lam</th><th>Finish</th><th>Assy</th><th>Parts</th><th className="rc-att">Attention</th>
+              <th className="rc-boat">#  Boat · Customer</th><th>Stage</th><th>Lam</th><th>Finish</th><th>Assy</th><th>QC</th><th>Parts</th><th className="rc-att">Attention</th>
             </tr></thead>
             <tbody>
               {rows.map(b => (
@@ -140,6 +140,7 @@ function ShopReport({ onClose }) {
                   <td className={`rc-ctr ${tintClass(b.lam)}`}>{b.lam == null ? '—' : `${b.lam}%`}</td>
                   <td className={`rc-ctr ${tintClass(b.fin)}`}>{b.fin == null ? '—' : `${b.fin}%`}</td>
                   <td className={`rc-ctr ${tintClass(b.asy)}`}>{b.asy == null ? '—' : `${b.asy}%`}</td>
+                  <td className={`rc-ctr ${tintClass(b.qc)}`}>{b.qc == null ? '—' : `${b.qc}%`}</td>
                   <td className={`rc-ctr ${tintClass(pct(b.partsReceived, b.partsTotal))}`}>{b.partsReceived}/{b.partsTotal}</td>
                   <td className="rc-att">{b.attention.length ? b.attention.join(' · ') : '—'}</td>
                 </tr>
@@ -172,6 +173,7 @@ function ShopReport({ onClose }) {
                 <DetailCol title={`Lamination ${b.lam == null ? '' : b.lam + '%'}`} done={b.lam === 100} items={b.lamTasks} checklist allLabel="All laminated." noneLabel="No lamination tracked." />
                 <DetailCol title={`Finishing ${b.fin == null ? '' : b.fin + '%'}`} done={b.fin === 100} items={b.finTasks} checklist allLabel="All finished." noneLabel="Not in finishing yet." />
                 <DetailCol title={`Assembly To Do${b.asy == null ? '' : ` — ${b.asy}% complete`}`} done={b.asy === 100} items={b.asyRemaining} allLabel="All assembled." noneLabel="No checklists yet." />
+                <DetailCol title={`QC To Do${b.qc == null ? '' : ` — ${b.qc}% complete`}`} done={b.qc === 100} items={b.qcRemaining} allLabel="QC complete." noneLabel="Not in QC yet." />
                 <DetailCol title={`Key parts ${b.partsReceived}/${b.partsTotal}`} done={b.partsOutstanding.length === 0} items={b.partsOutstanding} allLabel="All parts received." noneLabel="No parts." />
               </div>
             </div>
@@ -244,22 +246,21 @@ function buildReport(boats, lam, fin, asm, parts, std) {
   const rows = active.map((b, idx) => {
     const lamR = rollup(lamMap[b.boat_id], LAM_TASKS, LAM_DONE);
     const finR = rollup(finMap[b.boat_id], FIN_TASKS, () => 'Complete');
-    // Assembly rollup across this boat's work centers.
-    let aDone = 0, aTotal = 0; const asyRemaining = [];
+    // Assembly rollup across this boat's work centers — QC broken out separately.
+    let aDone = 0, aTotal = 0, qDone = 0, qTotal = 0; const asyRemaining = [], qcRemaining = [];
     for (const w of wcs) {
       const row = asmByBoat[b.boat_id]?.[w.id];
       if (!row || !row.total_items) continue;
-      aDone += row.completed_items; aTotal += row.total_items;
+      const isQc = w.id === 'quality-control' || /\bqc\b|quality/i.test(w.name || '');
       const left = (row.total_items - row.completed_items);
-      if (left > 0) {
-        // Show WHAT's missing (the item names), capped so the report stays tight;
-        // fall back to a count if the backend didn't send item names.
-        // CompanyCam item names sometimes carry literal **markdown** — strip it.
-        const names = (Array.isArray(row.remaining) ? row.remaining : []).map(n => String(n).replace(/\*\*|__/g, '').trim());
-        asyRemaining.push(names.length
-          ? `${w.name}: ${names.slice(0, 5).join(', ')}${names.length > 5 ? `, +${names.length - 5} more` : ''}`
-          : `${w.name}: ${left} left`);
-      }
+      // Show WHAT's missing (item names), capped; fall back to a count. CompanyCam item
+      // names sometimes carry literal **markdown** — strip it.
+      const names = (Array.isArray(row.remaining) ? row.remaining : []).map(n => String(n).replace(/\*\*|__/g, '').trim());
+      const remLabel = names.length
+        ? `${w.name}: ${names.slice(0, 5).join(', ')}${names.length > 5 ? `, +${names.length - 5} more` : ''}`
+        : `${w.name}: ${left} left`;
+      if (isQc) { qDone += row.completed_items; qTotal += row.total_items; if (left > 0) qcRemaining.push(remLabel); }
+      else { aDone += row.completed_items; aTotal += row.total_items; if (left > 0) asyRemaining.push(remLabel); }
     }
     // Key parts — N/A parts drop out of both count and outstanding list.
     const prows = partsByBoat[b.boat_id] || [];
@@ -301,10 +302,12 @@ function buildReport(boats, lam, fin, asm, parts, std) {
       lam: lamR.total ? pct(lamR.done, lamR.total) : null,
       fin: finR.total ? pct(finR.done, finR.total) : null,
       asy: aTotal ? pct(aDone, aTotal) : null,
-      // Full checklists for lam/fin (crossed off when done); assembly stays "what's missing".
+      qc: qTotal ? pct(qDone, qTotal) : null,
+      // Full checklists for lam/fin (crossed off when done); assembly/QC stay "what's missing".
       lamTasks: lamR.total ? lamR.list : (inLam ? [] : null),
       finTasks: finR.total ? finR.list : (inFin ? [] : null),
       asyRemaining: aTotal ? asyRemaining : null,
+      qcRemaining: qTotal ? qcRemaining : null,
       partsTotal, partsReceived: received, partsOutstanding,
       attention,
     };

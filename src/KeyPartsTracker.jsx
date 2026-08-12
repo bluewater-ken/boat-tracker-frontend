@@ -39,8 +39,9 @@ const isAutoLate = (row) =>
   !!row.expected_delivery && row.status !== 'Received' && row.expected_delivery.slice(0, 10) < todayStr();
 
 const effFlags = (row) => ({
-  flag_late: !!row.flag_late || isAutoLate(row),
-  flag_backordered: !!row.flag_backordered,
+  // Once received, "late" and "backordered" no longer apply — the part arrived.
+  flag_late: row.status !== 'Received' && (!!row.flag_late || isAutoLate(row)),
+  flag_backordered: row.status !== 'Received' && !!row.flag_backordered,
   flag_partial: !!row.flag_partial,
   flag_unsatisfactory: !!row.flag_unsatisfactory,
 });

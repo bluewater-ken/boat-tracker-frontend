@@ -489,6 +489,23 @@ function GanttChart() {
     );
   };
 
+  // A gap between a boat's own stages (previous stage ended before this one starts) —
+  // drawn as a labeled connector so an intentional gap reads as such, not a glitch.
+  const gapEl = (prev, s) => {
+    if (!prev) return null;
+    const pe = String(prev.end).slice(0, 10), ss = String(s.start).slice(0, 10);
+    if (pe >= ss) return null; // contiguous or overlapping — nothing to show
+    const days = daysBetween(parseD(pe), parseD(ss));
+    if (days <= 0) return null;
+    const left = x(pe), width = Math.max(2, x(ss) - x(pe));
+    return (
+      <div key={'gap' + s.name + s.start}>
+        <div className="gantt-gap" style={{ left, width }} />
+        <span className="gantt-gaplabel" style={{ left: left + width / 2 }}>{days}d gap</span>
+      </div>
+    );
+  };
+
   const groupSummary = (g) => {
     const segs = g.segments || [];
     if (!segs.length) return null;
@@ -622,7 +639,8 @@ function GanttChart() {
               </div>
             );
             if (isOpen) {
-              (g.segments || []).forEach((s) => {
+              (g.segments || []).forEach((s, si) => {
+                const prevSeg = (g.segments || [])[si - 1];
                 rows.push(
                   <div key={`${g.key}-${s.name}-${s.start}`} className="gantt-row gantt-taskrow">
                     <div className={`gantt-left gantt-taskleft ${isOps && g.kind !== 'slot' ? 'clickable' : ''}`}
@@ -640,6 +658,7 @@ function GanttChart() {
                     <div className="gantt-lane" style={{ width }}>
                       <div className="gantt-todayline" style={{ left: todayX }} />
                       {waitEl(s)}
+                      {gapEl(prevSeg, s)}
                       {(() => {
                         const nd = normDaysFor(g, s);
                         if (!nd) return null;

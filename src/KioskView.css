@@ -5,12 +5,18 @@
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   display: flex; flex-direction: column;
   --edge: #0E1726;
-  cursor: none;              /* wall display: navigate by the remote's keypad, no pointer */
 }
-/* Hide the mouse pointer everywhere in the kiosk (incl. buttons that set cursor:pointer)
-   so the air-mouse gyro never shows a wandering cursor on the shop TV. */
-.kio, .kio * { cursor: none !important; }
+/* Air-mouse: the pointer is visible while it's moving so it can aim and click;
+   JS adds .cursor-hidden after a few seconds idle to keep the wall clean. */
+.kio.cursor-hidden, .kio.cursor-hidden * { cursor: none !important; }
 .kio * { box-sizing: border-box; }
+/* Remote keycode readout (only with ?keys=1) — press each button to map it. */
+.kio-keys {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 2000;
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 20px; color: #22D3EE;
+  background: rgba(0,0,0,0.82); border: 1px solid #22D3EE; border-radius: 10px; padding: 12px 20px;
+  letter-spacing: 1px; white-space: pre;
+}
 
 /* animated background: deep radial glows + faint grid */
 .kio-bg {

@@ -460,6 +460,9 @@ function KioskView({ demo }) {
   const [feed, setFeed] = useState(demo ? DEMO_FEED : []);
   const [announcements, setAnnouncements] = useState(demo ? DEMO_ANNOUNCEMENTS : []);
   const [briefing, setBriefing] = useState(demo ? DEMO_BRIEFING : null);
+  const [cursorOn, setCursorOn] = useState(false);   // air-mouse pointer visible while moving
+  const [lastKey, setLastKey] = useState('');        // remote keycode readout (?keys=1)
+  const KEYS_DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('keys');
   const [aux, setAux] = useState(null); // { lam, fin, parts, std, asm, wcs } for per-boat pages
   const [panel, setPanel] = useState(0);   // index into `pages` (0 = pipeline)
   const [manual, setManual] = useState(false); // arrows browse boat pages
@@ -681,23 +684,44 @@ function KioskView({ demo }) {
     else if (action === 'back') { setManual(false); setPanel(0); }
   };
   const navRef = useRef(nav); navRef.current = nav;
+
+  // Air-mouse: show the pointer while it's moving/clicking, hide it after 4s idle
+  // so the wall stays clean but the remote can still aim and click.
   useEffect(() => {
+    let t;
+    const wake = () => { setCursorOn(true); clearTimeout(t); t = setTimeout(() => setCursorOn(false), 4000); };
+    window.addEventListener('mousemove', wake);
+    window.addEventListener('mousedown', wake);
+    return () => { window.removeEventListener('mousemove', wake); window.removeEventListener('mousedown', wake); clearTimeout(t); };
+  }, []);
+
+  useEffect(() => {
+    let lastNav = 0;
     const onKey = (e) => {
       const k = e.key;
-      // Accept the several keys a remote's Back / OK button may send, so most
-      // 2.4G air-mouse remotes work with no per-device tweak.
+      if (KEYS_DEBUG) setLastKey(`key: ${e.key}   code: ${e.code}${e.repeat ? '   (repeat)' : ''}`);
+      // Accept the several keys a remote's Back / OK button may send.
       const isBack = k === 'Backspace' || k === 'Escape' || k === 'BrowserBack' || k === 'GoBack';
       const isSelect = k === 'Enter' || k === ' ' || k === 'Spacebar';
 
-      // Leave kiosk mode: a DELIBERATE combo (Shift+Esc), not a bare Escape — a
-      // remote's Back often sends Escape, and that should go back, not exit.
+      // Leave kiosk mode: a DELIBERATE combo (Shift+Esc). Never blocked.
       if (k === 'Escape' && e.shiftKey) { window.location.href = window.location.pathname; return; }
+
+      // Ignore OS key-repeat from a held/chattery remote button — this is what
+      // makes the wall "cycle super fast and can't be stopped".
+      if (e.repeat) { e.preventDefault(); return; }
 
       // While the photo viewer is open it owns the arrows (its own ←/→); Back closes it.
       if (photosRef.current) {
         if (isBack) { e.preventDefault(); setPhotos(null); }
         return;
       }
+
+      // Rate-limit navigation so a chattery remote can't run away through pages.
+      const now = Date.now();
+      if (now - lastNav < 250) { e.preventDefault(); return; }
+      lastNav = now;
+
       if (k === 'ArrowUp') { e.preventDefault(); navRef.current('up'); }
       else if (k === 'ArrowDown') { e.preventDefault(); navRef.current('down'); }
       else if (k === 'ArrowLeft') { e.preventDefault(); navRef.current('left'); }
@@ -717,9 +741,10 @@ function KioskView({ demo }) {
   const day = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
-    <div className="kio">
+    <div className={`kio ${cursorOn ? '' : 'cursor-hidden'}`}>
       <div className="kio-bg" />
       <div className="kio-scan" />
+      {KEYS_DEBUG && <div className="kio-keys">{lastKey || 'press a remote button…'}</div>}
 
       <header className="kio-top">
         <div className="kio-brand">

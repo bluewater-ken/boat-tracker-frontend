@@ -238,21 +238,21 @@ const DEMO_DAILY = {
 const dPh = (arr) => arr.map(([name, done, total]) => ({ name, done, total, pct: total ? Math.round((done / total) * 100) : 0 }));
 const DEMO_FLOOR = [
   { boat_id: '28225', customer: 'Trey', hull: 'slategray', stage: 'Back Line', overall: 55, eta: 'Aug 20', sched: { status: 'behind', days: 6 }, phases: dPh([
-    ['Parts', 12, 15], ['Glass Shop', 10, 11], ['Back Line', 28, 48], ['Consoles', 3, 18], ['QC', 0, 14], ['Finishing', 1, 9]]) },
+    ['Parts', 12, 15], ['Glass Shop', 10, 11], ['Back Line', 28, 48], ['Consoles', 3, 18], ['Finishing', 1, 9], ['QC', 0, 14]]) },
   { boat_id: '36C004', customer: 'Hensley', hull: '#155E75', stage: 'Front Line', overall: 79, eta: 'Aug 4', sched: { status: 'ontime', days: 0 }, phases: dPh([
-    ['Parts', 15, 15], ['Glass Shop', 11, 11], ['Back Line', 46, 48], ['Consoles', 15, 18], ['Front Line', 22, 30], ['QC', 3, 14], ['Finishing', 2, 9]]) },
+    ['Parts', 15, 15], ['Glass Shop', 11, 11], ['Back Line', 46, 48], ['Consoles', 15, 18], ['Front Line', 22, 30], ['Finishing', 2, 9], ['QC', 3, 14]]) },
   { boat_id: '26F032', customer: 'Scituate #2', hull: 'goldenrod', stage: 'Back Line', overall: 38, eta: 'Aug 28', sched: { status: 'ahead', days: 3 }, phases: dPh([
     ['Parts', 10, 15], ['Glass Shop', 8, 11], ['Back Line', 14, 48], ['Consoles', 1, 18], ['Finishing', 0, 9]]) },
   { boat_id: '28C012', customer: 'Rourke', hull: '#0F766E', stage: 'Back Line', overall: 62, eta: 'Aug 12', sched: { status: 'behind', days: 2 }, phases: dPh([
-    ['Parts', 14, 15], ['Glass Shop', 11, 11], ['Back Line', 34, 48], ['Consoles', 6, 18], ['QC', 1, 14], ['Finishing', 3, 9]]) },
+    ['Parts', 14, 15], ['Glass Shop', 11, 11], ['Back Line', 34, 48], ['Consoles', 6, 18], ['Finishing', 3, 9], ['QC', 1, 14]]) },
   { boat_id: '25T060', customer: 'Alvarez', hull: '#334155', stage: 'Front Line', overall: 84, eta: 'Aug 1', sched: { status: 'ahead', days: 4 }, phases: dPh([
-    ['Parts', 15, 15], ['Glass Shop', 11, 11], ['Back Line', 48, 48], ['Consoles', 18, 18], ['Front Line', 26, 30], ['QC', 6, 14], ['Finishing', 4, 9]]) },
+    ['Parts', 15, 15], ['Glass Shop', 11, 11], ['Back Line', 48, 48], ['Consoles', 18, 18], ['Front Line', 26, 30], ['Finishing', 4, 9], ['QC', 6, 14]]) },
   { boat_id: '25T043', customer: 'Svoboda', hull: 'darkgoldenrod', stage: 'Front Line', overall: 64, eta: 'Aug 9', sched: { status: 'behind', days: 5 }, phases: dPh([
-    ['Parts', 17, 20], ['Glass Shop', 11, 11], ['Back Line', 76, 78], ['Consoles', 34, 61], ['Front Line', 23, 40], ['QC', 0, 48], ['Finishing', 9, 9]]) },
+    ['Parts', 17, 20], ['Glass Shop', 11, 11], ['Back Line', 76, 78], ['Consoles', 34, 61], ['Front Line', 23, 40], ['Finishing', 9, 9], ['QC', 0, 48]]) },
   { boat_id: '26F033', customer: 'Halloran', hull: 'firebrick', stage: 'Glass', overall: 22, eta: 'Sep 2', sched: { status: 'ahead', days: 5 }, phases: dPh([
-    ['Parts', 11, 15], ['Glass Shop', 6, 11], ['Back Line', 0, 0], ['Consoles', 0, 0], ['Front Line', 0, 0], ['QC', 0, 0], ['Finishing', 0, 0]]) },
+    ['Parts', 11, 15], ['Glass Shop', 6, 11], ['Back Line', 0, 0], ['Consoles', 0, 0], ['Front Line', 0, 0], ['Finishing', 0, 0], ['QC', 0, 0]]) },
   { boat_id: '30S011', customer: 'Costa', hull: '#4B6CB7', stage: 'Pre-Prod', overall: 12, eta: 'Sep 14', sched: null, phases: dPh([
-    ['Parts', 4, 15], ['Glass Shop', 1, 11], ['Back Line', 0, 0], ['Consoles', 0, 0], ['Front Line', 0, 0], ['QC', 0, 0], ['Finishing', 0, 0]]) },
+    ['Parts', 4, 15], ['Glass Shop', 1, 11], ['Back Line', 0, 0], ['Consoles', 0, 0], ['Front Line', 0, 0], ['Finishing', 0, 0], ['QC', 0, 0]]) },
 ];
 
 const STATUS_MARK = { done: '✓', received: '✓', ordered: '◐', progress: '◐', not: '○' };
@@ -408,7 +408,7 @@ const FLOOR_MAX = 8;
 // Shop-floor cards: Back Line + Front Line boats first, then fill up to 8 with the
 // next boats in line (Glass Shop -> Pre-Prod -> Backlog, by build order). Each card
 // = an overall ring + per-phase bars (Parts -> Glass -> Back Line -> Consoles ->
-// Front Line -> QC -> Finishing).
+// Front Line -> Finishing -> QC — QC is the last step before delivery).
 function computeFloor(boats, aux) {
   const asmRows = aux?.asm?.rows || [];
   const wcs = aux?.wcs || [];
@@ -433,8 +433,8 @@ function computeFloor(boats, aux) {
         { name: 'Back Line', ...buckets['Back Line'] },
         { name: 'Consoles', ...buckets['Consoles'] },
         { name: 'Front Line', ...buckets['Front Line'] },
-        { name: 'QC', ...buckets['QC'] },
         { name: 'Finishing', done: finApp.filter(r => r.status === 'Complete').length, total: finApp.length },
+        { name: 'QC', ...buckets['QC'] },
       ].map(p => ({ ...p, pct: p.total ? Math.round((p.done / p.total) * 100) : 0 }));
       const tot = phases.reduce((s, p) => s + p.total, 0), don = phases.reduce((s, p) => s + p.done, 0);
       const segs = b.segments || [];

@@ -579,7 +579,7 @@ function KioskView({ demo }) {
   // The pipeline is the always-on main page; each in-production boat adds a
   // Build Traveler page reachable with the arrows. The live feed is NOT a page —
   // it runs as a horizontal ticker along the bottom of every screen.
-  const pages = ['daily', 'pipeline', 'briefing', 'throughput', 'glass'];
+  const pages = ['briefing', 'daily', 'pipeline', 'throughput', 'glass'];
   // Demo: give every floor card its own traveler page (reusing the sample detail
   // with that card's identity) so the Daily → boat drill-down is fully previewable.
   if (demo) DEMO_FLOOR.forEach(f => pages.push({ v: 'traveler', b: { ...DEMO_BOAT_DETAIL, boat_id: f.boat_id, customer_name: f.customer, hull_color: f.hull, global_status: f.stage } }));

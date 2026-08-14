@@ -496,23 +496,23 @@ button.kio-detail-cam:hover { background: rgba(157,184,245,0.3); color: #fff; }
 .kio-brief-meta { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: #8FA6BC; }
 .kio-brief-empty { color: #7E93A8; font-size: 17px; }
 
-/* One row per department — a clean status board, not prose */
-.kio-depts { display: flex; flex-direction: column; }
-.kio-dept {
-  display: flex; align-items: baseline; gap: 18px; padding: 13px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+/* Grouped by department, a line per boat — a status board with a little detail */
+.kio-depts { display: flex; flex-direction: column; gap: 15px; }
+.kio-dg { border-left: 2px solid rgba(34,211,238,0.22); padding-left: 16px; }
+.kio-dg-h { display: flex; align-items: baseline; gap: 10px; margin-bottom: 5px; }
+.kio-dg-name { font-size: 14px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: #22D3EE; }
+.kio-dg-count {
+  font-size: 12px; font-weight: 800; color: #8FA6BC; background: rgba(255,255,255,0.08);
+  border-radius: 20px; padding: 1px 9px; font-variant-numeric: tabular-nums;
 }
-.kio-dept:first-child { padding-top: 2px; }
-.kio-dept:last-child { border-bottom: none; }
-.kio-dept-tag { flex: 0 0 200px; display: flex; align-items: baseline; gap: 10px; }
-.kio-dept-name { font-size: 18px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #22D3EE; }
-.kio-dept-count {
-  font-size: 13px; font-weight: 800; color: #8FA6BC; background: rgba(255,255,255,0.08);
-  border-radius: 20px; padding: 1px 10px; font-variant-numeric: tabular-nums;
-}
-.kio-dept-info { flex: 1; font-size: 21px; line-height: 1.35; }
-.kio-dept-boats { color: #A3E635; font-weight: 700; }
-.kio-dept-note { color: #C7D6E4; }
+.kio-bl { font-size: 18px; line-height: 1.5; }
+.kio-bl-label { color: #A3E635; font-weight: 700; }
+.kio-bl-sep { color: #6B7E90; }
+.kio-bl-sched { font-weight: 700; }
+.kio-bl-sched.behind { color: #FF7A7A; }
+.kio-bl-sched.ahead { color: #34E4B0; }
+.kio-bl-sched.ontrack { color: #8FA6BC; }
+.kio-bl-note { color: #B9C9D8; }
 .kio-bc-overall {
   margin-top: 13px; padding: 13px 16px; border-radius: 11px; font-size: 15px; line-height: 1.45;
   color: #DCE8F2; background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.2);

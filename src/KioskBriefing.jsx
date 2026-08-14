@@ -2,9 +2,9 @@
 // daily production briefing. Notices come from /api/announcements, the briefing
 // from /api/daily-briefing (generated once each morning, refreshable in the app).
 //
-// The briefing text is one pipe-delimited line per DEPARTMENT so it reads as a
-// clean status board, not prose:
-//   DEPARTMENT | count | boats | headline note
+// The briefing text is one pipe-delimited line per BOAT, tagged with its
+// department, so the wall can group it — department headers with a line per boat:
+//   DEPARTMENT | HULL (Name, Color) | schedule | note
 // Any line without pipes (e.g. "Overall: …") becomes the summary banner.
 
 // A self-contained sample photo (inline SVG, no network) so the demo shows how a
@@ -27,14 +27,23 @@ export const DEMO_ANNOUNCEMENTS = [
 export const DEMO_BRIEFING = {
   generated_at: '2026-08-14T06:05:00',
   text: [
-    'Glass Shop | 3 | 36011, 23T097, 28226 | molds bottlenecked, parts pending',
-    'Back Line | 1 | 25T049 | 3 ASAP flags — Console, Hatches, Buckets',
-    'Front Line | 2 | 28225 (ahead), 25T048 (hatches ASAP) | ',
-    'QC | 1 | 25T043 | final checks, ready to sign off',
-    'Pre-Prod | 4 | 28227, 23T099, 25T051, 25T052 | early builds, order long-lead parts',
+    'Glass Shop | 36011 (Landshark, Whisper Gray) | 36d behind | molds stuck, 10 parts unordered',
+    'Glass Shop | 23T097 (PCY, White/Navy) | 2d behind | poly parts + new wire overdue',
+    'Glass Shop | 28226 (PCY, Medium Gray) | 10d behind | motors not ordered, T-Top mold busy',
+    'Back Line | 25T049 (PCY, Pigeon Blue) | 13d behind | 3 ASAP flags: Console, Hatches, Buckets',
+    'Front Line | 28225 (Trey, White) | 4d ahead | on track, next is QC',
+    'Front Line | 25T048 (Stanyek, Dark Blue) | 12d behind | hatches ASAP, bow shield pending',
+    'QC | 25T043 (Svoboda, White) | 37d behind | final checks, ready to sign off',
+    'Pre-Prod | 28227 (7Sports, White) | 10d behind | order motors, expedite parts',
+    'Pre-Prod | 23T099 (Scituate, Ice Blue) | 118d ahead | early build, no urgency',
+    'Pre-Prod | 25T051 (Scituate, White) | no target | early lamination, order parts',
+    'Pre-Prod | 25T052 (Shlomi, White) | early | glass kit complete',
     'Overall: 25T049 and 36011 need urgent unblocking; 25T043 is ready to deliver. Priority: order motors for 36011, 28226, 28227.',
   ].join('\n'),
 };
+
+const DEPT_ORDER = ['Glass Shop', 'Back Line', 'Front Line', 'QC', 'Pre-Prod'];
+const schedDir = (s = '') => /behind|late|overdue/i.test(s) ? 'behind' : /ahead/i.test(s) ? 'ahead' : 'ontrack';
 
 function fmtTime(s) {
   if (!s) return '';
@@ -49,27 +58,30 @@ function fmtWhen(s) {
   return sameDay ? fmtTime(s) : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// Split the briefing into one row per department + an overall summary. Department
-// lines are pipe-delimited; anything without pipes is treated as the summary.
+// Group the briefing's per-boat lines by department (canonical order first, then
+// any extras). A line without pipes becomes the overall summary.
 function parseBriefing(text) {
-  const depts = [];
+  const byDept = {};
   let overall = '';
   for (const raw of (text || '').split('\n')) {
     const line = raw.trim();
     if (!line) continue;
     if (line.includes('|')) {
-      const [name, count, boats, note] = line.split('|').map(s => s.trim());
-      depts.push({ name, count, boats, note });
+      const [dept, label, sched, note] = line.split('|').map(s => s.trim());
+      (byDept[dept] ||= []).push({ label, sched, note });
     } else {
       overall += (overall ? ' ' : '') + line.replace(/^overall:\s*/i, '');
     }
   }
-  return { depts, overall };
+  const groups = [];
+  for (const d of DEPT_ORDER) if (byDept[d]) { groups.push([d, byDept[d]]); delete byDept[d]; }
+  for (const d of Object.keys(byDept)) groups.push([d, byDept[d]]);
+  return { groups, overall };
 }
 
 export function BriefingScreen({ announcements = [], briefing }) {
   const notes = announcements || [];
-  const { depts, overall } = parseBriefing(briefing?.text);
+  const { groups, overall } = parseBriefing(briefing?.text);
   const genWhen = briefing?.generated_at ? fmtTime(briefing.generated_at) : null;
   return (
     <div className={`kio-brief ${notes.length ? '' : 'nonotices'}`}>
@@ -94,19 +106,22 @@ export function BriefingScreen({ announcements = [], briefing }) {
           <span className="kio-brief-hi">🤖</span> Production briefing
           {genWhen && <span className="kio-brief-when">as of {genWhen}</span>}
         </h3>
-        {depts.length ? (
+        {groups.length ? (
           <>
             <div className="kio-depts">
-              {depts.map((d, i) => (
-                <div key={i} className="kio-dept">
-                  <div className="kio-dept-tag">
-                    <span className="kio-dept-name">{d.name}</span>
-                    {d.count && <span className="kio-dept-count">{d.count}</span>}
+              {groups.map(([dept, boats]) => (
+                <div key={dept} className="kio-dg">
+                  <div className="kio-dg-h">
+                    <span className="kio-dg-name">{dept}</span>
+                    <span className="kio-dg-count">{boats.length}</span>
                   </div>
-                  <div className="kio-dept-info">
-                    <span className="kio-dept-boats">{d.boats}</span>
-                    {d.note && <span className="kio-dept-note"> — {d.note}</span>}
-                  </div>
+                  {boats.map((b, i) => (
+                    <div key={i} className="kio-bl">
+                      <span className="kio-bl-label">{b.label}</span>
+                      {b.sched && <><span className="kio-bl-sep"> — </span><span className={`kio-bl-sched ${schedDir(b.sched)}`}>{b.sched}</span></>}
+                      {b.note && <span className="kio-bl-note"> · {b.note}</span>}
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>

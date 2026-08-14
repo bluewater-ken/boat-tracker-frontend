@@ -5,7 +5,11 @@
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   display: flex; flex-direction: column;
   --edge: #0E1726;
+  cursor: none;              /* wall display: navigate by the remote's keypad, no pointer */
 }
+/* Hide the mouse pointer everywhere in the kiosk (incl. buttons that set cursor:pointer)
+   so the air-mouse gyro never shows a wandering cursor on the shop TV. */
+.kio, .kio * { cursor: none !important; }
 .kio * { box-sizing: border-box; }
 
 /* animated background: deep radial glows + faint grid */
@@ -466,3 +470,37 @@ button.kio-detail-cam:hover { background: rgba(157,184,245,0.3); color: #fff; }
   .kio-pipeline { grid-template-columns: repeat(3, 1fr); }
   .kio-kpis { display: none; }
 }
+
+/* ===== Today at Bluewater — notices + AI daily briefing ===== */
+.kio-brief { flex: 1; display: flex; gap: 30px; padding: 6px 34px 26px; min-height: 0; overflow: hidden; }
+.kio-brief.nonotices { justify-content: center; }
+.kio-brief-col { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.kio-brief-notices { flex: 0 0 40%; }
+.kio-brief-ai { flex: 1; }
+.kio-brief.nonotices .kio-brief-ai { flex: 0 1 1100px; }
+.kio-brief-h {
+  margin: 0 0 16px; font-size: 15px; font-weight: 800; letter-spacing: 2.5px;
+  text-transform: uppercase; color: #22D3EE; display: flex; align-items: center; gap: 11px;
+}
+.kio-brief-hi { font-size: 20px; }
+.kio-brief-when { margin-left: auto; font-size: 12px; font-weight: 600; letter-spacing: 1px; color: #7E93A8; text-transform: none; }
+.kio-brief-cards { display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+.kio-brief-card {
+  display: flex; gap: 15px; padding: 16px 18px; border-radius: 13px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
+  border-left: 4px solid #FBBF24;
+}
+.kio-brief-img { width: 104px; height: 104px; object-fit: cover; border-radius: 9px; flex: none; }
+.kio-brief-cbody { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.kio-brief-text { font-size: 23px; line-height: 1.32; font-weight: 600; color: #F1F7FC; }
+.kio-brief-meta { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: #8FA6BC; }
+.kio-brief-lines { display: flex; flex-direction: column; gap: 13px; overflow: hidden; }
+.kio-brief-line {
+  font-size: 21px; line-height: 1.34; padding-bottom: 13px;
+  border-bottom: 1px solid rgba(255,255,255,0.07); color: #DCE8F2;
+}
+.kio-brief-line:last-child { border-bottom: none; }
+.kio-brief-boat { color: #A3E635; font-weight: 800; margin-right: 11px; }
+.kio-brief-line.summary { color: #9FB4C8; font-weight: 600; border-bottom: none; margin-top: 4px; }
+.kio-brief-line.summary .kio-brief-note { color: #9FB4C8; }
+.kio-brief-empty { color: #7E93A8; font-size: 17px; }

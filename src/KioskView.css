@@ -494,13 +494,40 @@ button.kio-detail-cam:hover { background: rgba(157,184,245,0.3); color: #fff; }
 .kio-brief-cbody { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
 .kio-brief-text { font-size: 23px; line-height: 1.32; font-weight: 600; color: #F1F7FC; }
 .kio-brief-meta { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: #8FA6BC; }
-.kio-brief-lines { display: flex; flex-direction: column; gap: 13px; overflow: hidden; }
-.kio-brief-line {
-  font-size: 21px; line-height: 1.34; padding-bottom: 13px;
-  border-bottom: 1px solid rgba(255,255,255,0.07); color: #DCE8F2;
-}
-.kio-brief-line:last-child { border-bottom: none; }
-.kio-brief-boat { color: #A3E635; font-weight: 800; margin-right: 11px; }
-.kio-brief-line.summary { color: #9FB4C8; font-weight: 600; border-bottom: none; margin-top: 4px; }
-.kio-brief-line.summary .kio-brief-note { color: #9FB4C8; }
 .kio-brief-empty { color: #7E93A8; font-size: 17px; }
+
+/* Per-boat status cards (scannable, not prose) */
+.kio-bc-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 13px; overflow: hidden; align-content: start;
+}
+.kio-bc {
+  background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 12px; padding: 13px 15px; display: flex; flex-direction: column; gap: 8px;
+}
+.kio-bc-top { display: flex; align-items: baseline; gap: 10px; }
+.kio-bc-label { color: #A3E635; font-weight: 800; font-size: 17px; line-height: 1.2; }
+.kio-bc-sched {
+  margin-left: auto; flex: none; font-size: 12px; font-weight: 800; letter-spacing: 0.5px;
+  padding: 3px 9px; border-radius: 20px; white-space: nowrap;
+}
+.kio-bc-sched.ahead   { color: #34E4B0; background: rgba(52,228,176,0.14); }
+.kio-bc-sched.behind  { color: #FF7A7A; background: rgba(255,122,122,0.15); }
+.kio-bc-sched.ontrack { color: #8FA6BC; background: rgba(143,166,188,0.14); }
+.kio-bc-stagerow { display: flex; align-items: baseline; gap: 8px; }
+.kio-bc-stage { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #22D3EE; }
+.kio-bc-pct { margin-left: auto; font-size: 13px; font-weight: 700; color: #C7D6E4; font-variant-numeric: tabular-nums; }
+.kio-bc-bar { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.09); overflow: hidden; }
+.kio-bc-bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #22D3EE, #34E4B0); }
+.kio-bc-issues { display: flex; flex-wrap: wrap; gap: 6px; }
+.kio-bc-chip {
+  font-size: 12.5px; line-height: 1.3; color: #E4C06A; background: rgba(251,191,36,0.12);
+  border: 1px solid rgba(251,191,36,0.22); border-radius: 6px; padding: 2px 8px;
+}
+.kio-bc-next { font-size: 13.5px; color: #C7D6E4; line-height: 1.35; }
+.kio-bc-next span { color: #7E93A8; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; font-size: 11px; margin-right: 6px; }
+.kio-bc-overall {
+  margin-top: 13px; padding: 13px 16px; border-radius: 11px; font-size: 15px; line-height: 1.45;
+  color: #DCE8F2; background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.2);
+}
+.kio-bc-overall span { color: #22D3EE; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; font-size: 12px; margin-right: 8px; }

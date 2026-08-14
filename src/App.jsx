@@ -19,7 +19,6 @@ const AdminPanel = lazy(() => import('./AdminPanel'));
 const AskBoss = lazy(() => import('./AskBoss'));
 const ShopReport = lazy(() => import('./ShopReport'));
 const DocsLibrary = lazy(() => import('./DocsLibrary'));
-const DailyBoardAdmin = lazy(() => import('./DailyBoardAdmin'));
 const KioskView = lazy(() => import('./KioskView'));
 
 // Shop-floor wall display: ?kiosk=1 renders a full-screen board (needs login,
@@ -75,7 +74,7 @@ function App() {
   const roleLabel = user?.role === 'ops' ? 'Ops' : user?.role === 'shop' ? 'Shop' : '';
   const isOps = user?.role === 'ops';
   const isDemo = isDemoUser(user);
-  const tabs = (isOps ? [...BASE_TABS, { key: 'board', label: 'Daily Board' }, { key: 'admin', label: 'Admin' }] : BASE_TABS)
+  const tabs = (isOps ? [...BASE_TABS, { key: 'admin', label: 'Admin' }] : BASE_TABS)
     // Per-user permissions can hide a tab entirely (legacy users see all — permOf falls back
     // to role). Timeline (gantt) is here too: owner-only by default, grantable per user.
     .filter(t => !PERM_KEYS.has(t.key) || canView(user, t.key));
@@ -119,7 +118,6 @@ function App() {
             {shownTab === 'gantt' && canView(user, 'gantt') && <GanttChart />}
             {shownTab === 'feed' && <ShopFeed initialView="issues" initialPostingOpen={reportIssueOpen} />}
             {shownTab === 'docs' && <DocsLibrary />}
-            {shownTab === 'board' && isOps && <DailyBoardAdmin />}
             {shownTab === 'admin' && isOps && <AdminPanel />}
           </Suspense>
         </main>

@@ -9,6 +9,7 @@ import CompletionsChart from './CompletionsChart';
 import BoatReportsAdmin from './BoatReportsAdmin';
 import PaymentsAdmin from './PaymentsAdmin';
 import PhotoExport from './PhotoExport';
+import DailyBoardAdmin from './DailyBoardAdmin';
 import './AdminPanel.css';
 
 // Admin tab — management screens. Any Ops user sees Rules / Timeline / Throughput /
@@ -17,6 +18,7 @@ import './AdminPanel.css';
 
 // Sections every Ops user can reach.
 const OPS_SECTIONS = [
+  { key: 'board', label: 'Daily Board' },
   { key: 'rules', label: 'Issue Rules' },
   { key: 'timeline', label: 'Timeline' },
   { key: 'throughput', label: 'Throughput' },
@@ -25,7 +27,7 @@ const OPS_SECTIONS = [
 ];
 
 function AdminPanel() {
-  const [section, setSection] = useState('rules');
+  const [section, setSection] = useState('board');
   const { user } = useAuth();
   const isKen = hasFullAccess(user); // owner allowlist — Ken + Kelly
   // The Timeline section edits the projector rules (norms/blackouts/settings), which
@@ -46,6 +48,7 @@ function AdminPanel() {
         ))}
       </div>
       <div className="admin-body">
+        {shown === 'board' && <DailyBoardAdmin />}
         {shown === 'users' && isKen && <UsersAdmin />}
         {shown === 'rules' && <RulesAdmin />}
         {shown === 'timeline' && canTimeline && <TimelineAdmin />}

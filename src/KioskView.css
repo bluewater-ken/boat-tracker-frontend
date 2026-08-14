@@ -490,7 +490,7 @@ button.kio-detail-cam:hover { background: rgba(157,184,245,0.3); color: #fff; }
   background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
   border-left: 4px solid #FBBF24;
 }
-.kio-brief-img { width: 104px; height: 104px; object-fit: cover; border-radius: 9px; flex: none; }
+.kio-brief-img { width: 180px; height: 180px; object-fit: cover; border-radius: 10px; flex: none; }
 .kio-brief-cbody { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
 .kio-brief-text { font-size: 23px; line-height: 1.32; font-weight: 600; color: #F1F7FC; }
 .kio-brief-meta { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: #8FA6BC; }

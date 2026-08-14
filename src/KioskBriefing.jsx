@@ -2,9 +2,20 @@
 // daily production briefing. Notices come from /api/announcements, the briefing
 // from /api/daily-briefing (generated once each morning, refreshable in the app).
 
+// A self-contained sample photo (inline SVG, no network) so the demo shows how a
+// notice with a picture looks. Real notices carry a downscaled JPEG data URL.
+const DEMO_PHOTO = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="260" height="220" viewBox="0 0 260 220">' +
+  '<rect width="260" height="220" fill="#0e2a3a"/><rect y="132" width="260" height="88" fill="#12546b"/>' +
+  '<circle cx="212" cy="48" r="22" fill="#ffd76a"/>' +
+  '<path d="M64 130 L196 130 L178 166 L82 166 Z" fill="#eef3f7"/>' +
+  '<rect x="126" y="86" width="8" height="44" fill="#c9d6e0"/>' +
+  '<path d="M134 88 L134 130 L174 130 Z" fill="#f4b942"/></svg>'
+);
+
 export const DEMO_ANNOUNCEMENTS = [
   { id: 1, body: 'Team lunch today at noon — tacos in the break room. On the house!', author_name: 'Ken', created_at: '2026-08-14T08:10:00', image_url: null },
-  { id: 2, body: 'Customer visit 2:00 PM — the Landshark owner is touring the floor. Let’s make her shine.', author_name: 'Ryan', created_at: '2026-08-14T07:30:00', image_url: null },
+  { id: 2, body: 'Customer visit 2:00 PM — the Landshark owner is touring the floor. Let’s make her shine.', author_name: 'Ryan', created_at: '2026-08-14T07:30:00', image_url: DEMO_PHOTO },
   { id: 3, body: 'Safety stand-up Friday 7:30 AM sharp. All hands in the paint bay.', author_name: 'Ken', created_at: '2026-08-13T16:00:00', image_url: null },
 ];
 

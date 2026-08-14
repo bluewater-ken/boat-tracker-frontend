@@ -532,6 +532,26 @@ function KioskView({ demo }) {
   };
   useEffect(() => { if (demo) return; load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, [demo]);
 
+  // Wall auto-update: reload periodically so new Vercel deploys reach the wall
+  // with no hands on the Pi. Clears the service-worker cache first so the latest
+  // build always loads (the 60s refresh above keeps DATA current; this is for new
+  // app CODE). Default every 3 hours.
+  useEffect(() => {
+    if (demo) return;
+    const REFRESH_MS = 3 * 60 * 60 * 1000;
+    const t = setInterval(async () => {
+      try {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+        }
+        if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); }
+      } catch { /* reload regardless */ }
+      window.location.reload();
+    }, REFRESH_MS);
+    return () => clearInterval(t);
+  }, [demo]);
+
   // Auto-rotate the pipeline <-> daily overview (paused while browsing boats).
   useEffect(() => {
     if (manual || panel >= AUTO) return;

@@ -138,6 +138,15 @@
 .btn-report:hover { background: #dcecc9; }
 .btn-preprod { color: #0C447C; background: #E6F1FB; border-color: #B5D4F4; }
 .btn-preprod:hover { background: #d5e7f8; }
+.boat-id-row { display: flex; gap: 8px; align-items: center; }
+.boat-id-row input { flex: 1; }
+.btn-rename-id {
+  flex: none; padding: 8px 12px; border: 1px solid #cbd6e2; border-radius: 7px; cursor: pointer;
+  background: #f2f6fb; color: #2f6fb0; font-size: 13px; font-weight: 600; white-space: nowrap;
+}
+.btn-rename-id:hover:not(:disabled) { background: #e6eef8; }
+.btn-rename-id:disabled { opacity: 0.6; cursor: default; }
+
 @media (max-width: 1024px) {
   .boat-information { grid-template-columns: 1fr; height: auto; }
 }

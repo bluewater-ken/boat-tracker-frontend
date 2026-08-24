@@ -17,9 +17,11 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
   const [formData, setFormData] = useState(EMPTY);
   const [projects, setProjects] = useState([]); // CompanyCam projects, for manual linking
   const [linkProj, setLinkProj] = useState('');
+  const [projFilter, setProjFilter] = useState(''); // type-to-narrow the project picker
   const [linking, setLinking] = useState(false);
   const [reportIds, setReportIds] = useState(null); // boat status report, when open
   const [ppIds, setPpIds] = useState(null);         // pre-production report, when open
+  const [renaming, setRenaming] = useState(false);  // changing a boat's ID (placeholder -> real hull #)
 
   useEffect(() => { fetchBoats(); }, [refreshTrigger]);
   // Load CompanyCam projects once, for the manual link picker.
@@ -91,6 +93,40 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
     } catch (e) { alert('Failed to delete — the boat-delete endpoint may not be on the server yet.'); }
   };
 
+  // Change a boat's ID (placeholder -> real hull number once it's available). The
+  // backend moves all of its data (parts, tasks, timeline, payments, history) to the
+  // new ID in one transaction and re-runs CompanyCam auto-link for the new number.
+  const handleRename = async () => {
+    const oldId = formData.boat_id;
+    if (!oldId) return;
+    const raw = window.prompt(
+      `Change boat ID from "${oldId}" to its real hull number.\n\n` +
+      `This moves ALL of its data — parts, tasks, timeline, payments, history — to the new ID, ` +
+      `and re-links its CompanyCam project.\n\nEnter the new boat ID:`);
+    if (raw === null) return;
+    const newId = raw.trim();
+    if (!newId) { alert('No new ID entered.'); return; }
+    if (newId.toLowerCase() === oldId.toLowerCase()) { alert('That is the same ID.'); return; }
+    if (boats.some(b => b.boat_id?.toLowerCase() === newId.toLowerCase())) {
+      alert(`Boat "${newId}" already exists — pick a different ID.`); return;
+    }
+    setRenaming(true);
+    try {
+      const r = await apiFetch(`/api/boats/${encodeURIComponent(oldId)}/rename`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_id: newId }),
+      });
+      if (!r.ok) throw new Error();
+      await fetchBoats();
+      const renamed = { ...formData, boat_id: newId };
+      setSelectedBoat(renamed); setFormData(renamed);
+      onRefresh && onRefresh();
+      alert(`Boat ID changed to ${newId}. Its data moved over and CompanyCam re-link was attempted.`);
+    } catch (e) {
+      alert('Failed to change the boat ID — the rename endpoint may not be on the server yet.');
+    } finally { setRenaming(false); }
+  };
+
   const filtered = boats.filter(b =>
     b.boat_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     b.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -118,7 +154,17 @@ function BoatInformation({ refreshTrigger, onRefresh }) {
       <div className="boat-form-panel">
         <h2>{isNewBoat ? 'New Boat' : `${formData.boat_id} - ${formData.customer_name}`}</h2>
         <div className="form-section">
-          <div className="form-group"><label>Boat ID *</label><input name="boat_id" value={formData.boat_id} onChange={handleChange} disabled={!isNewBoat} placeholder="e.g., 28227" /></div>
+          <div className="form-group"><label>Boat ID *</label>
+            <div className="boat-id-row">
+              <input name="boat_id" value={formData.boat_id} onChange={handleChange} disabled={!isNewBoat} placeholder="e.g., 28227" />
+              {!isNewBoat && formData.boat_id && (
+                <button type="button" className="btn-rename-id" onClick={handleRename} disabled={renaming} title="Change this boat's ID to its real hull number">
+                  {renaming ? 'Changing…' : '✎ Change ID'}
+                </button>
+              )}
+            </div>
+            {!isNewBoat && <div className="form-hint">Started with a placeholder? Change it to the real hull number here — all its data and CompanyCam link move with it.</div>}
+          </div>
           <div className="form-group"><label>Customer Name *</label><input name="customer_name" value={formData.customer_name} onChange={handleChange} placeholder="e.g., 7Sports" /></div>
           <div className="form-group"><label>Phone</label><input name="customer_phone" value={formData.customer_phone} onChange={handleChange} placeholder="(305) 555-0147" /></div>
           <div className="form-group"><label>Email</label><input name="customer_email" value={formData.customer_email} onChange={handleChange} placeholder="info@example.com" /></div>

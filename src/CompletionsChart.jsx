@@ -134,7 +134,7 @@ function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
         {DEPTS.map(d => (
           <span key={d.key} className="cc-legend-item"><i style={{ background: d.color }} />{d.label} <b>{totals[d.key]}</b></span>
         ))}
-        <span className="cc-legend-item"><span className="cc-legend-line" />7-day avg</span>
+        <span className="cc-legend-item"><span className="cc-legend-line" />30-day avg · excl. QC</span>
         <span className="cc-legend-total">Total <b>{grand}</b></span>
       </div>
 
@@ -174,6 +174,8 @@ function Chart({ data, depts: DEPTS, pick, onPick }) {
   const plotW = W - L - R, plotH = H - T - B;
   const totalOf = (x) => DEPTS.reduce((s, d) => s + (x[d.key] || 0), 0);
   const totals = data.map(totalOf);
+  // The trend line EXCLUDES QC — it tracks build/production throughput, not QC sign-offs.
+  const avgBase = data.map(x => DEPTS.reduce((s, d) => (d.key === 'qc' ? s : s + (x[d.key] || 0)), 0));
   const max = Math.max(1, ...totals);
   const niceMax = Math.ceil(max / 5) * 5 || 5;
   const y = (v) => T + plotH - (plotH * v) / niceMax;
@@ -183,12 +185,13 @@ function Chart({ data, depts: DEPTS, pick, onPick }) {
   const step = Math.ceil(data.length / 8);       // ~8 date labels
   const showNums = bw >= 11;                       // per-bar totals only when there's room
   const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(niceMax * f));
-  // 7-day trailing average of the daily totals.
-  const avg = totals.map((_, i) => { const a = totals.slice(Math.max(0, i - 6), i + 1); return a.reduce((s, v) => s + v, 0) / a.length; });
+  // 30-day trailing average of the daily totals, EXCLUDING QC.
+  const AVG_WIN = 30;
+  const avg = avgBase.map((_, i) => { const a = avgBase.slice(Math.max(0, i - (AVG_WIN - 1)), i + 1); return a.reduce((s, v) => s + v, 0) / a.length; });
   const linePts = avg.map((v, i) => `${cxOf(i)},${y(v)}`).join(' ');
 
   return (
-    <svg className="cc-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Daily completions stacked by department with 7-day average">
+    <svg className="cc-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Daily completions stacked by department with 30-day average excluding QC">
       {ticks.map((t, i) => (
         <g key={i}>
           <line x1={L} y1={y(t)} x2={W - R} y2={y(t)} stroke="#EEF1F4" />

@@ -12,10 +12,10 @@ const BASE = 'https://tracker.bluewatersportfishingboats.com';
 let cachedToken = null;
 
 async function login() {
-  const username = process.env.BOSS_READER_USER;
-  const password = process.env.BOSS_READER_PASS;
+  const username = process.env.BOSS_READER_USERNAME;
+  const password = process.env.BOSS_READER_PASSWORD;
   if (!username || !password) {
-    throw new Error('Connector not configured — BOSS_READER_USER / BOSS_READER_PASS are not set.');
+    throw new Error('Connector not configured — BOSS_READER_USERNAME / BOSS_READER_PASSWORD are not set.');
   }
   const r = await fetch(`${BASE}/api/auth/login`, {
     method: 'POST',

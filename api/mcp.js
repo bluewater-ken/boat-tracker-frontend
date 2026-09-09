@@ -78,7 +78,7 @@ const handler = createMcpHandler((server) => {
       }
     },
   );
-});
+}, {}, { basePath: '/api' });
 
 // Gate the endpoint itself with a shared secret in the URL (?k=…), fail-closed.
 // claude.ai custom connectors can't set custom headers, but they keep the URL you
@@ -97,7 +97,14 @@ async function gated(request) {
       headers: { 'content-type': 'application/json' },
     });
   }
-  return handler(request);
+  try {
+    return await handler(request);
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'handler_error', message: String((e && e.message) || e) }), {
+      status: 500,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 }
 
 export { gated as GET, gated as POST, gated as DELETE };

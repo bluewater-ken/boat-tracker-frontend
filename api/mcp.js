@@ -4,7 +4,7 @@
 //
 // Auth: holds the boss-reader CREDENTIALS in env (never a static token — BOSS tokens
 // expire at 30 days), logs in on demand, caches the token, and re-logs-in on a 401.
-// The credential is write-blocked server-side (readOnlyGuard); this connector can only read.
+// The credential is write-blocked server-side (readOnlyGuard); this connector only reads.
 import { createMcpHandler } from 'mcp-handler';
 import { z } from 'zod';
 
@@ -42,69 +42,71 @@ async function bossFetch(path, init = {}, retry = true) {
   return res;
 }
 
-const handler = createMcpHandler((server) => {
-  server.tool(
-    'ask_boss',
-    'Ask a natural-language question about Bluewater boat production — current status, schedule, which boats are behind, late parts, what was done. Read-only. Examples: "where is the Landshark 36?", "which boats are behind schedule?", "what parts are late?". Keep the question under 500 characters.',
-    { question: z.string().max(500).describe('A short natural-language question about the boats or shop.') },
-    async ({ question }) => {
-      try {
-        const r = await bossFetch('/api/ask', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question }),
-        });
-        if (!r.ok) return { content: [{ type: 'text', text: `B.O.S.S returned ${r.status}.` }], isError: true };
-        const data = await r.json();
-        return { content: [{ type: 'text', text: String(data.answer ?? '(no answer)') }] };
-      } catch (e) {
-        return { content: [{ type: 'text', text: `Could not reach B.O.S.S: ${e.message}` }], isError: true };
-      }
-    },
-  );
+const handler = createMcpHandler(
+  (server) => {
+    server.registerTool(
+      'ask_boss',
+      {
+        description:
+          'Ask a natural-language question about Bluewater boat production — current status, schedule, which boats are behind, late parts, what was done. Read-only. Examples: "where is the Landshark 36?", "which boats are behind schedule?", "what parts are late?". Keep the question under 500 characters.',
+        inputSchema: z.object({
+          question: z.string().max(500).describe('A short natural-language question about the boats or shop.'),
+        }),
+      },
+      async ({ question }) => {
+        try {
+          const r = await bossFetch('/api/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question }),
+          });
+          if (!r.ok) return { content: [{ type: 'text', text: `B.O.S.S returned ${r.status}.` }], isError: true };
+          const data = await r.json();
+          return { content: [{ type: 'text', text: String(data.answer ?? '(no answer)') }] };
+        } catch (e) {
+          return { content: [{ type: 'text', text: `Could not reach B.O.S.S: ${e.message}` }], isError: true };
+        }
+      },
+    );
 
-  server.tool(
-    'find_boat',
-    'Find boats by hull number, customer, or model — every word in the query must match. Returns hull, customer, model, color, current stage, per-stage progress, ETA, target date, and days behind. Read-only. Example queries: "Landshark 36", "PCY 2850".',
-    { query: z.string().min(1).describe('Words matched against hull id, customer, and model, e.g. "Landshark 36".') },
-    async ({ query }) => {
-      try {
-        const r = await bossFetch(`/api/query/find?q=${encodeURIComponent(query)}`);
-        if (!r.ok) return { content: [{ type: 'text', text: `B.O.S.S returned ${r.status}.` }], isError: true };
-        const data = await r.json();
-        return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-      } catch (e) {
-        return { content: [{ type: 'text', text: `Could not reach B.O.S.S: ${e.message}` }], isError: true };
-      }
-    },
-  );
-}, {}, { basePath: '/api' });
+    server.registerTool(
+      'find_boat',
+      {
+        description:
+          'Find boats by hull number, customer, or model — every word in the query must match. Returns hull, customer, model, color, current stage, per-stage progress, ETA, target date, and days behind. Read-only. Example queries: "Landshark 36", "PCY 2850".',
+        inputSchema: z.object({
+          query: z.string().min(1).describe('Words matched against hull id, customer, and model, e.g. "Landshark 36".'),
+        }),
+      },
+      async ({ query }) => {
+        try {
+          const r = await bossFetch(`/api/query/find?q=${encodeURIComponent(query)}`);
+          if (!r.ok) return { content: [{ type: 'text', text: `B.O.S.S returned ${r.status}.` }], isError: true };
+          const data = await r.json();
+          return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+        } catch (e) {
+          return { content: [{ type: 'text', text: `Could not reach B.O.S.S: ${e.message}` }], isError: true };
+        }
+      },
+    );
+  },
+  { serverInfo: { name: 'B.O.S.S', version: '1.0.0' } },
+);
 
-// Gate the endpoint itself with a shared secret in the URL (?k=…), fail-closed.
-// claude.ai custom connectors can't set custom headers, but they keep the URL you
-// give them, so the secret rides in the query string. Read-only + no PII behind it,
-// but this keeps the connector from being an open unauthenticated read path.
+// Gate the endpoint with a shared secret in the URL (?k=…), fail-closed. claude.ai
+// custom connectors can't set custom headers, but they keep the URL you give them,
+// so the secret rides in the query string.
 async function gated(request) {
   const secret = process.env.MCP_SECRET;
   let provided = null;
   try { provided = new URL(request.url).searchParams.get('k'); } catch { /* bad url */ }
   if (!secret || provided !== secret) {
-    return new Response(JSON.stringify({
-      error: 'unauthorized',
-      dbg: { secretSet: !!secret, gotKey: provided != null, hasQuery: String(request.url).includes('?') },
-    }), {
+    return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401,
       headers: { 'content-type': 'application/json' },
     });
   }
-  try {
-    return await handler(request);
-  } catch (e) {
-    return new Response(JSON.stringify({ error: 'handler_error', message: String((e && e.message) || e) }), {
-      status: 500,
-      headers: { 'content-type': 'application/json' },
-    });
-  }
+  return handler(request);
 }
 
 export { gated as GET, gated as POST, gated as DELETE };

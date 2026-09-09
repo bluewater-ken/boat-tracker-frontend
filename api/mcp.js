@@ -86,9 +86,13 @@ const handler = createMcpHandler((server) => {
 // but this keeps the connector from being an open unauthenticated read path.
 async function gated(request) {
   const secret = process.env.MCP_SECRET;
-  const provided = new URL(request.url).searchParams.get('k');
+  let provided = null;
+  try { provided = new URL(request.url).searchParams.get('k'); } catch { /* bad url */ }
   if (!secret || provided !== secret) {
-    return new Response(JSON.stringify({ error: 'unauthorized' }), {
+    return new Response(JSON.stringify({
+      error: 'unauthorized',
+      dbg: { secretSet: !!secret, gotKey: provided != null, hasQuery: String(request.url).includes('?') },
+    }), {
       status: 401,
       headers: { 'content-type': 'application/json' },
     });

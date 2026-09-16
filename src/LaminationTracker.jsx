@@ -69,10 +69,17 @@ const dateLabel = (row) => {
 
 // Per-part color default: Hull follows the boat's hull color, Baitwell is Ice Blue, else White.
 const defaultColor = (task, boat) => task === 'Hull' ? (boat?.hull_color || 'White') : task === 'Baitwell' ? 'Ice Blue' : 'White';
-// Only non-white colors are shown (white is the norm, so exceptions stand out).
+// A color is shown only when someone actually chose it — an unset part stays BLANK and is
+// never filled in with an assumed 'White'. Jacob prints this sheet weekly for Rod, and a
+// confident White nobody confirmed reads as fact to whoever works off the paper.
+// Hull is the one fallback: it mirrors the boat's recorded hull color — but not when that
+// is White either, since that would be the same assumption by another route.
+const isWhite = (c) => !c || String(c).trim().toLowerCase() === 'white';
 const shownColor = (row, task, boat) => {
-  const col = row.color || defaultColor(task, boat);
-  return col && col !== 'White' ? col : '';
+  if (row.color) return row.color;            // chosen outright — shown even when it is White
+  if (task !== 'Hull') return '';
+  const hull = boat?.hull_color || '';
+  return isWhite(hull) ? '' : hull;
 };
 
 function LaminationTracker() {
@@ -220,7 +227,7 @@ function LaminationTracker() {
           {cfg(menu.task).color && (
             <>
               <MenuLabel>Color</MenuLabel>
-              <SmartInput className="am-spec-input" storeKey="colors" options={colorList()} value={menuRow.color || ''} placeholder={`Default: ${defaultColor(menu.task, menuBoat)}`} onChange={v => setColor(menu.boatId, menu.task, v)} />
+              <SmartInput className="am-spec-input" storeKey="colors" options={colorList()} value={menuRow.color || ''} placeholder={`e.g. ${defaultColor(menu.task, menuBoat)}`} onChange={v => setColor(menu.boatId, menu.task, v)} />
             </>
           )}
           {cfg(menu.task).text && (
@@ -255,7 +262,7 @@ function LaminationTracker() {
     const col = cfg(task).color ? shownColor(row, task, boat) : '';
     const notes = cfg(task).text ? (row.notes || '') : '';
     const asap = !info && !row.na && !!row.asap;
-    return { st, c, dates, col, notes, info, asap, na: !!row.na };
+    return { st, c, dates, col, colBold: !isWhite(col), notes, info, asap, na: !!row.na };
   };
 
   if (view === 'table') {
@@ -292,7 +299,7 @@ function LaminationTracker() {
                     </td>
                     {LAM_TASKS.map(t => {
                       const row = getRow(r.boat.boat_id, t);
-                      const { st, c, dates, col, notes, info, asap, na } = cellContent(row, t, r.boat);
+                      const { st, c, dates, col, colBold, notes, info, asap, na } = cellContent(row, t, r.boat);
                       return (
                         <td key={t} className="lam-cell" style={{ background: c.bg, color: c.fg }} onClick={(e) => openMenu(e, r.boat.boat_id, t)}>
                           {asap && <span className="lam-asapwrap"><span className="lam-asap">ASAP</span></span>}
@@ -303,7 +310,7 @@ function LaminationTracker() {
                             <>
                               {st && <div className="lam-cellstatus">{st}</div>}
                               {dates && <div className="lam-celldate">{dates}</div>}
-                              {col && <div className="lam-cellcolor">{col}</div>}
+                              {col && <div className={'lam-cellcolor' + (colBold ? ' strong' : '')}>{col}</div>}
                               {notes && <div className="lam-cellcolor">{notes}</div>}
                             </>
                           )}
@@ -352,13 +359,18 @@ function LaminationTracker() {
             <h3>Lamination Tasks ({LAM_TASKS.length})</h3>
             {LAM_TASKS.map(t => {
               const row = getRow(selectedBoat.boat_id, t);
-              const { st, c, dates, col, notes, info, asap, na } = cellContent(row, t, selectedBoat);
-              const detail = info ? '' : [col, notes].filter(Boolean).join(' · ');
+              const { st, c, dates, col, colBold, notes, info, asap, na } = cellContent(row, t, selectedBoat);
+              const hasDetail = !info && (col || notes);
               return (
                 <div key={t} className="lam-part" onClick={(e) => openMenu(e, selectedBoat.boat_id, t)}>
                   <span className="lam-part-main">
                     <span className="lam-part-name">{t}</span>
-                    {detail && <span className="lam-part-color">{detail}</span>}
+                    {hasDetail && (
+                      <span className="lam-part-color">
+                        {col && <span className={colBold ? 'lam-colstrong' : ''}>{col}</span>}
+                        {col && notes ? ' · ' : ''}{notes}
+                      </span>
+                    )}
                   </span>
                   <span className="lam-part-right">
                     {asap && <span className="lam-asap">ASAP</span>}
@@ -394,7 +406,7 @@ function Legend() {
           <span key={f.key} className="lam-legend-item"><FlagIcons flags={{ [f.key]: true }} defs={[f]} size={14} />{f.label}</span>
         ))}
       </div>
-      <div className="lam-legend-note">Mold cycle stops at Pulled. Cell dates run In Progress → Complete/On Mold (mold-open date is tracked behind the scenes). Non-white part colors show under the status. N/A and color are Ops-only.</div>
+      <div className="lam-legend-note">Mold cycle stops at Pulled. Cell dates run In Progress → Complete/On Mold (mold-open date is tracked behind the scenes). Part colors show under the status when set (non-white in bold); an unset part stays blank rather than assuming one. N/A and color are Ops-only.</div>
     </div>
   );
 }

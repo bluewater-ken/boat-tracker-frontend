@@ -56,6 +56,9 @@
 .lam-cellstatus { font-size: 10px; font-weight: 600; line-height: 1.2; }
 .lam-celldate { font-size: 9px; margin-top: 1px; }
 .lam-cellcolor { font-size: 9px; font-style: italic; margin-top: 1px; opacity: 0.9; }
+/* Non-white colors carry weight so exceptions still jump out of a page of White. */
+.lam-cellcolor.strong { font-weight: 800; opacity: 1; }
+.lam-colstrong { font-weight: 700; }
 .lam-cellinfo { font-size: 10px; font-weight: 600; line-height: 1.2; }
 .lam-cellnone { font-weight: 400; opacity: 0.6; }
 

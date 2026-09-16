@@ -17,6 +17,11 @@ const ALL_DEPTS = [
   { key: 'qc', label: 'QC', color: '#534AB7' },
 ];
 const RANGES = [14, 30, 60, 90];
+// The trend window scales with the selected range. It was hard-coded to 30, which meant
+// the 14d view averaged at most 14 days while still calling itself a 30-day average.
+// Whole weeks only: the shop works a 5-day week, so a window off a 7-day boundary makes
+// the line wobble with weekends instead of showing the trend.
+const avgWinFor = (days) => (days <= 30 ? 7 : days <= 60 ? 14 : 21);
 const ZERO = () => ({ glass: 0, finishing: 0, assembly: 0, qc: 0 });
 
 // Feed-event → department (only shop-build completion events count; parts excluded).
@@ -134,14 +139,14 @@ function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
         {DEPTS.map(d => (
           <span key={d.key} className="cc-legend-item"><i style={{ background: d.color }} />{d.label} <b>{totals[d.key]}</b></span>
         ))}
-        <span className="cc-legend-item"><span className="cc-legend-line" />30-day avg · excl. QC</span>
+        <span className="cc-legend-item"><span className="cc-legend-line" />{avgWinFor(days)}-day avg · excl. QC</span>
         <span className="cc-legend-total">Total <b>{grand}</b></span>
       </div>
 
       {data === null ? <div className="cc-quiet">Loading…</div>
         : source === 'none' ? <div className="cc-quiet">No completion data available.</div>
         : grand === 0 ? <div className="cc-quiet">No completions recorded in this range yet.</div>
-        : <Chart data={data} depts={DEPTS} pick={pick} onPick={(date, dept) => setPick(p => (p && p.date === date && p.dept === dept) ? null : { date, dept })} />}
+        : <Chart data={data} depts={DEPTS} win={avgWinFor(days)} pick={pick} onPick={(date, dept) => setPick(p => (p && p.date === date && p.dept === dept) ? null : { date, dept })} />}
 
       {pick && (() => {
         const jobs = jobsFor(pick.date, pick.dept);
@@ -169,7 +174,7 @@ function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
   );
 }
 
-function Chart({ data, depts: DEPTS, pick, onPick }) {
+function Chart({ data, depts: DEPTS, win, pick, onPick }) {
   const W = 720, H = 280, L = 34, R = 8, T = 16, B = 30;
   const plotW = W - L - R, plotH = H - T - B;
   const totalOf = (x) => DEPTS.reduce((s, d) => s + (x[d.key] || 0), 0);
@@ -185,13 +190,15 @@ function Chart({ data, depts: DEPTS, pick, onPick }) {
   const step = Math.ceil(data.length / 8);       // ~8 date labels
   const showNums = bw >= 11;                       // per-bar totals only when there's room
   const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(niceMax * f));
-  // 30-day trailing average of the daily totals, EXCLUDING QC.
-  const AVG_WIN = 30;
-  const avg = avgBase.map((_, i) => { const a = avgBase.slice(Math.max(0, i - (AVG_WIN - 1)), i + 1); return a.reduce((s, v) => s + v, 0) / a.length; });
-  const linePts = avg.map((v, i) => `${cxOf(i)},${y(v)}`).join(' ');
+  // Trailing average of the daily totals, EXCLUDING QC. The line starts at the first day
+  // the window is FULL: averaging a partial window made the left end ramp in from a
+  // near-raw daily value, so the two ends of the line were not measuring the same thing.
+  const AVG_WIN = Math.max(1, win || 7);
+  const avg = avgBase.map((_, i) => (i < AVG_WIN - 1 ? null : avgBase.slice(i - (AVG_WIN - 1), i + 1).reduce((s, v) => s + v, 0) / AVG_WIN));
+  const linePts = avg.map((v, i) => (v === null ? null : `${cxOf(i)},${y(v)}`)).filter(Boolean).join(' ');
 
   return (
-    <svg className="cc-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Daily completions stacked by department with 30-day average excluding QC">
+    <svg className="cc-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Daily completions stacked by department with ${AVG_WIN}-day average excluding QC`}>
       {ticks.map((t, i) => (
         <g key={i}>
           <line x1={L} y1={y(t)} x2={W - R} y2={y(t)} stroke="#EEF1F4" />

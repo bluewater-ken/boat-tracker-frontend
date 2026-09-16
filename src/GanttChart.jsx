@@ -35,7 +35,7 @@ function deliveryStatus(g) {
   return <span className="gantt-deliv"><span className="gantt-deliv-arrow">→</span> {proj} <span className="gantt-onpace">· on pace</span></span>;
 }
 
-function GanttChart() {
+function GanttChart({ onManageBoats }) {
   const { user } = useAuth();
   // Timeline edit controls (drag/pin/hold, add slot) require gantt = Edit.
   const isOps = canEdit(user, 'gantt');
@@ -559,6 +559,7 @@ function GanttChart() {
             </div>
           )}
           {isOps && !draft && <button className="gantt-addgroup" onClick={() => setEditor({ type: 'slot', title: '', model: '' })}>+ Add boat / slot</button>}
+          {isOps && onManageBoats && <button className="gantt-manage" onClick={onManageBoats}>⚙ Manage Boats</button>}
         </div>
 
         <div className="gantt-inner">

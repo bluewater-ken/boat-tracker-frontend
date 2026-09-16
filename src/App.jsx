@@ -110,12 +110,12 @@ function App() {
         </nav>
         <main className="app-content">
           <Suspense fallback={<div className="loading">Loading…</div>}>
-            {shownTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onManageBoats={() => setManageBoats(true)} onShopReport={() => setShopReport(true)} />}
+            {shownTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onShopReport={() => setShopReport(true)} />}
             {shownTab === 'parts' && <KeyPartsTracker />}
             {shownTab === 'lamination' && <LaminationTracker />}
             {shownTab === 'finishing' && <FinishingTracker />}
             {shownTab === 'assembly' && <AssemblyTracker />}
-            {shownTab === 'gantt' && canView(user, 'gantt') && <GanttChart />}
+            {shownTab === 'gantt' && canView(user, 'gantt') && <GanttChart onManageBoats={() => setManageBoats(true)} />}
             {shownTab === 'feed' && <ShopFeed initialView="issues" initialPostingOpen={reportIssueOpen} />}
             {shownTab === 'docs' && <DocsLibrary />}
             {shownTab === 'admin' && isOps && <AdminPanel />}

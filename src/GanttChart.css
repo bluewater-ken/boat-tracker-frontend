@@ -17,6 +17,10 @@
 .gantt-note { font-size: 12px; color: #8A969E; }
 .gantt-addgroup { margin-left: auto; padding: 7px 13px; font-size: 12px; font-weight: 600; color: #173A5E; background: #fff; border: 1px solid #C7D2DB; border-radius: 7px; cursor: pointer; }
 .gantt-addgroup:hover { border-color: #2E92D6; color: #2E92D6; }
+.gantt-manage { padding: 7px 13px; font-size: 12px; font-weight: 600; color: #173A5E; background: #fff; border: 1px solid #C7D2DB; border-radius: 7px; cursor: pointer; }
+.gantt-manage:hover { border-color: #2E92D6; color: #2E92D6; }
+/* No margin-left:auto here — .gantt-addgroup already pushes the pair right, and when a
+   draft hides it the flex:1 draft bar does the same job. */
 .gantt-expandall { padding: 7px 13px; font-size: 12px; font-weight: 600; color: #173A5E; background: #fff; border: 1px solid #C7D2DB; border-radius: 7px; cursor: pointer; }
 .gantt-expandall:hover { border-color: #2E92D6; color: #2E92D6; }
 

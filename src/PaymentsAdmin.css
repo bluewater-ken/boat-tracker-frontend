@@ -140,3 +140,10 @@
 .pay-add { padding: 7px 14px; font-size: 12px; font-weight: 700; color: #fff; background: #2E92D6; border: none; border-radius: 7px; cursor: pointer; }
 .pay-sum { font-size: 12px; font-weight: 700; color: #27500A; }
 .pay-sum.off { color: #A32D2D; }
+
+/* Calendar-year totals under the accrual chart. Text, not another line: the chart already
+   carries recognized / pipeline / per-quarter / last-year, and the years always sum to the
+   pipeline figure, so they read as a check on it rather than as another series. */
+.pay-chart-years { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 6px 2px 0; }
+.pay-chart-year { font-size: 12px; color: #33475B; }
+.pay-chart-year b { font-weight: 800; color: #173A5E; margin-right: 4px; }

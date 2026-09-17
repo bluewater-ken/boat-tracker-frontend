@@ -173,7 +173,12 @@ function buildDeliveryBuckets(deliveries, mode) {
   else { let [y, m] = sIso.slice(0, 7).split('-').map(Number); const [ey, em] = eIso.slice(0, 7).split('-').map(Number); while (y < ey || (y === ey && m <= em)) { keys.push(`${y}-${String(m).padStart(2, '0')}`); if (++m > 12) { m = 1; y++; } } }
   const by = {}; for (const k of keys) by[k] = { delivRev: 0, planRev: 0, delivUnits: 0, planUnits: 0, rows: [] };
   const thisYear = todayStr().slice(0, 4), janFirst = `${thisYear}-01-01`, prevYear = String(+thisYear - 1);
-  let ytdOpen = 0, prevYearRev = 0, prevYearUnits = 0, outFwdRev = 0, outFwdUnits = 0;
+  let ytdOpen = 0, prevYearRev = 0, prevYearUnits = 0;
+  // Everything past the window lands in one "Later" bucket, split by calendar year: the
+  // remainder of the year the window ends in, then anything after that. Deliberately kept
+  // OUT of `keys` — an unbounded bucket must not feed the bar scale or the quarter lines.
+  const endYear = keys[keys.length - 1].slice(0, 4);
+  const over = { near: { rev: 0, units: 0 }, far: { rev: 0, units: 0 }, endYear };
   for (const d of deliveries) {
     if (!d.date) continue;
     if (d.actual) {
@@ -181,26 +186,38 @@ function buildDeliveryBuckets(deliveries, mode) {
       if (d.date.slice(0, 4) === prevYear) { prevYearRev += (d.revenue || 0); prevYearUnits += 1; }
     }
     const k = keyer(d.date);
-    if (!by[k]) { if (k > keys[keys.length - 1]) { outFwdRev += (d.revenue || 0); outFwdUnits += 1; } continue; }
+    if (!by[k]) {
+      if (k > keys[keys.length - 1]) {
+        const b = d.date.slice(0, 4) <= endYear ? over.near : over.far;
+        b.rev += (d.revenue || 0); b.units += 1;
+      }
+      continue;
+    }
     if (d.actual) { by[k].delivRev += (d.revenue || 0); by[k].delivUnits += 1; }
     else { by[k].planRev += (d.revenue || 0); by[k].planUnits += 1; }
     by[k].rows.push(d);
   }
   const barMax = Math.max(1, ...keys.map(k => by[k].delivRev + by[k].planRev));
   const step = Math.pow(10, Math.floor(Math.log10(barMax)));
-  return { keys, by, niceMax: Math.ceil(barMax / step) * step, todayKey, ytdOpen, prevYearRev, prevYearUnits, prevYear, outFwdRev, outFwdUnits };
+  return { keys, by, niceMax: Math.ceil(barMax / step) * step, todayKey, ytdOpen, prevYearRev, prevYearUnits, prevYear, over };
 }
 
 const DELIV_COLOR = '#1D9E75';   // delivered / recognized
 const PLAN_COLOR = '#5B8DEF';    // planned / projected
 
 function DeliveryChart({ deliveries, mode, pick, onPick }) {
-  const { keys, by, niceMax, todayKey, ytdOpen, prevYearRev, prevYearUnits, prevYear, outFwdRev, outFwdUnits } = buildDeliveryBuckets(deliveries, mode);
+  const { keys, by, niceMax, todayKey, ytdOpen, prevYearRev, prevYearUnits, prevYear, over } = buildDeliveryBuckets(deliveries, mode);
   if (!keys.length) return <div className="pay-quiet" style={{ padding: '10px 2px' }}>No deliveries to chart yet.</div>;
   const W = 760, H = 210, L = 52, R = 96, T = 16, B = 34;
-  const plotW = W - L - R, plotH = H - T - B, slot = plotW / keys.length;
+  const plotW = W - L - R, plotH = H - T - B;
+  const overUnits = over.near.units + over.far.units;
+  const overRev = over.near.rev + over.far.rev;
+  const hasOver = overUnits > 0;
+  const OVER_GAP = 16;                       // a visible break, so it never reads as "next month"
+  const slot = (plotW - (hasOver ? OVER_GAP : 0)) / (keys.length + (hasOver ? 1 : 0));
   const bw = Math.max(3, Math.min(30, slot * 0.68));
   const x = (i) => L + slot * (i + 0.5);
+  const xOver = L + slot * keys.length + OVER_GAP + slot / 2;
   const y = (v) => T + plotH - (plotH * v) / niceMax;
   const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(niceMax * f));
   const kMoney = (v) => (v >= 1000 ? `$${Math.round(v / 1000).toLocaleString()}k` : `$${Math.round(v)}`);
@@ -210,11 +227,26 @@ function DeliveryChart({ deliveries, mode, pick, onPick }) {
   // Cumulative recognized revenue: delivered accrues up to today (recognized YTD),
   // planned continues it forward (pipeline). Shared scale with the prior-year line.
   const cumTotal = ytdOpen + keys.reduce((s, k) => s + by[k].delivRev + by[k].planRev, 0);
-  const cumMax = Math.max(1, prevYearRev, cumTotal);
+  // The Pipeline label used to sum in-window months only, so it understated the real
+  // forward book by exactly whatever the footnote was reporting.
+  const cumAll = cumTotal + overRev;
+  // Calendar-year totals. Deliberately text rather than two more lines: the chart already
+  // carries four line elements, and a second resetting sawtooth would fight the quarter one.
+  // These partition the pipeline exactly -- the years always sum back to cumAll.
+  const yearTot = {};
+  const addYear = (yr, v) => { if (v) yearTot[yr] = (yearTot[yr] || 0) + v; };
+  addYear(todayStr().slice(0, 4), ytdOpen);          // actuals earlier this year, before the window
+  keys.forEach((k) => addYear(k.slice(0, 4), by[k].delivRev + by[k].planRev));
+  addYear(over.endYear, over.near.rev);               // the Later column's own year
+  addYear(`${+over.endYear + 1}+`, over.far.rev);
+  const yearRows = Object.keys(yearTot).sort();
+  const cumMax = Math.max(1, prevYearRev, cumAll);
   const yc = (v) => T + plotH - (plotH * v) / cumMax;
   let acc = ytdOpen; const cum = keys.map(k => { acc += by[k].delivRev + by[k].planRev; return acc; });
   const pastPts = keys.map((k, i) => k <= todayKey ? `${x(i)},${yc(cum[i])}` : null).filter(Boolean).join(' ');
-  const fwdPts = keys.map((k, i) => k >= todayKey ? `${x(i)},${yc(cum[i])}` : null).filter(Boolean).join(' ');
+  const fwdArr = keys.map((k, i) => k >= todayKey ? `${x(i)},${yc(cum[i])}` : null).filter(Boolean);
+  if (hasOver && fwdArr.length) fwdArr.push(`${xOver},${yc(cumAll)}`);
+  const fwdPts = fwdArr.join(' ');
   const recognizedYtd = ytdOpen + keys.reduce((s, k, i) => s + (keys[i] <= todayKey ? by[k].delivRev : 0), 0);
 
   // Per-quarter cumulative (resets $0 each quarter) — mirrors the top chart's sawtooth.
@@ -263,6 +295,29 @@ function DeliveryChart({ deliveries, mode, pick, onPick }) {
             </g>
           );
         })}
+        {hasOver && (() => {
+          // Scaled against the same niceMax as the months, but NOT part of it: if the bucket
+          // ever outgrows the axis it clips and shows a caret rather than flattening a year
+          // of real months.
+          const segs = [[over.near.rev, PLAN_COLOR, over.endYear], [over.far.rev, '#2F4F9E', `${+over.endYear + 1}+`]];
+          let yTop = y(0);
+          const clipped = overRev > niceMax;
+          return (
+            <g>
+              <line x1={xOver - slot / 2 - OVER_GAP / 2} y1={T} x2={xOver - slot / 2 - OVER_GAP / 2} y2={T + plotH} stroke="#C7D2DB" strokeDasharray="2 3" />
+              {segs.map(([v, color, lbl]) => {
+                if (!v) return null;
+                const top = Math.max(T, yTop - (plotH * v) / niceMax);
+                const h = yTop - top; yTop = top;
+                return <rect key={lbl} x={xOver - bw / 2} y={top} width={bw} height={h} fill={color}><title>{`${lbl}: ${money(v)}`}</title></rect>;
+              })}
+              {clipped
+                ? <text x={xOver} y={T - 4} textAnchor="middle" fontSize="9" fontWeight="700" fill="#33475B">▲</text>
+                : <text x={xOver} y={yTop - 3} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#33475B">{overUnits}</text>}
+              <text x={xOver} y={H - 12} textAnchor="middle" fontSize="8.5" fill="#8A969E">Later</text>
+            </g>
+          );
+        })()}
         {/* faint quarter boundaries */}
         {qSegs.slice(1).map((s, i) => <line key={'qb' + i} x1={x(s.firstI) - slot / 2} y1={T} x2={x(s.firstI) - slot / 2} y2={T + plotH} stroke="#EDEBF9" />)}
         {/* per-quarter cumulative (coral sawtooth, resets each quarter) */}
@@ -275,10 +330,24 @@ function DeliveryChart({ deliveries, mode, pick, onPick }) {
         {pastPts && <polyline points={pastPts} fill="none" stroke="#0F6E56" strokeWidth="2" strokeLinejoin="round" />}
         {fwdPts && <polyline points={fwdPts} fill="none" stroke="#534AB7" strokeWidth="2" strokeDasharray="4 3" strokeLinejoin="round" />}
         {recognizedYtd > 0 && todayI > 0 && <text x={x(todayI) - slot / 2 - 3} y={yc(recognizedYtd) - 4} textAnchor="end" fontSize="9" fontWeight="700" fill="#0F6E56">YTD {kMoney(recognizedYtd)}</text>}
-        {cumTotal > recognizedYtd && <text x={x(lastI) + 4} y={yc(cumTotal) + 3} fontSize="9" fontWeight="700" fill="#534AB7">{`Pipeline ${kMoney(cumTotal)}`}</text>}
+        {cumAll > recognizedYtd && <text x={(hasOver ? xOver : x(lastI)) + 4} y={yc(cumAll) + 3} fontSize="9" fontWeight="700" fill="#534AB7">{`Pipeline ${kMoney(cumAll)}`}</text>}
         <line x1={L} y1={y(0)} x2={W - R} y2={y(0)} stroke="#D6DBE0" />
       </svg>
-      {outFwdRev > 0 && <div className="pay-chart-note">+ {money(outFwdRev)} / {outFwdUnits} boat{outFwdUnits === 1 ? '' : 's'} planned beyond this window.</div>}
+      {yearRows.length > 1 && (
+        <div className="pay-chart-years">
+          {yearRows.map((yr) => (
+            <span key={yr} className="pay-chart-year"><b>{yr}</b> {money(yearTot[yr])}</span>
+          ))}
+        </div>
+      )}
+      {hasOver && (
+        <div className="pay-chart-note">
+          Later = {money(overRev)} / {overUnits} boat{overUnits === 1 ? '' : 's'} past the {keys.length}-month window
+          {over.near.rev > 0 ? ` · ${over.endYear} ${money(over.near.rev)}` : ''}
+          {over.far.rev > 0 ? ` · ${+over.endYear + 1}+ ${money(over.far.rev)}` : ''}
+          . Counted in Pipeline; kept out of the monthly scale.
+        </div>
+      )}
     </>
   );
 }

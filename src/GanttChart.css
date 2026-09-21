@@ -223,3 +223,9 @@
 .gantt-grouprow.delivered:hover .gantt-left { background: #E6EAEE; }
 .gantt-deliveredtag { margin-left: 6px; font-size: 9px; font-weight: 800; letter-spacing: 0.3px; color: #fff; background: #8A969E; border-radius: 3px; padding: 1px 6px; vertical-align: middle; white-space: nowrap; }
 .gantt-taskrow.delivered { opacity: 0.6; }
+
+/* Unpinned stage on a delivered boat. No dates exist (a pin is the only real date), so this is
+   a dashed target that opens the pin editor — not a bar drawn from a guess. It sits after the
+   previous dated stage purely so the eye finds it. */
+.gantt-nodata { background: transparent; border: 1.5px dashed #9AA5AD; border-radius: 4px; color: #5F6B73; font-size: 11px; font-weight: 600; font-family: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px; }
+.gantt-nodata:hover { border-color: #2E92D6; color: #2E92D6; background: #f2f8fc; }

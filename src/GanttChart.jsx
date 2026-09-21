@@ -12,6 +12,10 @@ import './GanttChart.css';
 
 const DAY = 86400000;
 const parseD = (s) => new Date(String(s).slice(0, 10) + 'T00:00:00');
+// An unpinned stage on a delivered boat arrives as { start: null, end: null, kind: 'no-data' }.
+// It has no dates on purpose (a pin is the only real date), so every date-driven calculation
+// must skip it rather than render NaN.
+const hasDates = (seg) => !!(seg && seg.start != null && seg.end != null);
 const fmtShort = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 const daysBetween = (a, b) => Math.round((b - a) / DAY) + 1;
 
@@ -261,6 +265,7 @@ function GanttChart({ onManageBoats }) {
   const today = parseD(payload.today || new Date().toISOString());
   let min = today, max = today;
   for (const g of groups) for (const s of (g.segments || [])) {
+    if (!hasDates(s)) continue;
     const a = parseD(s.start), b = parseD(s.end);
     if (a < min) min = a;
     if (b > max) max = b;
@@ -277,10 +282,25 @@ function GanttChart({ onManageBoats }) {
   const todayX = Math.round((today - min) / DAY) * px;
 
   // ---------- drag a bar to change its dates (saved as a pin) ----------
+  // Where a dateless stage sits on the lane: the day after the previous dated stage; else a
+  // week before the next dated one; else today. It places the "pin me" target and seeds the
+  // editor's START only — it is never stored. The date is Ken's to set.
+  const anchorFor = (g, s) => {
+    const segs = g.segments || [];
+    const i = segs.indexOf(s);
+    for (let j = i - 1; j >= 0; j--) if (hasDates(segs[j])) return shiftDate(segs[j].end, 1);
+    for (let j = i + 1; j < segs.length; j++) if (hasDates(segs[j])) return shiftDate(segs[j].start, -7);
+    return String(payload.today || new Date().toISOString()).slice(0, 10);
+  };
   const openPinEditor = (g, s) => {
+    const d10 = (v) => (v == null ? '' : String(v).slice(0, 10));
+    // No dates → start defaults to the anchor, end stays BLANK, so Save cannot go through until
+    // Ken has actually chosen the dates (savePin refuses an empty end).
+    const start = hasDates(s) ? d10(s.start) : anchorFor(g, s);
+    const end = hasDates(s) ? d10(s.end) : '';
     setEditor(s.pin_id
-      ? { type: 'pin', key: g.key, stage: s.name, kind: s.kind === 'hold' ? 'hold' : 'pin', start: String(s.start).slice(0, 10), end: String(s.end).slice(0, 10), pin_id: s.pin_id, note: s.duration_note }
-      : { type: 'pin', key: g.key, stage: s.name, kind: 'pin', start: String(s.start).slice(0, 10), end: String(s.end).slice(0, 10), note: s.duration_note });
+      ? { type: 'pin', key: g.key, stage: s.name, kind: s.kind === 'hold' ? 'hold' : 'pin', start, end, pin_id: s.pin_id, note: s.duration_note }
+      : { type: 'pin', key: g.key, stage: s.name, kind: 'pin', start, end, note: s.duration_note });
   };
   const shiftDate = (dstr, n) => {
     const d = parseD(dstr); d.setDate(d.getDate() + n);
@@ -429,6 +449,18 @@ function GanttChart({ onManageBoats }) {
   // ---------- segment renderer ----------
   const segBar = (g, s) => {
     const color = STAGE_COLOR(s.name);
+    if (s.kind === 'no-data' || !hasDates(s)) {
+      // Nothing is known, so nothing is drawn AS data: a dashed target one nominal week wide,
+      // at the anchor, that opens the pin editor. Ops only; a pan ending here is not a click.
+      const a = anchorFor(g, s);
+      return (
+        <button type="button" className="gantt-bar gantt-nodata" style={{ left: x(a), width: 7 * px }}
+          title={`${s.name}: no dates — click to pin`}
+          onClick={(e) => { e.stopPropagation(); if (panRef.current.suppress || !isOps || guardDraft()) return; openPinEditor(g, s); }}>
+          no dates · click to pin
+        </button>
+      );
+    }
     let left = x(s.start), wd = w(s.start, s.end);
     // Live preview while dragging this bar.
     const dm = segDrag && segDrag.gkey === g.key && segDrag.name === s.name ? segDrag : null;
@@ -525,7 +557,7 @@ function GanttChart({ onManageBoats }) {
   };
 
   const groupSummary = (g) => {
-    const segs = g.segments || [];
+    const segs = (g.segments || []).filter(hasDates); // no-data stages have no span to add
     if (!segs.length) return null;
     const gs = segs[0].start, ge = segs[segs.length - 1].end;
     const behind = g.behind_days != null && g.behind_days > 0;
@@ -630,10 +662,14 @@ function GanttChart({ onManageBoats }) {
                       <span className="gantt-gtitle" title={g.title}>{g.title}</span>
                       {g.delivered && <span className="gantt-deliveredtag">Delivered</span>}
                       {g.kind === 'boat' && g.manual && (
-                        <button className="gantt-manual" disabled={!isOps}
-                          title={`Manual — dates locked${g.manual_since ? ` since ${String(g.manual_since).slice(0, 10)}` : ''}.${isOps ? ' Click to reset to Auto.' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); if (!isOps || guardDraft()) return; resetToAuto(g); }}>
-                          📌 Manual{isOps ? ' · reset' : ''}
+                        // A delivered boat has nothing to project, so "reset to Auto" would only
+                        // throw away Ken's pins. Show the mark, remove the action.
+                        <button className="gantt-manual" disabled={!isOps || g.delivered}
+                          title={g.delivered
+                            ? `Pinned — dates are set by hand${g.manual_since ? ` since ${String(g.manual_since).slice(0, 10)}` : ''}.`
+                            : `Manual — dates locked${g.manual_since ? ` since ${String(g.manual_since).slice(0, 10)}` : ''}.${isOps ? ' Click to reset to Auto.' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); if (g.delivered || !isOps || guardDraft()) return; resetToAuto(g); }}>
+                          📌 {g.delivered ? 'Pinned' : `Manual${isOps ? ' · reset' : ''}`}
                         </button>
                       )}
                       {isOps && g.kind === 'boat' && (
@@ -670,7 +706,7 @@ function GanttChart({ onManageBoats }) {
                       <span className="gantt-tname">
                         {s.name}{s.kind === 'pinned' ? ' 📌' : s.kind === 'hold' ? ' (hold) 📌' : ''}
                         <span className="gantt-tdates">
-                          {fmtShort(parseD(s.start))} – {fmtShort(parseD(s.end))}
+                          {hasDates(s) ? `${fmtShort(parseD(s.start))} – ${fmtShort(parseD(s.end))}` : 'no dates · click to pin'}
                           {s.kind === 'actual' ? ' · actual' : s.kind === 'current' ? (s.fill_note ? ` · ${s.fill_note}` : '') : s.kind === 'projected' ? ' · projected' : ''}
                           {s.duration_note ? ` · ${s.duration_note}` : ''}
                         </span>
@@ -678,11 +714,11 @@ function GanttChart({ onManageBoats }) {
                     </div>
                     <div className="gantt-lane" style={{ width }}>
                       <div className="gantt-todayline" style={{ left: todayX }} />
-                      {waitEl(s)}
-                      {gapEl(prevSeg, s)}
+                      {hasDates(s) && waitEl(s)}
+                      {hasDates(s) && gapEl(hasDates(prevSeg) ? prevSeg : undefined, s)}
                       {(() => {
                         const nd = normDaysFor(g, s);
-                        if (!nd) return null;
+                        if (!nd || !hasDates(s)) return null;
                         const bd = daysBetween(parseD(s.start), parseD(s.end));
                         const over = bd - nd; // + = ran/running longer than the rule
                         return (

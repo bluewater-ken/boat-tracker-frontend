@@ -288,15 +288,19 @@ function GanttChart({ onManageBoats }) {
   const anchorFor = (g, s) => {
     const segs = g.segments || [];
     const i = segs.indexOf(s);
-    for (let j = i - 1; j >= 0; j--) if (hasDates(segs[j])) return shiftDate(segs[j].end, 1);
-    for (let j = i + 1; j < segs.length; j++) if (hasDates(segs[j])) return shiftDate(segs[j].start, -7);
+    // A run of dateless stages steps a nominal week apart in sequence, instead of all piling
+    // onto the same x: counting back from the next dated stage, or forward from the previous.
+    for (let j = i - 1; j >= 0; j--) if (hasDates(segs[j])) return shiftDate(segs[j].end, 1 + 7 * (i - j - 1));
+    for (let j = i + 1; j < segs.length; j++) if (hasDates(segs[j])) return shiftDate(segs[j].start, -7 * (j - i));
     return String(payload.today || new Date().toISOString()).slice(0, 10);
   };
   const openPinEditor = (g, s) => {
     const d10 = (v) => (v == null ? '' : String(v).slice(0, 10));
     // No dates → start defaults to the anchor, end stays BLANK, so Save cannot go through until
     // Ken has actually chosen the dates (savePin refuses an empty end).
-    const start = hasDates(s) ? d10(s.start) : anchorFor(g, s);
+    // Seed the start from the logged span when there is one (a better guess than the anchor);
+    // the end stays blank either way, so Ken still has to choose before Save can go through.
+    const start = hasDates(s) ? d10(s.start) : (s.logged_start ? d10(s.logged_start) : anchorFor(g, s));
     const end = hasDates(s) ? d10(s.end) : '';
     setEditor(s.pin_id
       ? { type: 'pin', key: g.key, stage: s.name, kind: s.kind === 'hold' ? 'hold' : 'pin', start, end, pin_id: s.pin_id, note: s.duration_note }
@@ -452,12 +456,18 @@ function GanttChart({ onManageBoats }) {
     if (s.kind === 'no-data' || !hasDates(s)) {
       // Nothing is known, so nothing is drawn AS data: a dashed target one nominal week wide,
       // at the anchor, that opens the pin editor. Ops only; a pan ending here is not a click.
-      const a = anchorFor(g, s);
+      // If the backend passes along what the Advance click logged, the box sits on that span and
+      // says so, greyed and labelled "logged" — a hint of where BOSS thought the stage was, never
+      // a date. Without it, the box sits at the anchor.
+      const logged = !!(s.logged_start && s.logged_end);
+      const a = logged ? s.logged_start : anchorFor(g, s);
+      const wd = logged ? Math.max(110, w(s.logged_start, s.logged_end)) : 7 * px;
+      const loggedText = logged ? `${fmtShort(parseD(s.logged_start))} – ${fmtShort(parseD(s.logged_end))}` : '';
       return (
-        <button type="button" className="gantt-bar gantt-nodata" style={{ left: x(a), width: 7 * px }}
-          title={`${s.name}: no dates — click to pin`}
+        <button type="button" className={`gantt-bar gantt-nodata${logged ? ' logged' : ''}`} style={{ left: x(a), width: wd }}
+          title={`${s.name}: no pin${logged ? ` — BOSS logged ${loggedText} (status only, not a date)` : ''} — click to pin`}
           onClick={(e) => { e.stopPropagation(); if (panRef.current.suppress || !isOps || guardDraft()) return; openPinEditor(g, s); }}>
-          no dates · click to pin
+          {logged ? `logged ${loggedText}` : '📌 pin'}
         </button>
       );
     }
@@ -706,7 +716,11 @@ function GanttChart({ onManageBoats }) {
                       <span className="gantt-tname">
                         {s.name}{s.kind === 'pinned' ? ' 📌' : s.kind === 'hold' ? ' (hold) 📌' : ''}
                         <span className="gantt-tdates">
-                          {hasDates(s) ? `${fmtShort(parseD(s.start))} – ${fmtShort(parseD(s.end))}` : 'no dates · click to pin'}
+                          {hasDates(s)
+                            ? `${fmtShort(parseD(s.start))} – ${fmtShort(parseD(s.end))}`
+                            : (s.logged_start && s.logged_end
+                              ? `no pin · logged ${fmtShort(parseD(s.logged_start))} – ${fmtShort(parseD(s.logged_end))} · click to pin`
+                              : 'no dates · click to pin')}
                           {s.kind === 'actual' ? ' · actual' : s.kind === 'current' ? (s.fill_note ? ` · ${s.fill_note}` : '') : s.kind === 'projected' ? ' · projected' : ''}
                           {s.duration_note ? ` · ${s.duration_note}` : ''}
                         </span>

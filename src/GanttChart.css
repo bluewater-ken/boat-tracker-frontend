@@ -214,3 +214,12 @@
   .gantt-grip { display: none; } /* reordering is a desktop job */
   .gantt-colresize { display: none; }
 }
+
+/* Delivered boats (Show delivered toggle) — history, greyed and parked below the actives.
+   Not draggable: a delivered bar never consumes shop capacity, so it has no place in a
+   build-order draft. Bars are drawn exactly as logged; a 0-day stage is one day wide. */
+.gantt-grouprow.delivered .gantt-left { background: #EEF1F4; }
+.gantt-grouprow.delivered .gantt-gtitle { color: #5F6B73; }
+.gantt-grouprow.delivered:hover .gantt-left { background: #E6EAEE; }
+.gantt-deliveredtag { margin-left: 6px; font-size: 9px; font-weight: 800; letter-spacing: 0.3px; color: #fff; background: #8A969E; border-radius: 3px; padding: 1px 6px; vertical-align: middle; white-space: nowrap; }
+.gantt-taskrow.delivered { opacity: 0.6; }

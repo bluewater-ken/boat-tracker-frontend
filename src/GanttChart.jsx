@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
 import { canEdit } from './permissions';
+import { ShowDeliveredToggle } from './boatFilter';
 import './GanttChart.css';
 
 // Timeline — the self-maintaining production Gantt (see TIMELINE_SPEC.md).
@@ -51,7 +52,23 @@ function GanttChart({ onManageBoats }) {
   const [editor, setEditor] = useState(null); // {type:'pin'|'target'|'slot', ...}
   const [lamRows, setLamRows] = useState([]);     // /api/lamination — feeds Glass Shop items
   const [asmRows, setAsmRows] = useState([]);     // /api/assembly rows — feed Back/Front/QC items
-  const [itemsPop, setItemsPop] = useState(null); // { title, sub, groups:[{label, items:[{name,done}]}] }
+  const [itemsPop, setItemsPop] = useState(null);
+  // Delivered boats. Always fetched (?delivered=1 appends them AFTER the actives with the
+  // envelope unchanged) and shown only when the toggle is on. Off = today's exact payload, so
+  // the drag/preview logic never sees a delivered key; on = instant, no refetch. Refs so
+  // init() and the 60s auto-refresh see the live setting, not a stale closure.
+  const [showDelivered, setShowDelivered] = useState(false);
+  const [deliveredCount, setDeliveredCount] = useState(0);
+  const showDelRef = useRef(false);
+  const rawRef = useRef(null);
+  const applyView = () => {
+    const raw = rawRef.current;
+    if (!raw) { setData(null); return; }
+    const groups = raw.groups || [];
+    setDeliveredCount(groups.filter((g) => g.delivered).length);
+    setData(showDelRef.current ? raw : { ...raw, groups: groups.filter((g) => !g.delivered) });
+  };
+  const onToggleDelivered = (v) => { showDelRef.current = v; setShowDelivered(v); applyView(); }; // { title, sub, groups:[{label, items:[{name,done}]}] }
   const [colW, setColW] = useState(() => {
     const v = +localStorage.getItem('gantt_colw');
     return v >= 150 && v <= 520 ? v : 260;
@@ -102,11 +119,12 @@ function GanttChart({ onManageBoats }) {
       // Timeline drives the chart; lamination + assembly let a stage's "7/9 items"
       // expand into WHICH items are done (sources verified to match the fills exactly).
       const [r, lam, asm] = await Promise.all([
-        apiFetch('/api/timeline').catch(() => null),
+        apiFetch('/api/timeline?delivered=1').catch(() => null),
         apiFetch('/api/lamination').then(x => (x.ok ? x.json() : [])).catch(() => []),
         apiFetch('/api/assembly').then(x => (x.ok ? x.json() : null)).catch(() => null),
       ]);
-      setData(r && r.ok ? await r.json() : null);
+      rawRef.current = r && r.ok ? await r.json() : null;
+      applyView();
       setLamRows(lam || []);
       setAsmRows(asm?.rows || []);
     } finally { if (!quiet) setLoading(false); }
@@ -560,6 +578,7 @@ function GanttChart({ onManageBoats }) {
           )}
           {isOps && !draft && <button className="gantt-addgroup" onClick={() => setEditor({ type: 'slot', title: '', model: '' })}>+ Add boat / slot</button>}
           {isOps && onManageBoats && <button className="gantt-manage" onClick={onManageBoats}>⚙ Manage Boats</button>}
+          <ShowDeliveredToggle count={deliveredCount} on={showDelivered} onChange={onToggleDelivered} />
         </div>
 
         <div className="gantt-inner">
@@ -596,12 +615,12 @@ function GanttChart({ onManageBoats }) {
             const isOpen = !!open[g.key];
             const rows = [];
             rows.push(
-              <div key={g.key} className={`gantt-row gantt-grouprow ${dragKey === g.key ? 'dragging' : ''}`}
+              <div key={g.key} className={`gantt-row gantt-grouprow ${dragKey === g.key ? 'dragging' : ''} ${g.delivered ? 'delivered' : ''}`}
                 onDragOver={(e) => e.preventDefault()}
-                onDrop={() => startDrop(g.key)}
+                onDrop={() => { if (!g.delivered) startDrop(g.key); }}
                 onClick={() => { if (panRef.current.suppress) return; toggle(g.key); }}>
                 <div className="gantt-left gantt-grouphead">
-                  {isOps && <span className="gantt-grip" title="Drag to test a new build order" draggable
+                  {isOps && !g.delivered && <span className="gantt-grip" title="Drag to test a new build order" draggable
                     onDragStart={(e) => { e.stopPropagation(); setDragKey(g.key); }}
                     onDragEnd={() => setDragKey(null)}
                     onClick={(e) => e.stopPropagation()}>⠿</span>}
@@ -609,6 +628,7 @@ function GanttChart({ onManageBoats }) {
                   <div className="gantt-gmeta">
                     <div className="gantt-gline1">
                       <span className="gantt-gtitle" title={g.title}>{g.title}</span>
+                      {g.delivered && <span className="gantt-deliveredtag">Delivered</span>}
                       {g.kind === 'boat' && g.manual && (
                         <button className="gantt-manual" disabled={!isOps}
                           title={`Manual — dates locked${g.manual_since ? ` since ${String(g.manual_since).slice(0, 10)}` : ''}.${isOps ? ' Click to reset to Auto.' : ''}`}
@@ -643,7 +663,7 @@ function GanttChart({ onManageBoats }) {
               (g.segments || []).forEach((s, si) => {
                 const prevSeg = (g.segments || [])[si - 1];
                 rows.push(
-                  <div key={`${g.key}-${s.name}-${s.start}`} className="gantt-row gantt-taskrow">
+                  <div key={`${g.key}-${s.name}-${s.start}`} className={`gantt-row gantt-taskrow ${g.delivered ? 'delivered' : ''}`}>
                     <div className={`gantt-left gantt-taskleft ${isOps && g.kind !== 'slot' ? 'clickable' : ''}`}
                       title={isOps && g.kind !== 'slot' ? 'Click to edit dates (pin / hold)' : undefined}
                       onClick={() => { if (!isOps || g.kind === 'slot' || guardDraft()) return; openPinEditor(g, s); }}>

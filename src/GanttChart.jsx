@@ -3,7 +3,7 @@ import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
 import { canEdit } from './permissions';
 import { ShowDeliveredToggle } from './boatFilter';
-import NextDeliveryRow, { NextSlotLines, useNextDelivery } from './NextDeliveryRow';
+import NextDeliveryRow, { NextSlotLines, NextSlotTags, useNextDelivery } from './NextDeliveryRow';
 import './GanttChart.css';
 
 // Timeline — the self-maintaining production Gantt (see TIMELINE_SPEC.md).
@@ -630,7 +630,7 @@ function GanttChart({ onManageBoats }) {
           <div className="gantt-grid" style={{ left: colW, width }}>
             {gridLines.map((l, i) => <div key={i} className={`gantt-gl ${l.cls}`} style={{ left: l.left }} />)}
           </div>
-          <NextSlotLines nd={nd} x={x} px={px} left={colW} canEdit={isOps && !draft} />
+          <NextSlotLines nd={nd} x={x} left={colW} />
           <div className="gantt-row gantt-quarterrow">
             <div className="gantt-left gantt-headleft">Boat
               <span className="gantt-colresize" onPointerDown={beginColResize} title="Drag to resize this column" />
@@ -645,6 +645,7 @@ function GanttChart({ onManageBoats }) {
               <div className="gantt-left gantt-headleft" />
               <div className="gantt-lane gantt-headlane" style={{ width }}>
                 {months.map((m, i) => <div key={i} className="gantt-month" style={{ width: m.days * px }}>{m.label}</div>)}
+                <NextSlotTags nd={nd} x={x} px={px} canEdit={isOps && !draft} />
               </div>
             </div>
           )}
@@ -653,6 +654,7 @@ function GanttChart({ onManageBoats }) {
               <div className="gantt-left gantt-headleft" />
               <div className="gantt-lane gantt-headlane" style={{ width }}>
                 {weeks.map((label, i) => <div key={i} className="gantt-week" style={{ width: 7 * px }}>{label}</div>)}
+                <NextSlotTags nd={nd} x={x} px={px} canEdit={isOps && !draft} />
               </div>
             </div>
           )}

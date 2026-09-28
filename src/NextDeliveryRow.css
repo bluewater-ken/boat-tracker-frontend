@@ -35,11 +35,13 @@
 .nextslot-layer { position: absolute; top: 0; bottom: 0; right: 0; z-index: 6; pointer-events: none; }
 .nextslot { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed #1E9E5A; }
 .nextslot.moving { border-left-color: #0F7A43; }
+/* Tag in the sticky week/month header row, like the blue Today mark */
 .nextslot-tag {
-  position: absolute; left: 0; transform: translateX(-50%);
-  background: #1E9E5A; color: #fff; font-size: 9px; font-weight: 700;
-  padding: 1px 7px; border-radius: 8px; white-space: nowrap;
-  pointer-events: auto; user-select: none; touch-action: none;
+  position: absolute; top: 3px; transform: translateX(-50%); z-index: 9;
+  background: #1E9E5A; color: #fff; font-size: 11px; font-weight: 700; line-height: 16px;
+  padding: 0 9px; border-radius: 9px; white-space: nowrap;
+  user-select: none; touch-action: none; box-shadow: 0 0 0 1.5px #fff;
 }
 .nextslot-tag.editable { cursor: ew-resize; }
-.nextslot-tag.editable:hover, .nextslot.moving .nextslot-tag { background: #0F7A43; box-shadow: 0 0 0 2px #fff, 0 0 0 3px #0F7A43; }
+.nextslot-tag.editable:hover, .nextslot-tag.moving { background: #0F7A43; box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #0F7A43; }
+.nextslot-grip { margin-right: 5px; font-size: 11px; opacity: 0.9; }

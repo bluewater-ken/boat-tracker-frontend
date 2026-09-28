@@ -20,6 +20,7 @@ export function useNextDelivery() {
   const [dates, setDates] = useState(null); // { small, 36 } as YYYY-MM-DD or null
   const [saving, setSaving] = useState('');
   const [error, setError] = useState('');
+  const [drag, setDrag] = useState(null); // { id, dDays } while a tag is dragged
 
   useEffect(() => {
     apiFetch('/api/public/next-delivery')
@@ -52,7 +53,7 @@ export function useNextDelivery() {
     }
   }, [dates]);
 
-  return { dates, saving, error, save };
+  return { dates, saving, error, save, drag, setDrag };
 }
 
 export default function NextDeliveryRow({ canEdit, nd }) {
@@ -90,21 +91,34 @@ const shift = (d, n) => {
 };
 const fmt = (d) => new Date(d + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-/**
- * The dashed "Next slot" lines drawn down the whole Timeline. One line when
- * both groups share a date, two when they differ. `x` maps a date to pixels in
- * the lanes, `px` is pixels per day, `left` is where the lanes start.
- */
-export function NextSlotLines({ nd, x, px, left, canEdit }) {
-  const [drag, setDrag] = useState(null); // { id, dDays }
-  const dates = nd.dates;
-  if (!dates) return null;
+/** One line when both groups share a date, two when they differ. */
+function slotLines(dates) {
+  if (!dates) return [];
+  if (dates.small && dates.small === dates['36']) return [{ keys: ['small', '36'], date: dates.small, label: 'Next slot · all models' }];
+  return GROUPS.filter((g) => dates[g.key]).map((g) => ({ keys: [g.key], date: dates[g.key], label: `Next slot · ${g.key === '36' ? '36' : '23T/25T/2850'}` }));
+}
 
-  const lines = [];
-  if (dates.small && dates.small === dates['36']) lines.push({ keys: ['small', '36'], date: dates.small, label: 'Next slot · all models' });
-  else
-    for (const g of GROUPS)
-      if (dates[g.key]) lines.push({ keys: [g.key], date: dates[g.key], label: `Next slot · ${g.key === '36' ? '36' : '23T/25T/2850'}` });
+/**
+ * The dashed "Next slot" lines drawn down the whole Timeline. `x` maps a date
+ * to pixels in the lanes, `left` is where the lanes start. Their draggable
+ * tags live in the sticky header (NextSlotTags), next to "Today".
+ */
+export function NextSlotLines({ nd, x, left }) {
+  const { drag } = nd;
+  return (
+    <div className="nextslot-layer" style={{ left }}>
+      {slotLines(nd.dates).map((l) => {
+        const moving = drag?.id === l.keys.join();
+        return <div key={l.keys.join()} className={`nextslot ${moving ? 'moving' : ''}`} style={{ left: x(moving ? shift(l.date, drag.dDays) : l.date) }} />;
+      })}
+    </div>
+  );
+}
+
+/** The tags for the lines, inside a sticky header lane so they never scroll away. Drag one to move its line. */
+export function NextSlotTags({ nd, x, px, canEdit }) {
+  const { drag, setDrag } = nd;
+  const lines = slotLines(nd.dates);
 
   const begin = (e, line) => {
     if (!canEdit) return;
@@ -124,24 +138,20 @@ export function NextSlotLines({ nd, x, px, left, canEdit }) {
     window.addEventListener('pointerup', onUp);
   };
 
-  return (
-    <div className="nextslot-layer" style={{ left }}>
-      {lines.map((l, i) => {
-        const moving = drag?.id === l.keys.join();
-        const date = moving ? shift(l.date, drag.dDays) : l.date;
-        return (
-          <div key={l.keys.join()} className={`nextslot ${moving ? 'moving' : ''}`} style={{ left: x(date) }}>
-            <div
-              className={`nextslot-tag ${canEdit ? 'editable' : ''}`}
-              style={{ top: 22 + i * 18 }}
-              onPointerDown={(e) => begin(e, l)}
-              title={canEdit ? 'Drag to move the next build slot. Buyers see this month as “Estimated delivery”.' : 'The next open build slot, shown to buyers as “Estimated delivery”.'}
-            >
-              {l.label} · {fmt(date)}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
+  return lines.map((l) => {
+    const moving = drag?.id === l.keys.join();
+    const date = moving ? shift(l.date, drag.dDays) : l.date;
+    return (
+      <div
+        key={l.keys.join()}
+        className={`nextslot-tag ${canEdit ? 'editable' : ''} ${moving ? 'moving' : ''}`}
+        style={{ left: x(date) }}
+        onPointerDown={(e) => begin(e, l)}
+        title={canEdit ? 'Drag left or right to move the next build slot. Buyers see this month as “Estimated delivery”.' : 'The next open build slot, shown to buyers as “Estimated delivery”.'}
+      >
+        {canEdit && <span className="nextslot-grip">⇔</span>}
+        {l.label} · {fmt(date)}
+      </div>
+    );
+  });
 }

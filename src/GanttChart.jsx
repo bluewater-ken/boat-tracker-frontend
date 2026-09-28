@@ -598,7 +598,6 @@ function GanttChart({ onManageBoats }) {
 
   return (
     <div className="gantt" style={{ '--gcol': colW + 'px' }}>
-      <NextDeliveryRow canEdit={isOps} />
       <div className="gantt-scroll" ref={scrollRef} onPointerDown={beginPan}>
         <div className="gantt-toolbar">
           <div className="gantt-zoom">
@@ -771,6 +770,8 @@ function GanttChart({ onManageBoats }) {
           <span className="gantt-legend-note">Norms learn from real history per model — see Admin → Timeline.</span>
         </div>
       </div>
+
+      <NextDeliveryRow canEdit={isOps} />
 
       {itemsPop && (
         <div className="gantt-edbackdrop" onClick={() => setItemsPop(null)}>

@@ -26,3 +26,20 @@
 .nextdel-error {
   color: #9a5b00;
 }
+.nextdel-hint {
+  color: #5b6770;
+  font-size: 12px;
+}
+
+/* The "Next slot" line across the Timeline */
+.nextslot-layer { position: absolute; top: 0; bottom: 0; right: 0; z-index: 6; pointer-events: none; }
+.nextslot { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed #1E9E5A; }
+.nextslot.moving { border-left-color: #0F7A43; }
+.nextslot-tag {
+  position: absolute; left: 0; transform: translateX(-50%);
+  background: #1E9E5A; color: #fff; font-size: 9px; font-weight: 700;
+  padding: 1px 7px; border-radius: 8px; white-space: nowrap;
+  pointer-events: auto; user-select: none; touch-action: none;
+}
+.nextslot-tag.editable { cursor: ew-resize; }
+.nextslot-tag.editable:hover, .nextslot.moving .nextslot-tag { background: #0F7A43; box-shadow: 0 0 0 2px #fff, 0 0 0 3px #0F7A43; }

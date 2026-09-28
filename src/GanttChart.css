@@ -181,6 +181,7 @@
 .swfill { background: linear-gradient(90deg, #D6B33A 0 50%, #fff 50%); border: 1px solid #D6B33A; }
 .swproj { background: #fff; border: 1.6px dashed #3A8BB0; }
 .swbaseline { height: 2px !important; background: #8A969E; border-radius: 1px; }
+.swnextslot { width: 0 !important; height: 12px; border-left: 2px dashed #1E9E5A; border-radius: 0 !important; margin-left: 4px; }
 .swdiamond { width: 11px !important; height: 11px !important; transform: rotate(45deg); background: #173A5E; border-radius: 2px !important; }
 .swbehind { background: repeating-linear-gradient(90deg, #A32D2D 0 6px, #fff 6px 10px); height: 5px !important; }
 .gantt-legend-note { color: #8A969E; }

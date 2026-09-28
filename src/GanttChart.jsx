@@ -3,7 +3,7 @@ import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
 import { canEdit } from './permissions';
 import { ShowDeliveredToggle } from './boatFilter';
-import NextDeliveryRow from './NextDeliveryRow';
+import NextDeliveryRow, { NextSlotLines, useNextDelivery } from './NextDeliveryRow';
 import './GanttChart.css';
 
 // Timeline — the self-maintaining production Gantt (see TIMELINE_SPEC.md).
@@ -47,6 +47,7 @@ function GanttChart({ onManageBoats }) {
   const isOps = canEdit(user, 'gantt');
 
   const [data, setData] = useState(null);     // saved payload (null = backend not set up)
+  const nd = useNextDelivery();                // the "Next slot" dates: a line on the chart + the row below
   const [preview, setPreview] = useState(null); // draft payload from POST /preview
   const [draft, setDraft] = useState(null);   // draft order (array of keys) | null
   const [previewFailed, setPreviewFailed] = useState(false);
@@ -272,6 +273,7 @@ function GanttChart({ onManageBoats }) {
     if (b > max) max = b;
   }
   for (const g of groups) if (g.target_date) { const t = parseD(g.target_date); if (t > max) max = t; }
+  for (const d of [nd.dates?.small, nd.dates?.['36']]) if (d) { const t = parseD(d); if (t > max) max = t; } // keep the Next slot line on the chart
   min = new Date(min.getTime() - 7 * DAY);
   max = new Date(max.getTime() + 14 * DAY);
   min = new Date(min.getTime() - ((min.getDay() + 6) % 7) * DAY); // snap to Monday
@@ -628,6 +630,7 @@ function GanttChart({ onManageBoats }) {
           <div className="gantt-grid" style={{ left: colW, width }}>
             {gridLines.map((l, i) => <div key={i} className={`gantt-gl ${l.cls}`} style={{ left: l.left }} />)}
           </div>
+          <NextSlotLines nd={nd} x={x} px={px} left={colW} canEdit={isOps && !draft} />
           <div className="gantt-row gantt-quarterrow">
             <div className="gantt-left gantt-headleft">Boat
               <span className="gantt-colresize" onPointerDown={beginColResize} title="Drag to resize this column" />
@@ -766,12 +769,13 @@ function GanttChart({ onManageBoats }) {
           <span><i className="sw swbaseline" />Rule / norm (bar past it = over)</span>
           <span>📌 Your pinned dates — an estimate, not a completion</span>
           <span><i className="sw swdiamond" /> Target delivery</span>
+          <span><i className="sw swnextslot" />Next slot: est. delivery for a new order{isOps ? ' (drag its tag)' : ''}</span>
           <span><i className="sw swbehind" /><b className="gantt-behindtag">Behind target</b></span>
           <span className="gantt-legend-note">Norms learn from real history per model — see Admin → Timeline.</span>
         </div>
       </div>
 
-      <NextDeliveryRow canEdit={isOps} />
+      <NextDeliveryRow canEdit={isOps} nd={nd} />
 
       {itemsPop && (
         <div className="gantt-edbackdrop" onClick={() => setItemsPop(null)}>

@@ -3,6 +3,7 @@ import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
 import { canEdit } from './permissions';
 import { ShowDeliveredToggle } from './boatFilter';
+import NextDeliveryRow from './NextDeliveryRow';
 import './GanttChart.css';
 
 // Timeline — the self-maintaining production Gantt (see TIMELINE_SPEC.md).
@@ -597,6 +598,7 @@ function GanttChart({ onManageBoats }) {
 
   return (
     <div className="gantt" style={{ '--gcol': colW + 'px' }}>
+      <NextDeliveryRow canEdit={isOps} />
       <div className="gantt-scroll" ref={scrollRef} onPointerDown={beginPan}>
         <div className="gantt-toolbar">
           <div className="gantt-zoom">

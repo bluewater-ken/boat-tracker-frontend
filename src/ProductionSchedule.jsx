@@ -35,7 +35,7 @@ const stagePct = (boat, stageIdx, stageName) => {
   return { pct: STATUSES.indexOf(stageName) < stageIdx ? 100 : 0, real: false };
 };
 
-function ProductionSchedule({ refreshTrigger, onShopReport }) {
+function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const isOps = canEdit(user, 'schedule'); // "can edit this tab" per user permissions
@@ -62,6 +62,7 @@ function ProductionSchedule({ refreshTrigger, onShopReport }) {
         apiFetch('/api/assembly').then(r => r.ok ? r.json() : null).catch(() => null),
         apiFetch('/api/parts').then(r => r.ok ? r.json() : null).catch(() => null),
         apiFetch('/api/parts/standard').then(r => r.ok ? r.json() : null).catch(() => null),
+        apiFetch('/api/lamination').then(r => r.ok ? r.json() : []).catch(() => []),
       ]);
       let boatsData;
       if (isMobile) {
@@ -101,10 +102,13 @@ function ProductionSchedule({ refreshTrigger, onShopReport }) {
         }
       }
       setBoats(boatsData);
-      const [asm, partRows, stdParts] = await extrasReq;
+      const [asm, partRows, stdParts, lamRows] = await extrasReq;
       const ex = {};
-      // Consoles pip: the Assembly work center whose name matches /console/.
-      const wc = asm?.work_centers?.find(w => /console/i.test(w.name || ''));
+      // Consoles pip: the original console work center (the plain "Console, Hardtop, and
+      // Leaning Post"). Exclude the 36-specific one — picking the first /console/ match was
+      // landing on "Console … — 36" and leaving non-36 boats blank. 36 consoles are handled
+      // separately; not shown on the PS pip for now.
+      const wc = asm?.work_centers?.find(w => /console/i.test(w.name || '') && !/\b36\b/.test(w.name || ''));
       if (wc) {
         for (const r of asm.rows || []) {
           if (r.work_center_id === wc.id && r.total_items) {
@@ -134,6 +138,25 @@ function ProductionSchedule({ refreshTrigger, onShopReport }) {
         const per = {};
         for (const st in stageAgg[bid]) { const a = stageAgg[bid][st]; if (a.total) per[st] = Math.round(100 * a.done / a.total); }
         (ex[bid] ||= {}).stagePct = per;
+      }
+      // Glass Shop comes from lamination, not CompanyCam: there is no glass work center,
+      // so without this the one stage the glass crew actually works would never show
+      // early progress the way Back Line / Front Line / QC above already do. Same "done"
+      // rule as the Timeline and the reports - a mold task counts once it is on the mold
+      // or pulled (pulling only frees the mold), Glass Kit has no mold. N/A drops out of
+      // the denominator; Transducer Type is a mold reference, never build work.
+      if (Array.isArray(lamRows)) {
+        const lamAgg = {};
+        for (const r of lamRows) {
+          if (r.na || r.task_name === 'Transducer Type') continue;
+          const done = (r.task_name === 'Glass Kit' ? ['Complete'] : ['Complete/On Mold', 'Pulled']).includes(r.status || '');
+          const a = (lamAgg[r.boat_id] ||= { done: 0, total: 0 });
+          a.total++; if (done) a.done++;
+        }
+        for (const bid in lamAgg) {
+          const a = lamAgg[bid];
+          if (a.total) ((ex[bid] ||= {}).stagePct ||= {})['Glass Shop'] = Math.round(100 * a.done / a.total);
+        }
       }
       // Spare/Refit/Service boats: aggregate their CompanyCam checklist(s) (any work
       // center) into one %, shown in the QC pip — mirrors the Assembly board's routing,
@@ -266,6 +289,10 @@ function ProductionSchedule({ refreshTrigger, onShopReport }) {
         {canReorder ? ' Grab the ⠿ handle to drag-reorder, or tap a boat and use Move up / Move down.' : ''} Tap a boat for more actions.
       </div>
       <div className="sched-toolbar">
+        {/* Manage Boats lives here AND on the Timeline: this is the tab the queue is run from,
+            and "add a boat" is the + New Boat button inside the drawer. Moving it to the
+            Timeline only (2026-09-16) took both away from where they get used. */}
+        {isOps && !isMobile && onManageBoats && <button className="sched-manage" onClick={onManageBoats}>⚙ Manage Boats</button>}
         {isOps && !isMobile && onShopReport && <button className="sched-manage" onClick={onShopReport}>📄 Shop Report</button>}
         <ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} />
       </div>

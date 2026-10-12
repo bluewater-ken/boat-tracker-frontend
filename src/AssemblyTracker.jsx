@@ -173,7 +173,12 @@ function AssemblyTracker() {
   const { visible, delivered } = applyDeliveredFilter(boats, showDelivered);
   // Phone = only in-production boats (matches the other tabs' employee view).
   const boardBoats = isMobile ? visible.filter(inProduction) : visible;
-  const columns = [...APP_COLS, ...workCenters.filter(w => !isSpareOnly(w.id))];
+  // Model-specific work centers (the 36 set, named "… — 36" / "… 36 …") get pushed to
+  // the end so the everyday columns keep their familiar order. Stable within each group.
+  // (Quick ordering only — proper per-model gating is a later BOSS change.)
+  const is36Col = w => /\b36\b/.test(w.name || '');
+  const ccCols = workCenters.filter(w => !isSpareOnly(w.id));
+  const columns = [...APP_COLS, ...ccCols.filter(w => !is36Col(w)), ...ccCols.filter(is36Col)];
 
   const menuBoat = menu ? boats.find(b => b.boat_id === menu.boatId) : null;
   const menuWc = menu ? columns.find(w => w.id === menu.wcId) : null;

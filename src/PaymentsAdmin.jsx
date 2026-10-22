@@ -516,10 +516,15 @@ function PaymentsAdmin() {
   // (projected completion) until Ken overrides it. Past = invoiced (green); future =
   // planned (blue). Independent of payment timing.
   const qcFinal = (id) => { const qc = (tlBy[id]?.segments || []).find(s => s.name === 'QC'); return qc ? String(qc.end).slice(0, 10) : null; };
+  const deliveredDay = (id) => (delivered[id] ? String(delivered[id]).slice(0, 10) : null);
   const deliveries = [];
   for (const b of boats) {
     if (b.is_spare) continue; // service / refit / spare — not a new-boat sale
-    const dd = plans[b.boat_id]?.invoice_date || qcFinal(b.boat_id);
+    // Recognition date: Invoice date override → QC-final from the timeline → actual delivered
+    // date. The last fallback matters because the timeline projector drops Delivered boats, so
+    // without it a boat disappears from the chart the moment it delivers (when its revenue is
+    // actually recognized). Delivered boats keep their revenue in their delivery month.
+    const dd = plans[b.boat_id]?.invoice_date || qcFinal(b.boat_id) || deliveredDay(b.boat_id);
     if (!dd) continue;
     const date = String(dd).slice(0, 10);
     deliveries.push({ boat: b, date, revenue: plans[b.boat_id]?.contract_price ?? null, actual: date < todayStr() });

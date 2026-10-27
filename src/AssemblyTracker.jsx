@@ -51,6 +51,33 @@ const APP_COLS = [
   { id: '_fin', name: 'Finishing', app: true },
 ];
 
+// Work-center columns merge by WORK AREA across models, so the board stays readable: every
+// model names its own checklists ("25T Hull", "Backline -- 23T Hull", "Backline -- 36 Hull
+// (WIP)") but they all collapse to one "Hull" column — each boat shows its own model's
+// checklist there. Detected by keyword so new models fold in with no code change. Empty
+// columns are hidden (so e.g. "Stringer Grid" only appears when a 36 is on the board).
+const AREA_ORDER = ['hull', 'deck', 'ring', 'deck-ring', 'stringer', 'liner', 'console', 'front-line', 'quality-control'];
+const areaOf = (rawName) => {
+  const n = (rawName || '').toLowerCase();
+  if (/quality|(^|[^a-z])qc([^a-z]|$)/.test(n)) return { key: 'quality-control', label: 'QC' };
+  if (/front/.test(n)) return { key: 'front-line', label: 'Front Line' };
+  if (/console|hardtop|leaning/.test(n)) return { key: 'console', label: 'Console / Hardtop / Leaning Post' };
+  if (/stringer/.test(n)) return { key: 'stringer', label: 'Stringer Grid' };
+  if (/\bliner\b/.test(n)) return { key: 'liner', label: 'Liner' };
+  const deck = /deck/.test(n), ring = /ring/.test(n), hull = /hull/.test(n);
+  if (deck && ring) return { key: 'deck-ring', label: 'Deck & Ring' };
+  if (hull) return { key: 'hull', label: 'Hull' };
+  if (deck) return { key: 'deck', label: 'Deck' };
+  if (ring) return { key: 'ring', label: 'Ring' };
+  // Unknown work center: keep its own column, stripped of model/WIP noise, so nothing is lost.
+  const clean = (rawName || '')
+    .replace(/\s*\((wip|new)\)\s*/ig, ' ')
+    .replace(/\s*(--|—|–)\s*(23t|25t|2850|28|36)\b.*$/i, '')
+    .replace(/^\s*(23t|25t|2850|28|36)\s+/i, '')
+    .trim() || 'Other';
+  return { key: 'x:' + clean.toLowerCase(), label: clean };
+};
+
 // App-wide status language: neutral = untouched, amber = working, green = done.
 const CELL = {
   NOT_STARTED: { bg: '#F4F3EE', fg: '#9B998F' },
@@ -162,10 +189,23 @@ function AssemblyTracker() {
     return withRow.length > 0 && withRow.every(bid => spareSet.has(bid));
   };
 
-  const getRow = (boatId, wcId) => {
-    if (wcId === '_lam' || wcId === '_fin') return appRows[boatId]?.[wcId] || null;
-    if (wcId === 'quality-control' && spareSet.has(boatId)) return spareCcRow(boatId);
-    return rows[boatId]?.[wcId] || null;
+  // Merge CompanyCam work centers into work-area columns: one 'Hull' across all models, etc.
+  const areaMap = new Map();
+  for (const w of workCenters) {
+    if (isSpareOnly(w.id)) continue;
+    const a = areaOf(w.name);
+    if (!areaMap.has(a.key)) areaMap.set(a.key, { id: a.key, name: a.label, members: [] });
+    areaMap.get(a.key).members.push(w.id);
+  }
+  const areaMembers = {};
+  for (const c of areaMap.values()) areaMembers[c.id] = c.members;
+
+  const getRow = (boatId, colId) => {
+    if (colId === '_lam' || colId === '_fin') return appRows[boatId]?.[colId] || null;
+    if (colId === 'quality-control' && spareSet.has(boatId)) return spareCcRow(boatId);
+    const members = areaMembers[colId];
+    if (members) { for (const wc of members) { const r = rows[boatId]?.[wc]; if (r) return r; } return null; }
+    return rows[boatId]?.[colId] || null;
   };
 
   if (loading) return <div className="loading">Loading assembly board...</div>;
@@ -173,12 +213,12 @@ function AssemblyTracker() {
   const { visible, delivered } = applyDeliveredFilter(boats, showDelivered);
   // Phone = only in-production boats (matches the other tabs' employee view).
   const boardBoats = isMobile ? visible.filter(inProduction) : visible;
-  // Model-specific work centers (the 36 set, named "… — 36" / "… 36 …") get pushed to
-  // the end so the everyday columns keep their familiar order. Stable within each group.
-  // (Quick ordering only — proper per-model gating is a later BOSS change.)
-  const is36Col = w => /\b36\b/.test(w.name || '');
-  const ccCols = workCenters.filter(w => !isSpareOnly(w.id));
-  const columns = [...APP_COLS, ...ccCols.filter(w => !is36Col(w)), ...ccCols.filter(is36Col)];
+  // Work-area columns in build order, hiding any with no data for the boats on screen.
+  const areaOrd = (id) => { const i = AREA_ORDER.indexOf(id); return i < 0 ? 99 : i; };
+  const ccMerged = [...areaMap.values()]
+    .sort((a, b) => areaOrd(a.id) - areaOrd(b.id) || a.name.localeCompare(b.name))
+    .filter(col => boardBoats.some(bt => getRow(bt.boat_id, col.id)));
+  const columns = [...APP_COLS, ...ccMerged];
 
   const menuBoat = menu ? boats.find(b => b.boat_id === menu.boatId) : null;
   const menuWc = menu ? columns.find(w => w.id === menu.wcId) : null;

@@ -46,36 +46,26 @@ const rollup = (rowsForBoat, tasks, finalOf, defaultOf) => {
   return { completed_items: completed, total_items: total, remaining, items };
 };
 
+// Glass Shop is the one app-sourced column — its progress comes from the Lamination tab, not
+// CompanyCam (there is no glass-shop checklist). The other columns are CompanyCam, by PS stage.
 const APP_COLS = [
-  { id: '_lam', name: 'Lamination', app: true },
-  { id: '_fin', name: 'Finishing', app: true },
+  { id: '_lam', name: 'Glass Shop', app: true },
 ];
 
-// Work-center columns merge by WORK AREA across models, so the board stays readable: every
-// model names its own checklists ("25T Hull", "Backline -- 23T Hull", "Backline -- 36 Hull
-// (WIP)") but they all collapse to one "Hull" column — each boat shows its own model's
-// checklist there. Detected by keyword so new models fold in with no code change. Empty
-// columns are hidden (so e.g. "Stringer Grid" only appears when a 36 is on the board).
-const AREA_ORDER = ['hull', 'deck', 'ring', 'deck-ring', 'stringer', 'liner', 'console', 'front-line', 'quality-control'];
+// Assembly columns mirror the Production Schedule stages. Every CompanyCam work center maps to
+// the stage it belongs to, so the many model-specific checklists ("25T Hull", "Backline -- 23T
+// Deck", "Stringer Grid — 36 (WIP)", …) roll up into one column per stage. Glass Shop isn't here
+// — it comes from the Lamination tab (the _lam column). Back Line aggregates Hull/Deck/Ring/
+// Stringer into one number; Console / Front Line / QC are usually a single checklist. Matched by
+// keyword so new models fold in with no code change; anything that maps to no stage isn't shown.
+const AREA_ORDER = ['back-line', 'console', 'front-line', 'quality-control'];
 const areaOf = (rawName) => {
   const n = (rawName || '').toLowerCase();
   if (/quality|(^|[^a-z])qc([^a-z]|$)/.test(n)) return { key: 'quality-control', label: 'QC' };
   if (/front/.test(n)) return { key: 'front-line', label: 'Front Line' };
-  if (/console|hardtop|leaning/.test(n)) return { key: 'console', label: 'Console / Hardtop / Leaning Post' };
-  if (/stringer/.test(n)) return { key: 'stringer', label: 'Stringer Grid' };
-  if (/\bliner\b/.test(n)) return { key: 'liner', label: 'Liner' };
-  const deck = /deck/.test(n), ring = /ring/.test(n), hull = /hull/.test(n);
-  if (deck && ring) return { key: 'deck-ring', label: 'Deck & Ring' };
-  if (hull) return { key: 'hull', label: 'Hull' };
-  if (deck) return { key: 'deck', label: 'Deck' };
-  if (ring) return { key: 'ring', label: 'Ring' };
-  // Unknown work center: keep its own column, stripped of model/WIP noise, so nothing is lost.
-  const clean = (rawName || '')
-    .replace(/\s*\((wip|new)\)\s*/ig, ' ')
-    .replace(/\s*(--|—|–)\s*(23t|25t|2850|28|36)\b.*$/i, '')
-    .replace(/^\s*(23t|25t|2850|28|36)\s+/i, '')
-    .trim() || 'Other';
-  return { key: 'x:' + clean.toLowerCase(), label: clean };
+  if (/console|hardtop|leaning/.test(n)) return { key: 'console', label: 'Console' };
+  if (/back\s*line|hull|deck|ring|stringer|\bliner\b/.test(n)) return { key: 'back-line', label: 'Back Line' };
+  return null; // maps to no PS stage — not shown as a column
 };
 
 // App-wide status language: neutral = untouched, amber = working, green = done.
@@ -189,11 +179,13 @@ function AssemblyTracker() {
     return withRow.length > 0 && withRow.every(bid => spareSet.has(bid));
   };
 
-  // Merge CompanyCam work centers into work-area columns: one 'Hull' across all models, etc.
+  // Merge CompanyCam work centers into one column per PS stage (Back Line rolls up Hull/Deck/
+  // Ring/Stringer). Work centers that map to no stage are left out.
   const areaMap = new Map();
   for (const w of workCenters) {
     if (isSpareOnly(w.id)) continue;
     const a = areaOf(w.name);
+    if (!a) continue;
     if (!areaMap.has(a.key)) areaMap.set(a.key, { id: a.key, name: a.label, members: [] });
     areaMap.get(a.key).members.push(w.id);
   }
@@ -204,7 +196,18 @@ function AssemblyTracker() {
     if (colId === '_lam' || colId === '_fin') return appRows[boatId]?.[colId] || null;
     if (colId === 'quality-control' && spareSet.has(boatId)) return spareCcRow(boatId);
     const members = areaMembers[colId];
-    if (members) { for (const wc of members) { const r = rows[boatId]?.[wc]; if (r) return r; } return null; }
+    if (members) {
+      // Sum every checklist under this stage for the boat (e.g. Back Line = Hull + Deck + Ring).
+      let c = 0, t = 0; const remaining = [], items = []; let any = false;
+      for (const wc of members) {
+        const r = rows[boatId]?.[wc];
+        if (!r) continue;
+        any = true; c += r.completed_items || 0; t += r.total_items || 0;
+        if (Array.isArray(r.remaining)) remaining.push(...r.remaining);
+        if (Array.isArray(r.items)) items.push(...r.items);
+      }
+      return any ? { completed_items: c, total_items: t, remaining, items } : null;
+    }
     return rows[boatId]?.[colId] || null;
   };
 
@@ -239,7 +242,7 @@ function AssemblyTracker() {
       <span className="asm-legend-item"><i style={{ background: CELL.IN_PROGRESS.bg }} />In progress</span>
       <span className="asm-legend-item"><i style={{ background: CELL.COMPLETE.bg }} />Complete</span>
       <span className="asm-legend-item"><i style={{ background: '#fff', border: '1px solid #E2E6EA' }} />— No checklist</span>
-      <span className="asm-legend-note">Tap a cell for what's left. Counts are tasks done / total — Lamination &amp; Finishing from this app, other columns from CompanyCam.</span>
+      <span className="asm-legend-note">Columns follow the Production Schedule stages. Counts are tasks done / total — Glass Shop from the Lamination tab, the rest from CompanyCam. Tap a cell for what's left.</span>
     </div>
   );
 
@@ -248,8 +251,8 @@ function AssemblyTracker() {
       <div className="asm-toolbar">
         <span className="asm-toolbar-note">
           {connected
-            ? 'One board for the whole boat — Lamination & Finishing from this app, the rest live from CompanyCam. Read-only here.'
-            : 'Lamination & Finishing are live from this app. CompanyCam columns are placeholders until the backend link is set up.'}
+            ? 'One board for the whole boat, by Production Schedule stage — Glass Shop from the Lamination tab, the rest live from CompanyCam. Read-only here.'
+            : 'Glass Shop is live from the Lamination tab. CompanyCam stage columns are placeholders until the backend link is set up.'}
         </span>
         <span style={{ marginLeft: 'auto' }}><ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} /></span>
       </div>

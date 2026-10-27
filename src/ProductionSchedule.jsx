@@ -104,14 +104,16 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
       setBoats(boatsData);
       const [asm, partRows, stdParts, lamRows] = await extrasReq;
       const ex = {};
-      // Consoles pip: the original console work center (the plain "Console, Hardtop, and
-      // Leaning Post"). Exclude the 36-specific one — picking the first /console/ match was
-      // landing on "Console … — 36" and leaving non-36 boats blank. 36 consoles are handled
-      // separately; not shown on the PS pip for now.
-      const wc = asm?.work_centers?.find(w => /console/i.test(w.name || '') && !/\b36\b/.test(w.name || ''));
-      if (wc) {
+      // Consoles pip: each model has its OWN console work center ("Console … -- 2850",
+      // "25T Console …", etc.), so match ALL of them and use the boat's own — picking one
+      // global console left every other model's boats at 0%. The 36 console is excluded;
+      // 36 consoles are handled separately, not shown on the PS pip for now.
+      const consoleIds = new Set((asm?.work_centers || [])
+        .filter(w => /console/i.test(w.name || '') && !/\b36\b/.test(w.name || ''))
+        .map(w => w.id));
+      if (consoleIds.size) {
         for (const r of asm.rows || []) {
-          if (r.work_center_id === wc.id && r.total_items) {
+          if (consoleIds.has(r.work_center_id) && r.total_items) {
             (ex[r.boat_id] ||= {}).console = Math.round(100 * r.completed_items / r.total_items);
           }
         }

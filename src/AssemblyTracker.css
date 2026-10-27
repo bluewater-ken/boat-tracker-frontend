@@ -52,6 +52,11 @@
 .asm-bar { height: 4px; background: rgba(0,0,0,0.07); border-radius: 2px; margin-top: 5px; overflow: hidden; }
 .asm-bar span { display: block; height: 100%; border-radius: 2px; }
 
+.asm-bltoggle { padding: 6px 12px; font-size: 12px; font-weight: 600; color: #173A5E; background: #fff; border: 1px solid #C7D2DB; border-radius: 7px; cursor: pointer; white-space: nowrap; }
+.asm-bltoggle:hover { border-color: #2E92D6; color: #2E92D6; }
+/* Back Line sub-columns read as a grouped set under the Back Line stage. */
+.asm-table th.asm-blsubhead { background: #214a72; font-style: italic; }
+
 .asm-legend { position: sticky; left: 0; background: #fff; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 12px 16px; border-top: 1px solid #E6E9EC; }
 .asm-legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #33424C; }
 .asm-legend-item i { width: 15px; height: 15px; border-radius: 3px; border: 1px solid #D6DBE0; }
@@ -108,3 +113,27 @@
 .asm-check-item.done .asm-check-name { color: #8A969E; text-decoration: line-through; }
 .asm-check-empty { padding: 14px 2px; font-size: 12px; color: #8A969E; text-align: center; }
 .asm-check-note { padding: 9px 2px 2px; font-size: 11px; color: #A9B4BC; font-style: italic; }
+
+/* ---------- Touch / phone: the checklist popup as a real bottom sheet ----------
+   Same trigger as ActionMenu's sheet. Two things this fixes: (1) .asm-check-pop's 320px desktop
+   width loads after ActionMenu.css and was beating the sheet's width:100%, so on a phone the
+   "sheet" was a 320px card stuck bottom-left; (2) none of the Assembly-specific insides had touch
+   sizing — 12px tabs and 13px rows are fine under a mouse, not under a thumb. */
+@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+  .asm-check-pop { width: 100%; max-width: 100%; }
+  .asm-menu-top { flex-direction: column; align-items: stretch; gap: 10px; }
+  .asm-menu-count { font-size: 16px; padding: 2px 0 0; }
+  .asm-cc-link { width: 100%; box-sizing: border-box; padding: 13px 14px; font-size: 15px; font-weight: 600; text-align: center; border-radius: 10px; }
+  /* All / To do / Done as one segmented control, 44px tall, equal thirds */
+  .asm-check-tabs { gap: 0; margin-bottom: 12px; border: 1px solid #C7D2DB; border-radius: 10px; overflow: hidden; }
+  .asm-check-tab { flex: 1; min-height: 44px; padding: 0; font-size: 15px; font-weight: 600; border: none; border-radius: 0; border-left: 1px solid #C7D2DB; }
+  .asm-check-tab:first-child { border-left: none; }
+  /* the list scrolls inside the sheet; header and tabs stay put */
+  .asm-checklist { max-height: 50vh; overscroll-behavior: contain; }
+  .asm-check-item { min-height: 48px; padding: 10px 2px; gap: 12px; align-items: center; font-size: 15px; line-height: 1.3; }
+  .asm-check-desc { font-size: 13px; }
+  .asm-check-box { width: 24px; height: 24px; min-width: 24px; font-size: 15px; }
+  .asm-item-photos { min-height: 36px; padding: 6px 12px; font-size: 14px; }
+  .asm-check-empty { font-size: 14px; padding: 22px 2px; }
+  .asm-check-note { font-size: 13px; }
+}

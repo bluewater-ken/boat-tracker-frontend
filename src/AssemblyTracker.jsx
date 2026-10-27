@@ -68,6 +68,19 @@ const areaOf = (rawName) => {
   return null; // maps to no PS stage — not shown as a column
 };
 
+// Back Line splits into its own checklists when expanded: Stringer Grid (36), Hull, Deck, Ring.
+// The 2850's combined "Deck & Ring" checklist rides under Deck (one less column). A boat only has
+// the ones its model uses.
+const BL_SUB_ORDER = ['stringer', 'hull', 'deck', 'ring'];
+const blSubOf = (rawName) => {
+  const n = (rawName || '').toLowerCase();
+  if (/stringer/.test(n)) return { key: 'stringer', label: 'Stringer Grid' };
+  if (/hull/.test(n)) return { key: 'hull', label: 'Hull' };
+  if (/deck/.test(n)) return { key: 'deck', label: 'Deck' }; // Deck, and the 2850 "Deck & Ring"
+  if (/ring/.test(n)) return { key: 'ring', label: 'Ring' };
+  return { key: 'other', label: 'Back Line' };
+};
+
 // App-wide status language: neutral = untouched, amber = working, green = done.
 const CELL = {
   NOT_STARTED: { bg: '#F4F3EE', fg: '#9B998F' },
@@ -91,6 +104,7 @@ function AssemblyTracker() {
   const [appRows, setAppRows] = useState({}); // boatId -> '_lam'|'_fin' -> rollup
   const [connected, setConnected] = useState(false);
   const [showDelivered, setShowDelivered] = useState(false);
+  const [blOpen, setBlOpen] = useState(false); // Back Line expanded into its sub-checklists
   const [loading, setLoading] = useState(true);
   const [menu, setMenu] = useState(null); // { boatId, wcId, x, y }
   const [checkFilter, setCheckFilter] = useState('todo'); // popup checklist filter: all | todo | done — opens on the actionable list
@@ -181,6 +195,8 @@ function AssemblyTracker() {
 
   // Merge CompanyCam work centers into one column per PS stage (Back Line rolls up Hull/Deck/
   // Ring/Stringer). Work centers that map to no stage are left out.
+  const wcName = {};
+  for (const w of workCenters) wcName[w.id] = w.name;
   const areaMap = new Map();
   for (const w of workCenters) {
     if (isSpareOnly(w.id)) continue;
@@ -191,6 +207,19 @@ function AssemblyTracker() {
   }
   const areaMembers = {};
   for (const c of areaMap.values()) areaMembers[c.id] = c.members;
+  // When Back Line is expanded, build its sub-columns (Stringer/Hull/Deck/Ring) and register
+  // their members so getRow aggregates each sub the same way it does a stage.
+  let blSubCols = [];
+  if (blOpen && areaMap.has('back-line')) {
+    const subMap = new Map();
+    for (const wc of areaMap.get('back-line').members) {
+      const s = blSubOf(wcName[wc]);
+      if (!subMap.has(s.key)) subMap.set(s.key, { id: 'bl:' + s.key, sub: s.key, name: s.label, members: [], bl: true });
+      subMap.get(s.key).members.push(wc);
+    }
+    blSubCols = [...subMap.values()].sort((a, b) => BL_SUB_ORDER.indexOf(a.sub) - BL_SUB_ORDER.indexOf(b.sub));
+    for (const c of blSubCols) areaMembers[c.id] = c.members;
+  }
 
   const getRow = (boatId, colId) => {
     if (colId === '_lam' || colId === '_fin') return appRows[boatId]?.[colId] || null;
@@ -220,6 +249,8 @@ function AssemblyTracker() {
   const areaOrd = (id) => { const i = AREA_ORDER.indexOf(id); return i < 0 ? 99 : i; };
   const ccMerged = [...areaMap.values()]
     .sort((a, b) => areaOrd(a.id) - areaOrd(b.id) || a.name.localeCompare(b.name))
+    // Expand the Back Line column into its sub-columns when open.
+    .flatMap(col => (col.id === 'back-line' && blOpen) ? blSubCols : [col])
     .filter(col => boardBoats.some(bt => getRow(bt.boat_id, col.id)));
   const columns = [...APP_COLS, ...ccMerged];
 
@@ -254,7 +285,14 @@ function AssemblyTracker() {
             ? 'One board for the whole boat, by Production Schedule stage — Glass Shop from the Lamination tab, the rest live from CompanyCam. Read-only here.'
             : 'Glass Shop is live from the Lamination tab. CompanyCam stage columns are placeholders until the backend link is set up.'}
         </span>
-        <span style={{ marginLeft: 'auto' }}><ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} /></span>
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+          {!isMobile && areaMap.has('back-line') && (
+            <button className="asm-bltoggle" onClick={() => setBlOpen(o => !o)}>
+              {blOpen ? '▾ Back Line by part' : '▸ Expand Back Line'}
+            </button>
+          )}
+          <ShowDeliveredToggle count={delivered} on={showDelivered} onChange={setShowDelivered} />
+        </span>
       </div>
       {isMobile ? (
         <div className="asm-cards">
@@ -295,7 +333,7 @@ function AssemblyTracker() {
           <thead>
             <tr>
               <th className="asm-boathead">Boat</th>
-              {columns.map(w => <th key={w.id} className={w.app ? 'asm-apphead' : ''}>{w.name}</th>)}
+              {columns.map(w => <th key={w.id} className={w.app ? 'asm-apphead' : w.bl ? 'asm-blsubhead' : ''}>{w.name}</th>)}
             </tr>
           </thead>
           <tbody>

@@ -9,6 +9,9 @@ import useIsMobile from './useIsMobile';
 import './ProductionSchedule.css';
 
 const STATUSES = ['Backlog', 'Pre-Production', 'Glass Shop', 'Back Line', 'Front Line', 'QC', 'Delivered'];
+// Checklists left over from a rebuild are flagged "❌ OLD — DELETE" in CompanyCam until removed.
+// Ignore them so a dead 0/47 copy can't shadow the live checklist's progress.
+const isObsoleteWc = (name) => /❌|🗑|\bOLD\b|\bDELETE\b/i.test(name || '');
 // What the bar displays: the 7 real stages plus display-only trackers that are
 // NOT statuses — Advance/Step back skip them and they're never "current".
 // Consoles shows the Assembly tab's Console checklist % between BackL and Front.
@@ -109,7 +112,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
       // global console left every other model's boats at 0%. The 36 console is excluded;
       // 36 consoles are handled separately, not shown on the PS pip for now.
       const consoleIds = new Set((asm?.work_centers || [])
-        .filter(w => /console/i.test(w.name || '') && !/\b36\b/.test(w.name || ''))
+        .filter(w => /console/i.test(w.name || '') && !/\b36\b/.test(w.name || '') && !isObsoleteWc(w.name))
         .map(w => w.id));
       if (consoleIds.size) {
         for (const r of asm.rows || []) {
@@ -128,6 +131,7 @@ function ProductionSchedule({ refreshTrigger, onManageBoats, onShopReport }) {
       for (const r of asm?.rows || []) {
         if (!r.total_items) continue;
         const name = wcName[r.work_center_id] || r.work_center_id || '';
+        if (isObsoleteWc(name)) continue;
         for (const [stage, re] of Object.entries(STAGE_WC)) {
           if (re.test(name)) {
             const s = ((stageAgg[r.boat_id] ||= {})[stage] ||= { done: 0, total: 0 });

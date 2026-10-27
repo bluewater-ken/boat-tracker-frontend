@@ -52,6 +52,10 @@ const APP_COLS = [
   { id: '_lam', name: 'Glass Shop', app: true },
 ];
 
+// Checklists left over from a rebuild are flagged "❌ OLD — DELETE" in CompanyCam until someone
+// removes them. Ignore them everywhere so they don't shadow or clobber the live checklist.
+const isObsoleteWc = (name) => /❌|🗑|\bOLD\b|\bDELETE\b/i.test(name || '');
+
 // Assembly columns mirror the Production Schedule stages. Every CompanyCam work center maps to
 // the stage it belongs to, so the many model-specific checklists ("25T Hull", "Backline -- 23T
 // Deck", "Stringer Grid — 36 (WIP)", …) roll up into one column per stage. Glass Shop isn't here
@@ -158,7 +162,7 @@ function AssemblyTracker() {
       if (asm && Array.isArray(asm.work_centers) && asm.work_centers.length) {
         // "Build Improvements" is a punch list, not a build stage — its open items
         // surface on the Shop Feed's Issues list instead of a grid column here.
-        setWorkCenters(asm.work_centers.filter(w => !/build\s*improvement/i.test(w.name || '')));
+        setWorkCenters(asm.work_centers.filter(w => !/build\s*improvement/i.test(w.name || '') && !isObsoleteWc(w.name)));
         const map = {};
         for (const r of asm.rows || []) {
           if (!map[r.boat_id]) map[r.boat_id] = {};

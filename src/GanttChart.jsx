@@ -41,6 +41,39 @@ function deliveryStatus(g) {
   return <span className="gantt-deliv"><span className="gantt-deliv-arrow">→</span> {proj} <span className="gantt-onpace">· on pace</span></span>;
 }
 
+// Glass Shop fill mirrors the Lamination tab: every standard glass job counts toward the total,
+// missing ones are "not done yet" (only N/A drops out). The backend fill counts only the lamination
+// rows that exist, so a boat with 3 of ~13 jobs entered reads 3/3 = 100%. Recompute it here from
+// /api/lamination so the Timeline bar matches the Lamination tab and the Assembly board.
+const GLASS_TASKS = ['Glass Kit', 'Hull', 'T Top', 'Liner', 'Ring', 'Baitwell', 'Leaning Post', 'Console', 'Console Face', 'Hatches', 'Boxes', 'Grid', 'Other'];
+const glassDone = (task, status) => (task === 'Glass Kit' ? ['Complete'] : ['Complete/On Mold', 'Pulled']).includes(status || '');
+const glassShopFill = (lamRows, boatKey) => {
+  const byTask = {};
+  for (const r of lamRows || []) if (r.boat_id === boatKey) byTask[r.task_name] = r;
+  let done = 0, total = 0;
+  for (const t of GLASS_TASKS) {
+    const r = byTask[t];
+    if (r && r.na) continue;          // N/A drops out; a missing task stays and counts as not-done
+    total++;
+    if (glassDone(t, r && r.status)) done++;
+  }
+  return total ? { pct: Math.round(100 * done / total), note: `${done}/${total} items` } : null;
+};
+// Overwrite each group's in-progress Glass Shop fill with the full-list count.
+const fixGlassFills = (groups, lamRows) => (groups || []).map((g) => {
+  if (!g.segments) return g;
+  let changed = false;
+  const segments = g.segments.map((s) => {
+    if (s.name !== 'Glass Shop') return s;
+    if (!(s.kind === 'current' || (s.kind === 'pinned' && s.fill_pct != null))) return s;
+    const f = glassShopFill(lamRows, g.key);
+    if (!f) return s;
+    changed = true;
+    return { ...s, fill_pct: f.pct, fill_note: f.note };
+  });
+  return changed ? { ...g, segments } : g;
+});
+
 function GanttChart({ onManageBoats }) {
   const { user } = useAuth();
   // Timeline edit controls (drag/pin/hold, add slot) require gantt = Edit.
@@ -67,12 +100,13 @@ function GanttChart({ onManageBoats }) {
   const [deliveredCount, setDeliveredCount] = useState(0);
   const showDelRef = useRef(false);
   const rawRef = useRef(null);
+  const lamRef = useRef([]);           // /api/lamination, so applyView can correct the Glass Shop fill
   const applyView = () => {
     const raw = rawRef.current;
     if (!raw) { setData(null); return; }
-    const groups = raw.groups || [];
+    const groups = fixGlassFills(raw.groups || [], lamRef.current);
     setDeliveredCount(groups.filter((g) => g.delivered).length);
-    setData(showDelRef.current ? raw : { ...raw, groups: groups.filter((g) => !g.delivered) });
+    setData(showDelRef.current ? { ...raw, groups } : { ...raw, groups: groups.filter((g) => !g.delivered) });
   };
   const onToggleDelivered = (v) => { showDelRef.current = v; setShowDelivered(v); applyView(); }; // { title, sub, groups:[{label, items:[{name,done}]}] }
   const [colW, setColW] = useState(() => {
@@ -130,6 +164,7 @@ function GanttChart({ onManageBoats }) {
         apiFetch('/api/assembly').then(x => (x.ok ? x.json() : null)).catch(() => null),
       ]);
       rawRef.current = r && r.ok ? await r.json() : null;
+      lamRef.current = lam || [];
       applyView();
       setLamRows(lam || []);
       setAsmRows(asm?.rows || []);
@@ -146,6 +181,7 @@ function GanttChart({ onManageBoats }) {
       if (!r.ok) throw new Error();
       const p = await r.json();
       if (!p || !Array.isArray(p.groups)) throw new Error(); // demo-mode fake OK etc.
+      p.groups = fixGlassFills(p.groups, lamRef.current);
       setPreview(p); setPreviewFailed(false);
     } catch { setPreview(null); setPreviewFailed(true); }
   };
@@ -425,8 +461,8 @@ function GanttChart({ onManageBoats }) {
       const items = [];
       for (const t of LAM_TASKS) {
         const r = byTask[t];
-        if (!r || r.na) continue;                  // N/A drops out, like the rollup
-        items.push({ name: t, done: lamDone(t, r.status) });
+        if (r && r.na) continue;                   // N/A drops out; a missing job stays as not-done
+        items.push({ name: t, done: lamDone(t, r && r.status) });
       }
       return items.length ? [{ label: 'Lamination', items }] : [];
     }

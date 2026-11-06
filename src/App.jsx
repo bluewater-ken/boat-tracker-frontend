@@ -110,7 +110,7 @@ function App() {
         </nav>
         <main className="app-content">
           <Suspense fallback={<div className="loading">Loading…</div>}>
-            {shownTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onShopReport={() => setShopReport(true)} />}
+            {shownTab === 'schedule' && <ProductionSchedule refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onManageBoats={() => setManageBoats(true)} onShopReport={() => setShopReport(true)} />}
             {shownTab === 'parts' && <KeyPartsTracker />}
             {shownTab === 'lamination' && <LaminationTracker />}
             {shownTab === 'finishing' && <FinishingTracker />}

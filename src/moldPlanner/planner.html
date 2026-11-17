@@ -98,7 +98,7 @@
   dialog button { border: 1px solid #b0bec5; background: #fff; border-radius: 6px; padding: 6px 14px; cursor: pointer; } dialog button.go { background: var(--navy); color: #fff; border-color: var(--navy); }
   .left { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
   #bank { flex: none; max-height: 34vh; overflow: auto; background: #eef2f5; border-top: 3px solid var(--navy); padding: 6px 8px 8px; }
-  #bank .bt { display: flex; gap: 10px; align-items: baseline; margin-bottom: 6px; } #bank .bt b { font-size: 14px; color: var(--navy); white-space: nowrap; } #bank .bt span { color: #5f6b73; font-size: 11.5px; }
+  #bank .bt { display: flex; gap: 10px; align-items: baseline; margin-bottom: 6px; cursor: pointer; } #bank .bt b { font-size: 14px; color: var(--navy); white-space: nowrap; } #bank .bt span { color: #5f6b73; font-size: 11.5px; }
   .bcards { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
   .bcard { background: #fff; border: 1px solid #b0bec5; border-left-width: 8px; border-radius: 6px; padding: 4px 9px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; max-width: 420px; }
   .bcard:hover { box-shadow: 0 2px 8px rgba(0,0,0,.18); }
@@ -218,7 +218,7 @@ let S = fresh(), savedAt = null;
 let view = { start: 0, weeks: 4, sel: null, hi: null, whole: false, fold: {}, open: {} };
 if (!TEST) try {
   const j = JSON.parse(localStorage.getItem(KEY) || 'null'); if (j && j.S && Array.isArray(j.S.tasks)) { S = migrate(j.S); savedAt = j.saved; }
-  const v = JSON.parse(localStorage.getItem(KEY + ':view') || 'null'); if (v) view = { ...view, start: v.start | 0, weeks: [4, 8, 12].includes(v.weeks) ? v.weeks : 4, fold: v.fold || {} };
+  const v = JSON.parse(localStorage.getItem(KEY + ':view') || 'null'); if (v) view = { ...view, start: v.start | 0, weeks: [4, 8, 12].includes(v.weeks) ? v.weeks : 4, fold: v.fold || {}, bankShut: !!v.bankShut };
 } catch (e) {}
 // names can arrive later than a saved plan (the B.O.S.S tab reads them at load): fill any that are blank
 for (const b of S.boats) { if (b.cust) continue; const d = D.boats.find((x) => x.id === b.id); if (d && d.cust) b.cust = d.cust; }
@@ -227,7 +227,7 @@ function save() {
   if (TEST) return;
   try { savedAt = Date.now(); localStorage.setItem(KEY, JSON.stringify({ v: 1, saved: savedAt, S: JSON.parse(snap()) })); } catch (e) { savedAt = null; }
 }
-function saveView() { if (TEST) return; try { localStorage.setItem(KEY + ':view', JSON.stringify({ start: view.start, weeks: view.weeks, fold: view.fold })); } catch (e) {} }
+function saveView() { if (TEST) return; try { localStorage.setItem(KEY + ':view', JSON.stringify({ start: view.start, weeks: view.weeks, fold: view.fold, bankShut: !!view.bankShut })); } catch (e) {} }
 function pushUndo(s) { undoStack.push(s || snap()); if (undoStack.length > 200) undoStack.shift(); redoStack.length = 0; }
 function commit() { save(); render(); }
 function undo() { if (!undoStack.length) return; redoStack.push(snap()); S = JSON.parse(undoStack.pop()); commit(); }
@@ -435,7 +435,8 @@ function jump(i, keepIfVisible) {
 // ---- the boat bank: boats not on the board yet -----------------------------------
 function renderBank() {
   const ids = S.boats.filter((b) => S.tasks.some((t) => t.id === b.id && t.bank));
-  let h = `<div class="bt"><b>Boat bank</b><span>${ids.length ? `${ids.length} boat${ids.length === 1 ? '' : 's'} not on the board yet. Drag a boat up onto a day and its parts line up from that day, hull first. It does not check the other boats yet, so whatever overlaps turns red for you to sort out. Click a boat to open it and drag one part at a time.` : 'Empty. Every part is on the board.'}</span></div><div class="bcards">`;
+  if (view.bankShut) { $('bank').innerHTML = `<div class="bt" style="margin:0"><b>▸ Boat bank</b><span>${ids.length} boat${ids.length === 1 ? '' : 's'} waiting. Click to open.</span></div>`; return; }
+  let h = `<div class="bt"><b>▾ Boat bank</b><span>${ids.length ? `${ids.length} boat${ids.length === 1 ? '' : 's'} not on the board yet. Drag a boat up onto a day and its parts line up from that day, hull first. It does not check the other boats yet, so whatever overlaps turns red for you to sort out. Click a boat to open it and drag one part at a time.` : 'Empty. Every part is on the board.'}</span></div><div class="bcards">`;
   for (const b of ids) {
     const parts = S.tasks.filter((t) => t.id === b.id && t.bank).sort(byPart), cd = parts.reduce((n, t) => n + t.n * t.crew, 0), hull = parts.find((t) => t.part === 'Hull');
     h += `<div class="bcard" data-boat="${esc(b.id)}" style="border-left-color:${colourOf(b.id)}"><div class="b1">${view.open[b.id] ? '▾' : '▸'} <b>${esc(b.id)}</b> ${esc(b.cust)}</div>` +
@@ -467,7 +468,9 @@ function placeBoat(id, at) {
 }
 let bdrag = null;
 $('bank').addEventListener('pointerdown', (e) => {
-  if (e.button) return; const part = e.target.closest('.bpart'), card = e.target.closest('.bcard'); if (!card) return;
+  if (e.button) return;
+  if (e.target.closest('.bt')) { view.bankShut = !view.bankShut; saveView(); render(); return; }
+  const part = e.target.closest('.bpart'), card = e.target.closest('.bcard'); if (!card) return;
   bdrag = { pid: e.pointerId, k: part ? part.dataset.k : null, boat: card.dataset.boat, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, moved: false, at: -1 };
   try { (part || card).setPointerCapture(e.pointerId); } catch (err) {}
   e.preventDefault();
@@ -645,6 +648,7 @@ if (TEST) setTimeout(() => {
     const el4 = barEls.get(lead.k), r4 = el4.getBoundingClientRect(); pe(el4, 'pointerdown', r4.left + 10, r4.top + 5); pe(document, 'pointermove', r4.left + 10 + colW * 4, r4.top + 5); pe(document, 'pointerup', r4.left + 10 + colW * 4, r4.top + 5);
     out.wholeBoat = { boat: big, parts: mates.length, allMoved: mates.every(([k, s]) => taskBy(k)._s > s) }; undo(); view.whole = false;
     out.backToStart = snap() === JSON.stringify(fresh(), strip);
+    view.bankShut = false; render();
     const bankIds = S.boats.filter((b) => S.tasks.some((t) => t.id === b.id && t.bank)).map((b) => b.id);
     out.bank = { boats: bankIds.length, parts: S.tasks.filter((t) => t.bank).length, cards: document.querySelectorAll('.bcard').length, onBoard: S.tasks.filter((t) => !t.bank).length };
     const bid = bankIds[0], card = document.querySelector('.bcard'), cr = card.getBoundingClientRect(), dr = $('dh').getBoundingClientRect(), p0 = C.probs.length;

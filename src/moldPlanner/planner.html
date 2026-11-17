@@ -120,6 +120,8 @@
   .kit:hover { border-color: #546e7a; color: #37474f; }
   .kit.ok { background: #2e7d32; border-color: #2e7d32; color: #fff; }
   .prob.kitp { border-left-color: #e65100; background: #fff3e0; }
+  .sharenote { margin-top: 6px; padding: 6px 8px; border-radius: 6px; background: #fff3e0; border-left: 4px solid #e65100; color: #4e342e; }
+  .sharenote.bad { background: #ffebee; border-left-color: #c62828; }
   .ponly { display: none; }
   @media screen and (max-width: 900px) {
     :root { --c1: 98px; --minw: 42px; }
@@ -215,7 +217,7 @@ const KIT_SOON = 8;   // a part starting within this many shop days with a kit n
 
 // ---- state --------------------------------------------------------------------
 const KEY = 'p27-mold-planner:' + D.stamp;
-const fresh = () => ({ v: 3, tasks: D.tasks.map((t) => ({ ...t })), closed: { ...D.closed }, crew: D.crew, boats: D.boats.map((b) => ({ ...b })) });
+const fresh = () => ({ v: 3, week0: D.week0, tasks: D.tasks.map((t) => ({ ...t })), closed: { ...D.closed }, crew: D.crew, boats: D.boats.map((b) => ({ ...b })) });
 // A plan saved before the boat bank existed: bank the far-out parts he never touched, leave everything he moved.
 function migrate(st) {
   const d0 = new Map(D.tasks.map((t) => [t.k, t])), v = st.v || 1;
@@ -226,6 +228,10 @@ function migrate(st) {
     for (const t of st.tasks) { if (t.kg !== undefined) continue; const k = st.kits && st.kits[t.id], d = d0.get(t.k); t.kg = k ? !!k.glass : !!(d && d.kg); t.kc = k ? !!(k.coosa && k.core) : !!(d && d.kc); }
     delete st.kits;
   }
+  // day numbers count shop days from the board's first Monday; if the board has been rebuilt from a later
+  // Monday, slide a saved plan so every part stays on the same calendar day
+  if (!st.week0) st.week0 = D.week0;
+  else if (st.week0 !== D.week0) { const dw = Math.round((toDate(D.week0) - toDate(st.week0)) / 6048e5) * 4; for (const t of st.tasks) t.s = Math.max(0, t.s - dw); st.week0 = D.week0; }
   st.v = 3; return st;
 }
 const PORDER = ['Boxes', 'Grid', 'Hull', 'Liner', 'Ring', 'Console', 'Console Face', 'Leaning Post', 'Baitwell', 'Hatches', 'T Top'];
@@ -240,9 +246,56 @@ if (!TEST) try {
   const v = JSON.parse(localStorage.getItem(KEY + ':view') || 'null'); if (v) view = { ...view, start: v.start | 0, weeks: [4, 8, 12].includes(v.weeks) ? v.weeks : 4, fold: v.fold || {}, bankShut: !!v.bankShut };
 } catch (e) {}
 // names can arrive later than a saved plan (the B.O.S.S tab reads them at load): fill any that are blank
-for (const b of S.boats) { if (b.cust) continue; const d = D.boats.find((x) => x.id === b.id); if (d && d.cust) b.cust = d.cust; }
+function fillNames() { for (const b of S.boats) { if (b.cust) continue; const d = D.boats.find((x) => x.id === b.id); if (d && d.cust) b.cust = d.cust; } }
+fillNames();
+let hadLocal = !!savedAt;   // this browser held its own plan before sharing
 const undoStack = [], redoStack = [];
+// ---- one shared plan -------------------------------------------------------------
+// bridge.get(sinceVersion) -> { status: 'ok', data, version, updated_by, updated_at } | 'same' | 'none' (no plan
+// saved yet) | 'off' (the server does not have the route) | 'error'.  bridge.put(data, baseVersion) -> 'ok' with
+// the new version, or 'conflict' with the newer plan somebody else saved first.
+const SHARED_TEST = /selftest=shared/.test(location.search);
+if (SHARED_TEST) window.__p27mock = (() => {
+  const m = { data: null, version: 0, by: '', fail: false, user: 'ken',
+    remote(fn, who) { fn(m.data); m.version++; m.by = who; },
+    async get(since) { if (m.fail) return { status: 'error' }; if (!m.data) return { status: 'none' }; if (since === m.version) return { status: 'same', version: m.version }; return { status: 'ok', data: JSON.parse(JSON.stringify(m.data)), version: m.version, updated_by: m.by, updated_at: new Date().toISOString() }; },
+    async put(data, base) { if (m.fail) return { status: 'error' }; if (base !== m.version) return { status: 'conflict', data: JSON.parse(JSON.stringify(m.data)), version: m.version, updated_by: m.by, updated_at: new Date().toISOString() }; m.data = JSON.parse(JSON.stringify(data)); m.version++; m.by = m.user; return { status: 'ok', version: m.version, updated_by: m.by, updated_at: new Date().toISOString() }; } };
+  return m;
+})();
+const BRIDGE = (() => { try { if (window.__p27mock) return window.__p27mock; return window.parent !== window && window.parent.__p27bridge ? window.parent.__p27bridge : null; } catch (e) { return null; } })();
+const shared = { on: false, version: 0, by: '', at: '', dirty: false, saving: false, note: '', bad: false, timer: null };
+const clock = (iso) => { const d = iso ? new Date(iso) : new Date(); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); };
+function adopt(r) {
+  S = migrate(r.data); fillNames(); shared.version = r.version; shared.by = r.updated_by || ''; shared.at = r.updated_at || '';
+  undoStack.length = 0; redoStack.length = 0;   // an undo here would put the whole plan back and wipe the other person's change
+  if (view.sel && !taskBy(view.sel)) view.sel = null;
+}
+async function pushShared() {
+  if (!shared.on || shared.saving || !shared.dirty) return;
+  shared.saving = true; shared.dirty = false;
+  const r = await BRIDGE.put(JSON.parse(snap()), shared.version);
+  shared.saving = false;
+  if (r.status === 'ok') {
+    shared.version = r.version; shared.by = r.updated_by || BRIDGE.user || ''; shared.at = r.updated_at || new Date().toISOString(); shared.note = ''; shared.bad = false;
+    if (shared.dirty) pushShared(); else if (!(drag && drag.moved)) renderSide();
+  } else if (r.status === 'conflict') {
+    adopt(r); shared.dirty = false; shared.bad = true;
+    shared.note = `${r.updated_by || 'Someone else'} saved a change at ${clock(r.updated_at)}, just before yours. Their version is on screen now and your last change did not go in. Make it again.`;
+    render();
+  } else {
+    shared.dirty = true; shared.bad = true; shared.note = 'Could not save to B.O.S.S. Trying again every few seconds; keep this tab open.';
+    if (!(drag && drag.moved)) renderSide(); clearTimeout(shared.timer); shared.timer = setTimeout(pushShared, 5000);
+  }
+}
+async function pollShared() {
+  const busy = () => !shared.on || shared.dirty || shared.saving || drag || bdrag || document.hidden || (document.activeElement && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) || $('dlg').open;
+  if (busy()) return;
+  const r = await BRIDGE.get(shared.version);
+  if (r.status !== 'ok' || r.version === shared.version || busy()) return;
+  adopt(r); shared.bad = false; shared.note = `${r.updated_by || 'Someone'} changed the plan at ${clock(r.updated_at)}. You are looking at the latest.`; render();
+}
 function save() {
+  if (shared.on) { shared.dirty = true; clearTimeout(shared.timer); shared.timer = setTimeout(pushShared, 500); return; }
   if (TEST) return;
   try { savedAt = Date.now(); localStorage.setItem(KEY, JSON.stringify({ v: 1, saved: savedAt, S: JSON.parse(snap()) })); } catch (e) { savedAt = null; }
 }
@@ -431,7 +484,15 @@ function renderSide() {
       `<td>${nb ? '' : d == null ? '<span class="same">new</span>' : d === 0 ? '<span class="same">same</span>' : d > 0 ? `<span class="late">${d} day${d === 1 ? '' : 's'} later</span>` : `<span class="early">${-d} day${d === -1 ? '' : 's'} sooner</span>`}</td></tr>`;
   }
   h += `</table><div class="hint" style="margin-top:6px">"Full set" is the day the last part for that boat is finished. Days are shop days, Monday to Thursday. Click a boat to light up its parts.</div></div>`;
-  h += `<div class="card hint">${savedAt ? 'Your changes are saved in this browser on this computer, last at ' + new Date(savedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '. ' : 'This is the first-pass plan, nothing changed yet. '}Use More &rsaquo; Save plan to a file to keep a copy or move it to another computer.<br>Part times are still estimates until the floor reviews them.</div>`;
+  if (shared.on) {
+    const mine = hadLocal && !localStorage.getItem(KEY + ':merged');
+    h += `<div class="card hint"><b>One shared plan.</b> Everyone with this tab sees and changes the same one, and it saves to B.O.S.S by itself. ${shared.saving || shared.dirty ? 'Saving…' : shared.at ? `Last saved by ${esc(shared.by || 'someone')} at ${clock(shared.at)}.` : ''}` +
+      (shared.note ? `<div class="sharenote${shared.bad ? ' bad' : ''}">${esc(shared.note)}</div>` : '') +
+      (mine ? `<div class="sharenote">This browser still holds the plan you worked on before sharing was switched on. <button data-act="mine">Replace the shared plan with it</button> <button data-act="notmine">No, drop it</button></div>` : '') +
+      '<br>Part times are still estimates until the floor reviews them.</div>';
+  } else {
+    h += `<div class="card hint">${BRIDGE ? '<b>Not shared yet.</b> The server piece for one shared plan is not switched on, so for now each person has their own copy. ' : ''}${savedAt ? 'Your changes are saved in this browser on this computer, last at ' + new Date(savedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '. ' : 'This is the first-pass plan, nothing changed yet. '}Use More &rsaquo; Save plan to a file to keep a copy or move it to another computer.<br>Part times are still estimates until the floor reviews them.</div>`;
+  }
   $('side').innerHTML = h;
 }
 function edit(fn) { const t = taskBy(view.sel); if (!t) return; pushUndo(); fn(t); commit(); }
@@ -447,6 +508,15 @@ $('side').addEventListener('click', (e) => {
     if (act === 'c+') edit((t) => { t.crew = Math.min(12, half(t.crew + 0.5)); });
     if (act === 'bank' || act === 'bankboat') { const me = taskBy(view.sel); if (!me) return; pushUndo(); for (const x of S.tasks) if (act === 'bank' ? x === me : x.id === me.id) x.bank = true; view.sel = null; commit(); }
     if (act === 'kgall' || act === 'kcall') { const me = taskBy(view.sel); if (!me) return; const key = act === 'kgall' ? 'kg' : 'kc', mine = S.tasks.filter((x) => x.id === me.id), v = !mine.every((x) => x[key]); pushUndo(); for (const x of mine) x[key] = v; commit(); }
+    if (act === 'mine' || act === 'notmine') {
+      let j = null; try { j = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (err) {}
+      if (act === 'mine' && j && j.S && Array.isArray(j.S.tasks)) {
+        if (!confirm('Replace the shared plan with the one saved in this browser? Everyone will see yours.')) return;
+        pushUndo(); S = migrate(j.S); fillNames(); view.sel = null;
+      }
+      try { localStorage.setItem(KEY + ':merged', '1'); } catch (err) {}
+      if (act === 'mine') commit(); else render();
+    }
     if (act === 'del') { const k = view.sel; pushUndo(); S.tasks = S.tasks.filter((t) => t.k !== k); view.sel = null; commit(); }
     return;
   }
@@ -626,7 +696,7 @@ $('csv').onclick = () => {
   for (const t of [...S.tasks].sort((x, y) => (x.bank ? 1e6 : x._s) - (y.bank ? 1e6 : y._s))) rows.push([t.id, (boatBy(t.id) || {}).cust || '', t.part, label(t.mold), t.bank ? '' : DAYS[t._s], t.n, t.crew, t.bank ? '' : DAYS[t._e], t.colour || '', t.cover ? 'yes' : '', t.bank ? 'yes' : '', t.kg ? 'ready' : '', t.kc ? 'ready' : '']);
   download(`Project_27_Plan_${TODAY_ISO}.csv`, '﻿' + rows.map((r) => r.map(q).join(',')).join('\r\n'), 'text/csv');
 };
-$('reset').onclick = () => { closeMenu(); if (!confirm('Put every part back where the first-pass plan had it? You can still Undo this.')) return; pushUndo(); S = fresh(); view.sel = null; commit(); };
+$('reset').onclick = () => { closeMenu(); if (!confirm(shared.on ? 'Put every part back where the first-pass plan had it? This is the shared plan, so it resets for everyone. You can still Undo it.' : 'Put every part back where the first-pass plan had it? You can still Undo this.')) return; pushUndo(); S = fresh(); view.sel = null; commit(); };
 $('add').onclick = () => {
   $('boatlist').innerHTML = S.boats.map((b) => `<option value="${esc(b.id)}">${esc(b.cust)}</option>`).join('');
   $('amold').innerHTML = D.groups.map((g) => g.rows.map((r) => `<option value="${esc(r.mold)}">${esc(label(r.mold))}</option>`).join('')).join('');
@@ -660,10 +730,28 @@ document.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('resize', () => { if (!drag && !bdrag) layout(); });
-buildSkeleton(); render();
+async function start() {
+  if (BRIDGE) {
+    $('grid').textContent = 'Loading the plan…';
+    let r; try { r = await BRIDGE.get(0); } catch (e) { r = { status: 'error' }; }
+    if (r.status === 'ok') { shared.on = true; adopt(r); }
+    else if (r.status === 'none') {   // nobody has saved a shared plan yet: this browser's plan becomes it
+      shared.on = true; shared.version = 0; shared.dirty = true;
+      try { localStorage.setItem(KEY + ':merged', '1'); } catch (e) {}
+    }
+  }
+  buildSkeleton(); render();
+  if (shared.on) {
+    if (shared.dirty) pushShared();
+    setInterval(pollShared, 20000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) pollShared(); });
+    window.addEventListener('focus', () => pollShared());
+  }
+}
+start();
 
 // ---- self-test (open the file with ?selftest) ---------------------------------------
-if (TEST) setTimeout(() => {
+if (TEST && !SHARED_TEST) setTimeout(() => {
   const out = {}, pe = (el, type, x, y, extra) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 7, button: 0, clientX: x, clientY: y, ...(extra || {}) }));
   try {
     out.tasks = S.tasks.length; out.rows = Object.keys(rowEls).length; out.barsOnScreen = barEls.size; out.problemsAtStart = C.probs.length; out.maxPeople = Math.max(...C.load);
@@ -733,6 +821,28 @@ if (TEST) setTimeout(() => {
     out.ok = out.halvesOk && out.kitsOk && out.migrate.kitsGone && out.migrate.glassCarried && out.migrate.othersSeeded && out.backToStart3 && out.bankOk && out.move.to === out.move.expect && out.undoRestores && out.resize.to > n0 && out.closeDay.endAfter > e0 && out.clickSelects && out.wholeBoat.allMoved && out.backToStart;
   } catch (err) { out.error = String(err && err.stack || err); }
   render(); $('selftest').hidden = false; $('selftest').textContent = 'SELFTEST ' + JSON.stringify(out, null, 1);
+}, 50);
+
+// ---- shared-plan self-test (open with ?selftest=shared): a pretend server, a pretend second person -----
+if (SHARED_TEST) setTimeout(async () => {
+  const out = {}, m = window.__p27mock, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  try {
+    await wait(300);
+    out.seeded = { on: shared.on, serverVersion: m.version, serverParts: m.data && m.data.tasks.length, noUnderscores: !JSON.stringify(m.data).includes('"_s"') };
+    const t = S.tasks.find((x) => !x.bank && x._s > 2); pushUndo(); t.s = t._s + 1; commit(); await wait(900);
+    out.mySave = { serverVersion: m.version, serverHasMove: m.data.tasks.find((x) => x.k === t.k).s === t.s, by: shared.by, footer: /Last saved by ken/.test($('side').textContent) };
+    m.remote((d) => { d.tasks.find((x) => x.k === t.k).kg = true; d.crew = 7; }, 'ryan'); await pollShared();
+    out.theirChange = { version: shared.version, crewNow: S.crew, kitNow: taskBy(t.k).kg, undoCleared: undoStack.length === 0, told: /ryan changed the plan/.test($('side').textContent), peopleBox: $('crew').value };
+    const before = taskBy(t.k).s; m.remote((d) => { d.crew = 5; }, 'jacob'); pushUndo(); taskBy(t.k).s = before + 2; commit(); await wait(900);
+    out.conflict = { theirCrewWon: S.crew === 5, myMoveDropped: taskBy(t.k).s === before, told: /jacob saved a change/.test($('side').textContent), inStep: shared.version === m.version };
+    m.fail = true; pushUndo(); taskBy(t.k).n += 1; commit(); await wait(900);
+    const failedNote = /Could not save/.test($('side').textContent), v0 = m.version; m.fail = false; await pushShared();
+    out.outage = { failedNote, savedAfter: m.version === v0 + 1 && m.data.tasks.find((x) => x.k === t.k).n === taskBy(t.k).n, noteCleared: !/Could not save/.test($('side').textContent) };
+    const moved = migrate({ v: 3, week0: addDays(D.week0, -7), tasks: [{ k: 'x', s: 10, n: 1 }], boats: [] });
+    out.weekShift = { from: 10, to: moved.tasks[0].s, week0: moved.week0 };
+    out.ok = out.seeded.on && out.seeded.serverVersion >= 1 && out.seeded.noUnderscores && out.mySave.serverHasMove && out.mySave.footer && out.theirChange.crewNow === 7 && out.theirChange.kitNow === true && out.theirChange.undoCleared && out.theirChange.told && out.conflict.theirCrewWon && out.conflict.myMoveDropped && out.conflict.told && out.conflict.inStep && out.outage.failedNote && out.outage.savedAfter && out.outage.noteCleared && out.weekShift.to === 6;
+  } catch (err) { out.error = String(err && err.stack || err); }
+  $('selftest').hidden = false; $('selftest').textContent = 'SELFTEST ' + JSON.stringify(out, null, 1);
 }, 50);
 </script>
 </body></html>

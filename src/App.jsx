@@ -5,7 +5,7 @@ import Logo from './Logo';
 import { useAuth } from './AuthContext';
 import { isDemoUser } from './api';
 import { canView, PERM_KEYS } from './permissions';
-import { hasFullAccess } from './access';
+import { canSeeMoldPlanner } from './access';
 import './App.css';
 
 // Other tabs load only when opened — keeps the initial download small.
@@ -37,8 +37,8 @@ const BASE_TABS = [
   { key: 'feed', label: 'Shop Feed' },
   { key: 'docs', label: 'Docs' },
   { key: 'gantt', label: 'Timeline' },
-  // Project 27 glass shop planner: owner accounts only, stand-alone (saves in the browser, writes nothing).
-  { key: 'molds', label: 'Mold Planner', ownerOnly: true },
+  // Project 27 glass shop planner: named accounts only (access.js), stand-alone (saves in the browser, writes nothing).
+  { key: 'molds', label: 'Mold Planner', moldPlanner: true },
 ];
 
 function App() {
@@ -82,7 +82,7 @@ function App() {
     // Per-user permissions can hide a tab entirely (legacy users see all — permOf falls back
     // to role). Timeline (gantt) is here too: owner-only by default, grantable per user.
     .filter(t => !PERM_KEYS.has(t.key) || canView(user, t.key))
-    .filter(t => !t.ownerOnly || hasFullAccess(user));
+    .filter(t => !t.moldPlanner || canSeeMoldPlanner(user));
   // If the active tab got hidden by permissions, show the first visible one instead.
   const shownTab = tabs.some(t => t.key === activeTab) ? activeTab : tabs[0]?.key;
 
@@ -121,7 +121,7 @@ function App() {
             {shownTab === 'finishing' && <FinishingTracker />}
             {shownTab === 'assembly' && <AssemblyTracker />}
             {shownTab === 'gantt' && canView(user, 'gantt') && <GanttChart onManageBoats={() => setManageBoats(true)} />}
-            {shownTab === 'molds' && hasFullAccess(user) && <MoldPlanner />}
+            {shownTab === 'molds' && canSeeMoldPlanner(user) && <MoldPlanner />}
             {shownTab === 'feed' && <ShopFeed initialView="issues" initialPostingOpen={reportIssueOpen} />}
             {shownTab === 'docs' && <DocsLibrary />}
             {shownTab === 'admin' && isOps && <AdminPanel />}

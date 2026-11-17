@@ -7,3 +7,11 @@ export const FULL_ACCESS_USERS = ['ken', 'kelly'];
 
 export const hasFullAccess = (user) =>
   FULL_ACCESS_USERS.includes((user?.username || '').toLowerCase());
+
+// Mold Planner (Project 27 glass shop planner). Its own list on purpose: ryan and jacob
+// get this tab WITHOUT joining FULL_ACCESS_USERS, so Payments and Timeline editing stay
+// exactly as they were.
+export const MOLD_PLANNER_USERS = [...FULL_ACCESS_USERS, 'ryan', 'jacob'];
+
+export const canSeeMoldPlanner = (user) =>
+  MOLD_PLANNER_USERS.includes((user?.username || '').toLowerCase());

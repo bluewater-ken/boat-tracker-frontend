@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project 27 Mold Planner</title>
+<style>
+  :root { --navy: #0b2a3f; --c1: 128px; --c2: 176px; --minw: 26px; --rh: 34px; --n: 16; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font-family: "Segoe UI", system-ui, Arial, sans-serif; color: #1b2a33; font-size: 13px; background: #eef2f5; }
+  #app { display: flex; flex-direction: column; height: 100vh; }
+  button, input, select { font: inherit; }
+  .top { background: var(--navy); color: #fff; padding: 7px 12px; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+  .ttl b { font-size: 18px; letter-spacing: .2px; } .ttl span { opacity: .8; margin-left: 8px; }
+  .tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; }
+  .top button, .top summary { background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.28); border-radius: 6px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
+  .top button:hover, .top summary:hover { background: rgba(255,255,255,.22); }
+  .top button:disabled { opacity: .4; cursor: default; }
+  .top button.on { background: #ffd54f; color: #0b2a3f; border-color: #ffd54f; font-weight: 700; }
+  .seg { display: flex; gap: 0; align-items: center; }
+  .seg button { border-radius: 0; margin-left: -1px; } .seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; } .seg button:last-child { border-radius: 0 6px 6px 0; }
+  #range { min-width: 132px; text-align: center; padding: 0 8px; font-weight: 600; }
+  .crew input { width: 50px; padding: 4px 6px; border-radius: 6px; border: 0; text-align: center; font-weight: 700; margin-left: 5px; }
+  #chip { border-radius: 12px; padding: 4px 11px; font-weight: 700; cursor: pointer; background: #2e7d32; color: #fff; border: 0; }
+  #chip.bad { background: #c62828; }
+  details.menu { position: relative; } details.menu summary { list-style: none; } details.menu summary::-webkit-details-marker { display: none; }
+  details.menu .pop { position: absolute; right: 0; top: 34px; background: #fff; color: #1b2a33; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.3); padding: 6px; z-index: 50; min-width: 210px; display: flex; flex-direction: column; gap: 2px; }
+  details.menu .pop button { background: none; color: #1b2a33; border: 0; text-align: left; padding: 8px 10px; border-radius: 6px; } details.menu .pop button:hover { background: #e3eaf0; }
+  details.menu .pop button.danger { color: #c62828; }
+  main { flex: 1; min-height: 0; display: flex; }
+  .boardwrap { flex: 1; min-width: 0; overflow: auto; background: #fff; }
+  #side { width: 318px; flex: none; overflow: auto; border-left: 1px solid #cfd8dc; background: #f7f9fb; padding: 10px; }
+  .grid { min-width: calc(var(--c1) + var(--c2) + var(--n) * var(--minw)); }
+  .r { display: grid; grid-template-columns: var(--c1) var(--c2) minmax(0, 1fr); }
+  .r > .lc { position: sticky; left: 0; z-index: 2; background: #f5f7f9; overflow: hidden; }
+  .r > .now { left: var(--c1); background: #fff; border-right: 1px solid #cfd8dc; }
+  .hr { position: sticky; z-index: 5; } .hr > .lc { z-index: 6; }
+  .wkrow { top: 0; height: 24px; } .dayrow { top: 24px; height: 24px; } .pplrow { top: 48px; height: 22px; }
+  .hr > .lc.corner, .wkrow .lc { background: var(--navy); color: #fff; font-weight: 600; padding: 3px 6px; }
+  .dayrow .lc, .pplrow .lc { background: #e3eaf0; font-size: 11px; padding: 3px 6px; font-weight: 600; white-space: nowrap; border-bottom: 2px solid #90a4ae; }
+  .trk { position: relative; min-width: 0; }
+  .cells { display: flex; height: 100%; }
+  .cells > div { flex: 1 1 0; min-width: 0; border-left: 1px solid #eceff1; }
+  .cells > .wk { border-left: 3px solid #90a4ae; }
+  .wkrow .cells > div { flex: 4 1 0; background: var(--navy); color: #fff; font-weight: 600; padding: 3px 6px; border-left: 3px solid #fff; white-space: nowrap; overflow: hidden; }
+  .dayrow .cells > div { background: #e3eaf0; font-size: 11px; font-weight: 600; text-align: center; line-height: 22px; border-bottom: 2px solid #90a4ae; cursor: pointer; white-space: nowrap; overflow: hidden; }
+  .dayrow .cells > div:hover { background: #cfd8dc; }
+  .dayrow .cells > .today { background: #c62828; color: #fff; }
+  .cells > .closed, .dayrow .cells > .closed { background: repeating-linear-gradient(135deg, #e4e8eb 0 6px, #f3f5f6 6px 12px); color: #90a4ae; }
+  .pplrow .cells > div { text-align: center; font-weight: 700; font-size: 11px; line-height: 20px; background: #f5f7f9; border-bottom: 2px solid #90a4ae; color: #78909c; }
+  .pplrow .cells > .full { color: #0b2a3f; background: #dcedc8; }
+  .pplrow .cells > .over { color: #fff; background: #c62828; }
+  .grp { background: #37474f; color: #fff; font-weight: 700; letter-spacing: .3px; padding: 3px 0; cursor: pointer; user-select: none; }
+  .grp span { position: sticky; left: 8px; padding-left: 8px; }
+  .row { height: calc(var(--rh) * var(--lanes, 1)); border-bottom: 1px solid #cfd8dc; }
+  .row.fold { display: none; }
+  .row .mold { font-weight: 600; font-size: 13.5px; padding: 0 6px; display: flex; align-items: center; white-space: nowrap; border-right: 1px solid #cfd8dc; }
+  .row .now { font-size: 11px; line-height: 1.15; padding: 1px 6px; color: #33424c; display: flex; flex-direction: column; justify-content: center; }
+  .row .now .empty { color: #b0bec5; }
+  .row.bad .mold { background: #ffcdd2; }
+  .bars { position: absolute; inset: 2px 0; pointer-events: none; }
+  .bar { pointer-events: auto; position: absolute; border-radius: 4px; border: 1px solid rgba(0,0,0,.3); padding: 0 24px 0 5px; overflow: hidden; display: flex; flex-direction: column; justify-content: center; line-height: 1.12; cursor: grab; touch-action: pan-y; user-select: none; -webkit-user-select: none; transition: opacity .12s; }
+  .bar:active { cursor: grabbing; }
+  .bar.hull { border: 2.5px solid var(--navy); }
+  .bar.cover { border-style: dashed; }
+  .bar.clash { box-shadow: inset 0 0 0 2px #c62828; }
+  .bar.sel { outline: 3px solid #1565c0; outline-offset: 1px; z-index: 3; }
+  .bar.drag { box-shadow: 0 4px 14px rgba(0,0,0,.4); z-index: 4; opacity: .92; }
+  .bar.dim { opacity: .25; }
+  .bar.one { padding: 0 8px 0 3px; } .bar.one .ppl { display: none; }
+  .bar .l1 { font-size: 12.5px; white-space: nowrap; } .bar .l2 { font-size: 10.5px; white-space: nowrap; color: #263238; }
+  .bar .l1, .bar .l2 { overflow: hidden; text-overflow: ellipsis; }
+  .w8 .bar .l1, .w12 .bar .l1 { font-size: 11.5px; } .w8 .bar .l2, .w12 .bar .l2 { font-size: 9.6px; }
+  .ppl { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; border-radius: 50%; background: var(--navy); color: #fff; font-size: 10.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .hdl { position: absolute; right: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; background: linear-gradient(90deg, transparent 0 2px, rgba(0,0,0,.28) 2px 3px, transparent 3px 5px, rgba(0,0,0,.28) 5px 6px, transparent 6px); }
+  .card { background: #fff; border: 1px solid #cfd8dc; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+  .card h3 { margin: 0 0 6px; font-size: 14px; color: var(--navy); }
+  .card .sub { color: #5f6b73; margin: -3px 0 8px; }
+  .fld { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; gap: 8px; }
+  .fld .v { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+  .fld button, .card button { border: 1px solid #b0bec5; background: #fff; border-radius: 6px; padding: 3px 9px; cursor: pointer; min-width: 30px; }
+  .fld button:hover, .card button:hover { background: #e3eaf0; }
+  .fld input[type=text] { width: 150px; padding: 4px 6px; border: 1px solid #b0bec5; border-radius: 6px; }
+  .card button.danger { color: #c62828; border-color: #ef9a9a; margin-top: 6px; }
+  .prob { padding: 5px 7px; border-left: 4px solid #c62828; background: #ffebee; border-radius: 4px; margin-bottom: 4px; cursor: pointer; }
+  .ok { color: #2e7d32; font-weight: 600; }
+  table.boats { width: 100%; border-collapse: collapse; }
+  table.boats th { text-align: left; font-size: 11px; color: #5f6b73; font-weight: 600; padding: 2px 3px; border-bottom: 1px solid #cfd8dc; }
+  table.boats td { padding: 4px 3px; border-bottom: 1px solid #eceff1; white-space: nowrap; vertical-align: top; }
+  table.boats tr { cursor: pointer; } table.boats tr.hi td { background: #fff8e1; }
+  .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; border: 1px solid rgba(0,0,0,.3); margin-right: 5px; vertical-align: -1px; }
+  .cu { color: #5f6b73; font-size: 11px; display: block; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+  .late { color: #c62828; font-weight: 700; } .early { color: #2e7d32; font-weight: 700; } .same { color: #90a4ae; }
+  .hint { color: #5f6b73; font-size: 11.5px; line-height: 1.4; }
+  dialog { border: 0; border-radius: 10px; padding: 16px; box-shadow: 0 10px 40px rgba(0,0,0,.35); width: min(360px, 92vw); }
+  dialog h3 { margin: 0 0 10px; color: var(--navy); } dialog label { display: block; margin: 8px 0 3px; font-weight: 600; }
+  dialog input, dialog select { width: 100%; padding: 6px 8px; border: 1px solid #b0bec5; border-radius: 6px; }
+  dialog .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  dialog button { border: 1px solid #b0bec5; background: #fff; border-radius: 6px; padding: 6px 14px; cursor: pointer; } dialog button.go { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .ponly { display: none; }
+  @media screen and (max-width: 900px) {
+    :root { --c1: 98px; --minw: 42px; }
+    #app { height: auto; } main { flex-direction: column; } .boardwrap { max-height: 72vh; } #side { width: auto; border-left: 0; }
+    .r { grid-template-columns: var(--c1) minmax(0, 1fr); } .r > .now { display: none; }
+    .grid { min-width: calc(var(--c1) + var(--n) * var(--minw)); }
+    .ttl span { display: none; }
+  }
+  @media print {
+    @page { size: 17in 11in; margin: 0.3in 0.35in; }
+    html, body { height: auto; background: #fff; }
+    body { zoom: 0.9; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .top, #side, .pplrow, .hdl, .scr { display: none !important; }
+    #app { height: auto; display: block; } main { display: block; } .boardwrap { overflow: visible; }
+    .grid { min-width: 0; } .hr, .r > .lc, .grp span { position: static; }
+    .row { height: var(--prh, 31px); } .grp { cursor: default; } .row.np, .grp.np { display: none; } .row.fold { display: grid; } .row.fold.np { display: none; }
+    .bar.sel { outline: 0; } .bar.dim { opacity: 1; } .bar { padding-right: 20px; } .ppl { right: 3px; }
+    .ponly { display: block; }
+    .phead { display: flex; align-items: baseline; gap: 18px; border-bottom: 4px solid var(--navy); padding-bottom: 4px; margin-bottom: 6px; }
+    .phead h1 { font-size: 21pt; margin: 0; color: var(--navy); } .phead span { font-size: 11pt; color: #5f6b73; }
+    .plegend { margin: 4px 0 6px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; font-size: 9.5pt; }
+    .plegend .chipb { padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(0,0,0,.25); white-space: nowrap; }
+    .pfoot { margin-top: 5px; font-size: 8.6pt; color: #5f6b73; display: flex; justify-content: space-between; }
+  }
+</style></head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="ttl"><b>Project 27</b><span>Glass Shop mold planner</span></div>
+    <div class="tools">
+      <div class="seg"><button id="prev" title="Back one week">&#9664;</button><span id="range"></span><button id="next" title="Forward one week">&#9654;</button></div>
+      <button id="today">Today</button>
+      <div class="seg" id="zoom"><button data-w="4">4 wk</button><button data-w="8">8 wk</button><button data-w="12">12 wk</button></div>
+      <label class="crew">People<input id="crew" type="number" min="1" max="30"></label>
+      <button id="whole" title="Drag one part and every part of that boat moves with it. Holding Shift while you drag does the same.">Move whole boat</button>
+      <button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Y">Redo</button>
+      <button id="add">+ Part</button>
+      <button id="print">Print board</button>
+      <button id="chip"></button>
+      <details class="menu"><summary>More</summary><div class="pop">
+        <button id="savef">Save plan to a file</button>
+        <button id="loadf">Load plan from a file</button>
+        <button id="csv">Download as a spreadsheet (CSV)</button>
+        <button id="reset" class="danger">Reset to the first-pass plan</button>
+      </div></details>
+      <input id="file" type="file" accept=".json,application/json" hidden>
+    </div>
+  </div>
+  <main>
+    <section class="boardwrap">
+      <div class="ponly"><div class="phead"><h1 id="ptitle"></h1><span id="prange"></span></div><div class="plegend" id="plegend"></div></div>
+      <div class="grid" id="grid"></div>
+      <div class="ponly"><div class="pfoot"><span>Each row is one mold. Each bar is the part to build in it: boat, colour, people. Shop days are Monday to Thursday.</span><span id="pfoot2"></span></div></div>
+    </section>
+    <aside id="side"></aside>
+  </main>
+</div>
+<dialog id="dlg"><form method="dialog" id="addf">
+  <h3>Add a part to the plan</h3>
+  <label>Boat</label><input id="aboat" list="boatlist" placeholder="hull number, or pick one" required><datalist id="boatlist"></datalist>
+  <label>Mold</label><select id="amold"></select>
+  <label>Shop days</label><input id="adays" type="number" min="1" max="60" value="2">
+  <label>People</label><input id="acrew" type="number" min="1" max="12" value="1">
+  <label>Colour (optional)</label><input id="acol">
+  <div class="btns"><button value="cancel" formnovalidate>Cancel</button><button value="ok" class="go">Add</button></div>
+</form></dialog>
+<pre id="selftest" hidden></pre>
+<script>
+const D = /*DATA*/null;
+const TEST = /selftest/.test(location.search);
+const PALETTE = ['#ffd54f', '#81d4fa', '#a5d6a7', '#f48fb1', '#ce93d8', '#ffab91', '#80cbc4', '#e6ee9c', '#b0bec5', '#9fa8da', '#ffcc80', '#bcaaa4'];
+const BIG = { Hull: 1, Liner: 1, Ring: 1 };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+const toDate = (s) => new Date(s + 'T00:00:00Z');
+const isoOf = (d) => d.toISOString().slice(0, 10);
+const addDays = (s, n) => { const d = toDate(s); d.setUTCDate(d.getUTCDate() + n); return isoOf(d); };
+const DAYS = []; for (let w = 0; w < D.weeks; w++) for (let d = 0; d < 4; d++) DAYS.push(addDays(D.week0, w * 7 + d));
+const MAXI = DAYS.length - 1;
+const WD = ['Mon', 'Tue', 'Wed', 'Thu'];
+const md = (i) => { const s = DAYS[i]; return `${+s.slice(5, 7)}/${+s.slice(8, 10)}`; };
+const mon = (i, long) => toDate(DAYS[i]).toLocaleString('en-US', { month: long ? 'long' : 'short', day: 'numeric', timeZone: 'UTC' });
+const dayName = (i) => `${WD[i % 4]} ${mon(i)}`;
+const lt = new Date(); const TODAY_ISO = `${lt.getFullYear()}-${String(lt.getMonth() + 1).padStart(2, '0')}-${String(lt.getDate()).padStart(2, '0')}`;
+const TODAY_I = DAYS.indexOf(TODAY_ISO);
+
+// ---- state --------------------------------------------------------------------
+const KEY = 'p27-mold-planner:' + D.stamp;
+const fresh = () => ({ tasks: D.tasks.map((t) => ({ ...t })), closed: { ...D.closed }, crew: D.crew, boats: D.boats.map((b) => ({ ...b })) });
+const strip = (k, v) => (k[0] === '_' ? undefined : v);
+const snap = () => JSON.stringify(S, strip);
+let S = fresh(), savedAt = null;
+let view = { start: 0, weeks: 4, sel: null, hi: null, whole: false, fold: {} };
+if (!TEST) try {
+  const j = JSON.parse(localStorage.getItem(KEY) || 'null'); if (j && j.S && Array.isArray(j.S.tasks)) { S = j.S; savedAt = j.saved; }
+  const v = JSON.parse(localStorage.getItem(KEY + ':view') || 'null'); if (v) view = { ...view, start: v.start | 0, weeks: [4, 8, 12].includes(v.weeks) ? v.weeks : 4, fold: v.fold || {} };
+} catch (e) {}
+// names can arrive later than a saved plan (the B.O.S.S tab reads them at load): fill any that are blank
+for (const b of S.boats) { if (b.cust) continue; const d = D.boats.find((x) => x.id === b.id); if (d && d.cust) b.cust = d.cust; }
+const undoStack = [], redoStack = [];
+function save() {
+  if (TEST) return;
+  try { savedAt = Date.now(); localStorage.setItem(KEY, JSON.stringify({ v: 1, saved: savedAt, S: JSON.parse(snap()) })); } catch (e) { savedAt = null; }
+}
+function saveView() { if (TEST) return; try { localStorage.setItem(KEY + ':view', JSON.stringify({ start: view.start, weeks: view.weeks, fold: view.fold })); } catch (e) {} }
+function pushUndo(s) { undoStack.push(s || snap()); if (undoStack.length > 200) undoStack.shift(); redoStack.length = 0; }
+function commit() { save(); render(); }
+function undo() { if (!undoStack.length) return; redoStack.push(snap()); S = JSON.parse(undoStack.pop()); commit(); }
+function redo() { if (!redoStack.length) return; undoStack.push(snap()); S = JSON.parse(redoStack.pop()); commit(); }
+
+// ---- the calendar maths ---------------------------------------------------------
+const openIn = (closed, i) => !closed[DAYS[i]];
+const open = (i) => !S.closed[DAYS[i]];
+function place(s, dir) {            // nearest open shop day; dir < 0 looks backwards first
+  s = Math.max(0, Math.min(s, MAXI)); if (open(s)) return s;
+  if (dir < 0) { let i = s; while (i > 0 && !open(i)) i--; if (open(i)) return i; }
+  while (s < MAXI && !open(s)) s++; return s;
+}
+function endWith(closed, s, n) { let i = s, left = n; for (;;) { if (openIn(closed, i)) { left--; if (left <= 0) return i; } if (i >= MAXI) return i; i++; } }
+const taskBy = (k) => S.tasks.find((t) => t.k === k);
+const boatBy = (id) => S.boats.find((b) => b.id === id);
+const colourOf = (id) => { const i = S.boats.findIndex((b) => b.id === id); return i < 0 ? '#cfd8dc' : PALETTE[i % PALETTE.length]; };
+const BASE = {}; for (const t of D.tasks) { const e = endWith(D.closed, t.s, t.n); BASE[t.id] = Math.max(BASE[t.id] ?? -1, e); }
+
+let C = null;
+function compute() {
+  const load = new Array(DAYS.length).fill(0), byMold = {}, lanes = {}, probs = [];
+  for (const t of S.tasks) {
+    t._s = place(t.s, 1); t._e = endWith(S.closed, t._s, t.n); t._clash = false;
+    (byMold[t.mold] ||= []).push(t);
+    for (let i = t._s; i <= t._e; i++) if (open(i)) load[i] += t.crew;
+  }
+  for (const m in byMold) {
+    const a = byMold[m].sort((x, y) => x._s - y._s || (x.k < y.k ? -1 : 1)), ends = [];
+    for (const t of a) { let L = ends.findIndex((e) => e < t._s); if (L < 0) L = ends.length; ends[L] = t._e; t._lane = L; }
+    lanes[m] = Math.max(1, ends.length);
+    for (let i = 0; i < a.length; i++) for (let j = i + 1; j < a.length; j++) {
+      if (a[j]._s > a[i]._e) break;
+      a[i]._clash = a[j]._clash = true;
+      probs.push({ at: a[j]._s, mold: m, text: `<b>${esc(label(m))}</b>: ${esc(a[i].id)} and ${esc(a[j].id)} are both in the mold ${dayName(a[j]._s)}` });
+    }
+  }
+  for (let i = 0; i < DAYS.length; i++) {
+    if (load[i] <= S.crew) continue;
+    let j = i, mx = load[i]; while (j + 1 < DAYS.length && (load[j + 1] > S.crew || !open(j + 1)) && j + 1 - i < 400) { j++; mx = Math.max(mx, load[j]); }
+    while (j > i && load[j] <= S.crew) j--;
+    probs.push({ at: i, text: `<b>${i === j ? dayName(i) : dayName(i) + ' to ' + dayName(j)}</b>: ${mx} people scheduled, ${S.crew} available` });
+    i = j;
+  }
+  for (const t of S.tasks) if (BIG[t.part] && t.crew < 2) probs.push({ at: t._s, text: `<b>${esc(t.id)} ${esc(t.part)}</b>: needs at least 2 people` });
+  probs.sort((x, y) => x.at - y.at);
+  C = { load, lanes, probs };
+}
+
+// ---- board ----------------------------------------------------------------------
+const label = (m) => m.replace(' (shared)', '').replace(/ T Top$/, ' Hard Top');
+const rowEls = {}, barEls = new Map();
+const NARROW = matchMedia('screen and (max-width: 900px)'); NARROW.addEventListener('change', () => render());
+let grpEls = [];
+function buildSkeleton() {
+  const g = $('grid'); let h = '';
+  h += `<div class="r hr wkrow"><div class="lc corner">Mold</div><div class="lc now corner">On it (B.O.S.S ${esc(D.pulledLabel)})</div><div class="trk"><div class="cells" id="wkh"></div></div></div>`;
+  h += `<div class="r hr dayrow"><div class="lc"><span class="scr">click a day to close it</span></div><div class="lc now"></div><div class="trk"><div class="cells" id="dh"></div></div></div>`;
+  h += `<div class="r hr pplrow"><div class="lc">People needed</div><div class="lc now" id="pplof"></div><div class="trk"><div class="cells" id="ph"></div></div></div>`;
+  D.groups.forEach((grp, gi) => {
+    h += `<div class="grp" data-g="${gi}"><span></span></div>`;
+    for (const r of grp.rows) {
+      const now = (D.onNow[r.mold] || []).map((x) => `<span><b>${esc(x.id)}</b> ${esc(x.txt)}</span>`).join('') || '<span class="empty">empty</span>';
+      h += `<div class="r row" data-g="${gi}" data-mold="${esc(r.mold)}"><div class="lc mold">${esc(label(r.mold))}</div><div class="lc now">${now}</div><div class="trk"><div class="cells"></div><div class="bars"></div></div></div>`;
+    }
+  });
+  g.innerHTML = h;
+  g.querySelectorAll('.row').forEach((el) => { rowEls[el.dataset.mold] = { row: el, cells: el.querySelector('.cells'), bars: el.querySelector('.bars'), g: +el.dataset.g }; });
+  grpEls = [...g.querySelectorAll('.grp')];
+}
+function paintCells() {
+  const a = view.start * 4, n = view.weeks * 4, compact = view.weeks > 4 || NARROW.matches;
+  const g = $('grid'); g.style.setProperty('--n', n); g.className = 'grid w' + view.weeks;
+  let wk = ''; for (let w = 0; w < view.weeks; w++) wk += `<div>${compact ? '' : 'Week of '}${mon(a + w * 4)}</div>`;
+  $('wkh').innerHTML = wk;
+  let dh = '', cells = '';
+  for (let i = a; i < a + n; i++) {
+    const c = (i % 4 === 0 ? ' wk' : '') + (open(i) ? '' : ' closed');
+    dh += `<div class="${c}${i === TODAY_I ? ' today' : ''}" data-i="${i}" title="${dayName(i)}${open(i) ? '. Click to mark the shop closed' : '. Shop closed. Click to reopen'}">${compact ? WD[i % 4][0] + ' ' + (+DAYS[i].slice(8, 10)) : WD[i % 4] + ' ' + md(i)}</div>`;
+    cells += `<div class="${c}"></div>`;
+  }
+  $('dh').innerHTML = dh;
+  for (const m in rowEls) rowEls[m].cells.innerHTML = cells;
+  $('range').textContent = `${mon(a)} – ${mon(a + n - 1)}`;
+  document.querySelectorAll('#zoom button').forEach((b) => b.classList.toggle('on', +b.dataset.w === view.weeks));
+}
+function layout() {
+  const a = view.start * 4, n = view.weeks * 4, b = a + n - 1, seen = new Set(), inWin = new Set(), rowsWithBars = new Set();
+  for (const t of S.tasks) {
+    const r = rowEls[t.mold]; if (!r) continue;
+    const vis = t._e >= a && t._s <= b;
+    if (!vis && !(drag && drag.k === t.k)) continue;
+    seen.add(t.k);
+    let el = barEls.get(t.k);
+    if (!el) { el = document.createElement('div'); el.dataset.k = t.k; el.innerHTML = '<div class="l1"></div><div class="l2"></div><span class="ppl"></span><span class="hdl"></span>'; barEls.set(t.k, el); }
+    if (el.parentNode !== r.bars) r.bars.appendChild(el);
+    el.style.display = vis ? '' : 'none'; if (!vis) continue;
+    inWin.add(t.id); rowsWithBars.add(t.mold);
+    const L = Math.max(t._s, a), R = Math.min(t._e, b), span = R - L + 1, lanes = C.lanes[t.mold] || 1, bt = boatBy(t.id) || {};
+    el.style.left = `calc(${(L - a) / n * 100}% + 1px)`; el.style.width = `calc(${span / n * 100}% - 2px)`;
+    el.style.top = `${t._lane / lanes * 100}%`; el.style.height = `calc(${100 / lanes}% - ${lanes > 1 ? 1 : 0}px)`;
+    el.style.background = colourOf(t.id);
+    el.className = 'bar' + (t.part === 'Hull' ? ' hull' : '') + (t.cover ? ' cover' : '') + (t._clash ? ' clash' : '') + (view.sel === t.k ? ' sel' : '') + (drag && drag.k === t.k && drag.moved ? ' drag' : '') +
+      (view.hi && view.hi !== t.id ? ' dim' : '') + (span === 1 && view.weeks > 4 ? ' one' : '');
+    el.children[0].innerHTML = `${t._s < a ? '‹ ' : ''}<b>${esc(t.id)}</b>${t._e > b ? ' ›' : ''} ${esc(bt.cust || '')}`;
+    el.children[1].innerHTML = `${esc(t.colour || (t.cover ? 'cover part' : 'colour not set'))}<span class="scr"> · ${t.n}d</span>`;
+    el.children[2].textContent = t.crew;
+    el.children[3].style.display = t._e > b ? 'none' : '';
+    el.title = `${t.id} ${bt.cust || ''} · ${t.part}${t.cover ? ' (cover part)' : ''}\n${dayName(t._s)} to ${dayName(t._e)} · ${t.n} shop day${t.n === 1 ? '' : 's'} · ${t.crew} ${t.crew === 1 ? 'person' : 'people'}`;
+  }
+  for (const [k, el] of barEls) if (!seen.has(k)) { el.remove(); barEls.delete(k); }
+  // rows: lanes, clashes, folding, what prints
+  let printRows = 0; const grpHasPrint = {};
+  for (const m in rowEls) {
+    const r = rowEls[m], lanes = C.lanes[m] || 1;
+    r.row.style.setProperty('--lanes', lanes); r.row.classList.toggle('bad', lanes > 1);
+    r.row.classList.toggle('fold', !!view.fold[r.g]);
+    const prints = rowsWithBars.has(m) || (!/^2850 /.test(m) && !!D.onNow[m]);
+    r.row.classList.toggle('np', !prints); if (prints) { printRows++; grpHasPrint[r.g] = true; }
+  }
+  grpEls.forEach((el, gi) => { el.classList.toggle('np', !grpHasPrint[gi]); if (grpHasPrint[gi]) printRows++; el.firstChild.innerHTML = `<i class="scr" style="font-style:normal">${view.fold[gi] ? '▸' : '▾'} </i>${esc(D.groups[gi].title)}`; });
+  $('grid').style.setProperty('--prh', Math.max(21, Math.min(34, Math.floor(930 / Math.max(1, printRows)))) + 'px');
+  // people row
+  let ph = '';
+  for (let i = a; i <= b; i++) {
+    const v = C.load[i], c = (i % 4 === 0 ? 'wk ' : '') + (!open(i) ? 'closed' : v > S.crew ? 'over' : v === S.crew ? 'full' : '');
+    ph += `<div class="${c}" title="${dayName(i)}: ${open(i) ? v + ' of ' + S.crew + ' people' : 'closed'}">${open(i) ? v : ''}</div>`;
+  }
+  $('ph').innerHTML = ph; $('pplof').textContent = `of ${S.crew} laminators`;
+  // toolbar
+  const np = C.probs.length; $('chip').textContent = np ? `${np} problem${np === 1 ? '' : 's'}` : 'No clashes'; $('chip').className = np ? 'bad' : '';
+  $('undo').disabled = !undoStack.length; $('redo').disabled = !redoStack.length; $('whole').classList.toggle('on', view.whole);
+  if (document.activeElement !== $('crew')) $('crew').value = S.crew;
+  $('prev').disabled = view.start <= 0; $('next').disabled = view.start >= D.weeks - view.weeks;
+  // print dressing
+  $('ptitle').textContent = `Glass Shop: the next ${view.weeks} weeks, by mold`;
+  $('prange').textContent = `${mon(a, true)} to ${mon(b, true)}, ${DAYS[b].slice(0, 4)}`;
+  $('plegend').innerHTML = '<b>Boats, in build order:</b> ' + S.boats.filter((x) => inWin.has(x.id)).map((x) => `<span class="chipb" style="background:${colourOf(x.id)}"><b>${esc(x.id)}</b> ${esc(x.cust)}</span>`).join('') +
+    '<span style="margin-left:auto">Thick dark outline = hull &nbsp; number in the circle = people on the part &nbsp; ‹ › = started before / runs past this board</span>';
+  $('pfoot2').textContent = `Mold status from B.O.S.S, ${D.pulledLabel}. Printed ${lt.getMonth() + 1}/${lt.getDate()}.`;
+  if (!(drag && drag.moved)) renderSide();
+}
+function render() { compute(); paintCells(); layout(); }
+
+// ---- side panel -----------------------------------------------------------------
+function renderSide() {
+  let h = '';
+  const t = view.sel && taskBy(view.sel);
+  if (t) {
+    const bt = boatBy(t.id) || {};
+    h += `<div class="card" id="edit"><h3><span class="sw" style="background:${colourOf(t.id)}"></span>${esc(t.id)} ${esc(bt.cust || '')}</h3><div class="sub">${esc(t.part === 'T Top' ? 'Hard Top' : t.part)} · mold: ${esc(label(t.mold))}</div>` +
+      `<div class="fld"><span>Start</span><span class="v"><button data-act="s-">&#9664;</button>${dayName(t._s)}<button data-act="s+">&#9654;</button></span></div>` +
+      `<div class="fld"><span>Shop days</span><span class="v"><button data-act="n-">−</button>${t.n}<button data-act="n+">+</button></span></div>` +
+      `<div class="fld"><span>People</span><span class="v"><button data-act="c-">−</button>${t.crew}<button data-act="c+">+</button></span></div>` +
+      `<div class="fld"><span>Done</span><span class="v">${dayName(t._e)}</span></div>` +
+      `<div class="fld"><span>Colour</span><input type="text" id="ecol" value="${esc(t.colour || '')}" placeholder="not set"></div>` +
+      `<div class="fld"><label><input type="checkbox" id="ecov" ${t.cover ? 'checked' : ''}> Cover part (built early to protect the mold)</label></div>` +
+      `<button class="danger" data-act="del">Take this part off the plan</button></div>`;
+  } else {
+    h += `<div class="card hint"><b>How it works.</b> Drag a bar to move the part to other days. Drag its right edge to make it longer or shorter. Click a bar to change people, days or colour. Click a day in the header to close the shop that day. Everything saves by itself in this browser.</div>`;
+  }
+  h += `<div class="card" id="probs"><h3>Problems</h3>${C.probs.length ? C.probs.slice(0, 40).map((p) => `<div class="prob" data-at="${p.at}">${p.text}</div>`).join('') + (C.probs.length > 40 ? `<div class="hint">and ${C.probs.length - 40} more</div>` : '') : '<div class="ok">None. No mold is double-booked and no day needs more than ' + S.crew + ' people.</div>'}</div>`;
+  h += `<div class="card"><h3>Boats</h3><table class="boats"><tr><th>Boat</th><th>Hull done</th><th>Full set</th><th>vs first pass</th></tr>`;
+  for (const bt of S.boats) {
+    const mine = S.tasks.filter((x) => x.id === bt.id); if (!mine.length) continue;
+    const hull = mine.find((x) => x.part === 'Hull'), set = Math.max(...mine.map((x) => x._e)), first = Math.min(...mine.map((x) => x._s));
+    const d = BASE[bt.id] == null ? null : set - BASE[bt.id];
+    h += `<tr data-boat="${esc(bt.id)}" data-at="${first}" class="${view.hi === bt.id ? 'hi' : ''}"><td><span class="sw" style="background:${colourOf(bt.id)}"></span><b>${esc(bt.id)}</b><span class="cu">${esc(bt.cust)}</span></td><td>${hull ? md(hull._e) : '<span class="same">pulled</span>'}</td><td><b>${md(set)}</b></td>` +
+      `<td>${d == null ? '<span class="same">new</span>' : d === 0 ? '<span class="same">same</span>' : d > 0 ? `<span class="late">${d} day${d === 1 ? '' : 's'} later</span>` : `<span class="early">${-d} day${d === -1 ? '' : 's'} sooner</span>`}</td></tr>`;
+  }
+  h += `</table><div class="hint" style="margin-top:6px">"Full set" is the day the last part for that boat is finished. Days are shop days, Monday to Thursday. Click a boat to light up its parts.</div></div>`;
+  h += `<div class="card hint">${savedAt ? 'Your changes are saved in this browser on this computer, last at ' + new Date(savedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '. ' : 'This is the first-pass plan, nothing changed yet. '}Use More &rsaquo; Save plan to a file to keep a copy or move it to another computer.<br>Part times are still estimates until the floor reviews them.</div>`;
+  $('side').innerHTML = h;
+}
+function edit(fn) { const t = taskBy(view.sel); if (!t) return; pushUndo(); fn(t); commit(); }
+$('side').addEventListener('click', (e) => {
+  const act = e.target.dataset && e.target.dataset.act;
+  if (act) {
+    if (act === 's-') edit((t) => { t.s = place(t._s - 1, -1); });
+    if (act === 's+') edit((t) => { t.s = place(t._s + 1, 1); });
+    if (act === 'n-') edit((t) => { t.n = Math.max(1, t.n - 1); });
+    if (act === 'n+') edit((t) => { t.n = Math.min(80, t.n + 1); });
+    if (act === 'c-') edit((t) => { t.crew = Math.max(BIG[t.part] ? 2 : 1, t.crew - 1); });
+    if (act === 'c+') edit((t) => { t.crew = Math.min(12, t.crew + 1); });
+    if (act === 'del') { const k = view.sel; pushUndo(); S.tasks = S.tasks.filter((t) => t.k !== k); view.sel = null; commit(); }
+    return;
+  }
+  const p = e.target.closest('.prob'); if (p) { jump(+p.dataset.at); return; }
+  const tr = e.target.closest('tr[data-boat]'); if (tr) { const id = tr.dataset.boat; view.hi = view.hi === id ? null : id; if (view.hi) jump(+tr.dataset.at, true); else render(); }
+});
+$('side').addEventListener('change', (e) => {
+  if (e.target.id === 'ecol') edit((t) => { t.colour = e.target.value.trim(); });
+  if (e.target.id === 'ecov') edit((t) => { t.cover = e.target.checked; });
+});
+function jump(i, keepIfVisible) {
+  const a = view.start * 4, b = a + view.weeks * 4 - 1;
+  if (!(keepIfVisible && i >= a && i <= b)) view.start = Math.max(0, Math.min(D.weeks - view.weeks, Math.floor(i / 4)));
+  saveView(); render();
+}
+
+// ---- dragging -------------------------------------------------------------------
+let drag = null, pager = null;
+$('grid').addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('.bar'); if (!el || e.button) return;
+  const t = taskBy(el.dataset.k); if (!t) return;
+  const r = el.parentNode.getBoundingClientRect();
+  drag = { k: t.k, el, pid: e.pointerId, mode: e.target.classList.contains('hdl') ? 'size' : 'move', x0: e.clientX, x: e.clientX, win0: view.start, colW: r.width / (view.weeks * 4), L: r.left, R: r.right,
+    before: snap(), orig: new Map(S.tasks.map((x) => [x.k, { s: x._s, n: x.n, e: x._e }])), moved: false, last: 0, shift: e.shiftKey };
+  try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  e.preventDefault();
+});
+document.addEventListener('pointermove', (e) => {
+  if (!drag || e.pointerId !== drag.pid) return;
+  if (!drag.moved && Math.abs(e.clientX - drag.x0) < 5) return;
+  drag.moved = true; drag.x = e.clientX; drag.shift = drag.shift || e.shiftKey; applyDrag(true);
+  const edge = e.clientX > drag.R - 18 ? 1 : e.clientX < drag.L + 18 ? -1 : 0;
+  if (!edge && pager) { clearInterval(pager); pager = null; }
+  if (edge && !pager) pager = setInterval(() => {
+    if (!drag) { clearInterval(pager); pager = null; return; }
+    const ns = Math.max(0, Math.min(D.weeks - view.weeks, view.start + edge)); if (ns === view.start) return;
+    view.start = ns; paintCells(); applyDrag(true);
+  }, 550);
+});
+function applyDrag(force) {
+  let d = Math.round((drag.x - drag.x0) / drag.colW) + (view.start - drag.win0) * 4;
+  const me = taskBy(drag.k), o = drag.orig;
+  if (drag.mode === 'size') {
+    const s = o.get(me.k).s, target = Math.max(s, o.get(me.k).e + d); let n = 0;
+    for (let i = s; i <= Math.min(target, MAXI); i++) if (open(i)) n++;
+    me.n = Math.max(1, n);
+  } else {
+    const group = view.whole || drag.shift ? S.tasks.filter((t) => t.id === me.id) : [me];
+    d = Math.max(d, -Math.min(...group.map((t) => o.get(t.k).s)));
+    for (const t of group) t.s = place(o.get(t.k).s + d, d < 0 ? -1 : 1);
+  }
+  if (d === drag.last && !force) return; drag.last = d;
+  compute(); layout();
+}
+function endDrag(e, cancel) {
+  if (!drag || (e && e.pointerId !== drag.pid)) return;
+  const d = drag; drag = null; if (pager) { clearInterval(pager); pager = null; }
+  if (cancel) { S = JSON.parse(d.before); render(); return; }
+  if (!d.moved) { view.sel = view.sel === d.k ? null : d.k; render(); return; }
+  if (snap() !== d.before) { pushUndo(d.before); view.sel = d.k; saveView(); commit(); } else render();
+}
+document.addEventListener('pointerup', (e) => endDrag(e, false));
+document.addEventListener('pointercancel', (e) => endDrag(e, true));
+
+// ---- header, toolbar, keys --------------------------------------------------------
+$('grid').addEventListener('click', (e) => {
+  const dh = e.target.closest('#dh > div');
+  if (dh) { const iso = DAYS[+dh.dataset.i]; pushUndo(); if (S.closed[iso]) delete S.closed[iso]; else S.closed[iso] = 'closed'; commit(); return; }
+  const g = e.target.closest('.grp'); if (g) { const gi = +g.dataset.g; view.fold[gi] = !view.fold[gi]; saveView(); render(); return; }
+  if (!e.target.closest('.bar') && (view.sel || view.hi)) { view.sel = null; view.hi = null; render(); }
+});
+$('prev').onclick = () => { view.start = Math.max(0, view.start - 1); saveView(); render(); };
+$('next').onclick = () => { view.start = Math.min(D.weeks - view.weeks, view.start + 1); saveView(); render(); };
+$('today').onclick = () => { view.start = TODAY_I < 0 ? 0 : Math.max(0, Math.min(D.weeks - view.weeks, Math.floor(TODAY_I / 4))); saveView(); render(); };
+$('zoom').onclick = (e) => { const w = +e.target.dataset.w; if (!w) return; view.weeks = w; view.start = Math.min(view.start, D.weeks - w); saveView(); render(); };
+$('crew').onchange = (e) => { const v = Math.max(1, Math.min(30, +e.target.value || S.crew)); if (v !== S.crew) { pushUndo(); S.crew = v; commit(); } };
+$('whole').onclick = () => { view.whole = !view.whole; render(); };
+$('undo').onclick = undo; $('redo').onclick = redo;
+$('print').onclick = () => window.print();
+$('chip').onclick = () => { if (C.probs.length) jump(C.probs[0].at); const p = $('probs'); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); };
+const closeMenu = () => document.querySelector('details.menu').removeAttribute('open');
+function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+$('savef').onclick = () => { closeMenu(); download(`Project_27_Plan_${TODAY_ISO}.json`, JSON.stringify({ app: 'p27-mold-planner', stamp: D.stamp, saved: Date.now(), S: JSON.parse(snap()) }, null, 1), 'application/json'); };
+$('loadf').onclick = () => { closeMenu(); $('file').click(); };
+$('file').onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { const j = JSON.parse(await f.text()); if (!j.S || !Array.isArray(j.S.tasks) || !Array.isArray(j.S.boats)) throw 0; pushUndo(); S = j.S; view.sel = null; commit(); } catch (err) { alert('That file is not a saved Project 27 plan.'); }
+};
+$('csv').onclick = () => {
+  closeMenu(); const q = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+  const rows = [['Boat', 'Customer', 'Part', 'Mold', 'Start', 'Shop days', 'People', 'Done', 'Colour', 'Cover part']];
+  for (const t of [...S.tasks].sort((x, y) => x._s - y._s)) rows.push([t.id, (boatBy(t.id) || {}).cust || '', t.part, label(t.mold), DAYS[t._s], t.n, t.crew, DAYS[t._e], t.colour || '', t.cover ? 'yes' : '']);
+  download(`Project_27_Plan_${TODAY_ISO}.csv`, '﻿' + rows.map((r) => r.map(q).join(',')).join('\r\n'), 'text/csv');
+};
+$('reset').onclick = () => { closeMenu(); if (!confirm('Put every part back where the first-pass plan had it? You can still Undo this.')) return; pushUndo(); S = fresh(); view.sel = null; commit(); };
+$('add').onclick = () => {
+  $('boatlist').innerHTML = S.boats.map((b) => `<option value="${esc(b.id)}">${esc(b.cust)}</option>`).join('');
+  $('amold').innerHTML = D.groups.map((g) => g.rows.map((r) => `<option value="${esc(r.mold)}">${esc(label(r.mold))}</option>`).join('')).join('');
+  $('aboat').value = ''; $('acol').value = ''; $('dlg').showModal();
+};
+$('dlg').addEventListener('close', () => {
+  if ($('dlg').returnValue !== 'ok') return;
+  const id = $('aboat').value.trim().split(/\s+/)[0]; const mold = $('amold').value; if (!id || !mold) return;
+  const row = D.groups.flatMap((g) => g.rows).find((r) => r.mold === mold);
+  pushUndo();
+  if (!boatBy(id)) S.boats.push({ id, cust: $('aboat').value.trim().slice(id.length).trim(), model: row.model, seq: 900 + S.boats.length });
+  const n = Math.max(1, Math.min(60, +$('adays').value || 1)), crew = Math.max(BIG[row.part] ? 2 : 1, Math.min(12, +$('acrew').value || 1));
+  let s = place(view.start * 4, 1);
+  for (let guard = 0; guard < 200; guard++) { const e = endWith(S.closed, s, n); const hit = S.tasks.find((t) => t.mold === mold && t._s <= e && t._e >= s); if (!hit) break; s = place(hit._e + 1, 1); }
+  let k = `${id}|${row.part}`; while (taskBy(k)) k += '+';
+  S.tasks.push({ k, id, part: row.part, mold, s, n, crew, colour: $('acol').value.trim(), cover: false });
+  view.sel = k; commit(); jump(s, true);
+});
+document.addEventListener('keydown', (e) => {
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName) || $('dlg').open) return;
+  const z = (e.ctrlKey || e.metaKey) && !e.altKey;
+  if (z && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (z && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+  if (e.key === 'Escape') { view.sel = null; view.hi = null; render(); return; }
+  if (!view.sel) return;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    const dir = e.key === 'ArrowLeft' ? -1 : 1; e.preventDefault();
+    edit((t) => { if (e.shiftKey) t.n = Math.max(1, t.n + dir); else t.s = place(t._s + dir, dir); });
+  }
+  if (e.key === 'Delete') { const k = view.sel; pushUndo(); S.tasks = S.tasks.filter((t) => t.k !== k); view.sel = null; commit(); }
+});
+
+buildSkeleton(); render();
+
+// ---- self-test (open the file with ?selftest) ---------------------------------------
+if (TEST) setTimeout(() => {
+  const out = {}, pe = (el, type, x, y, extra) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 7, button: 0, clientX: x, clientY: y, ...(extra || {}) }));
+  try {
+    out.tasks = S.tasks.length; out.rows = Object.keys(rowEls).length; out.barsOnScreen = barEls.size; out.problemsAtStart = C.probs.length; out.maxPeople = Math.max(...C.load);
+    out.firstRows = D.groups.slice(0, 2).map((g) => g.title + ': ' + g.rows.map((r) => label(r.mold)).join(', '));
+    const pick = S.tasks.filter((t) => barEls.has(t.k) && t._s >= 2 && t._e < 12 && t.n >= 2)[0];
+    const el = barEls.get(pick.k), r = el.getBoundingClientRect(), colW = el.parentNode.getBoundingClientRect().width / 16, s0 = pick._s, n0 = pick.n;
+    pe(el, 'pointerdown', r.left + 10, r.top + 5); pe(document, 'pointermove', r.left + 10 + colW * 2.2, r.top + 5); pe(document, 'pointerup', r.left + 10 + colW * 2.2, r.top + 5);
+    out.move = { task: pick.k, from: s0, to: taskBy(pick.k)._s, expect: place(s0 + 2, 1), undoDepth: undoStack.length };
+    undo(); out.undoRestores = taskBy(pick.k)._s === s0;
+    const el2 = barEls.get(pick.k), h = el2.querySelector('.hdl').getBoundingClientRect();
+    pe(el2.querySelector('.hdl'), 'pointerdown', h.left + 3, h.top + 5); pe(document, 'pointermove', h.left + 3 + colW * 1.1, h.top + 5); pe(document, 'pointerup', h.left + 3 + colW * 1.1, h.top + 5);
+    out.resize = { from: n0, to: taskBy(pick.k).n }; undo();
+    const e0 = taskBy(pick.k)._e; const dayEl = document.querySelector(`#dh > div[data-i="${s0 + 1}"]`); dayEl.click();
+    out.closeDay = { day: DAYS[s0 + 1], endBefore: e0, endAfter: taskBy(pick.k)._e, closedNow: !!S.closed[DAYS[s0 + 1]] }; undo();
+    view.sel = null; render(); const el3 = barEls.get(pick.k), r3 = el3.getBoundingClientRect(); pe(el3, 'pointerdown', r3.left + 10, r3.top + 5); pe(document, 'pointerup', r3.left + 10, r3.top + 5);
+    out.clickSelects = view.sel === pick.k && !!$('edit');
+    view.whole = true; const cnt = {}; for (const t of S.tasks) if (barEls.has(t.k)) cnt[t.id] = (cnt[t.id] || 0) + 1;
+    const big = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0], lead = S.tasks.find((t) => t.id === big && barEls.has(t.k) && t._s >= 1 && t._s < 10);
+    const mates = S.tasks.filter((t) => t.id === big).map((t) => [t.k, t._s]);
+    const el4 = barEls.get(lead.k), r4 = el4.getBoundingClientRect(); pe(el4, 'pointerdown', r4.left + 10, r4.top + 5); pe(document, 'pointermove', r4.left + 10 + colW * 4, r4.top + 5); pe(document, 'pointerup', r4.left + 10 + colW * 4, r4.top + 5);
+    out.wholeBoat = { boat: big, parts: mates.length, allMoved: mates.every(([k, s]) => taskBy(k)._s > s) }; undo(); view.whole = false;
+    out.backToStart = snap() === JSON.stringify(fresh(), strip);
+    out.ok = out.move.to === out.move.expect && out.undoRestores && out.resize.to > n0 && out.closeDay.endAfter > e0 && out.clickSelects && out.wholeBoat.allMoved && out.backToStart;
+  } catch (err) { out.error = String(err && err.stack || err); }
+  render(); $('selftest').hidden = false; $('selftest').textContent = 'SELFTEST ' + JSON.stringify(out, null, 1);
+}, 50);
+</script>
+</body></html>

@@ -96,10 +96,23 @@
   dialog input, dialog select { width: 100%; padding: 6px 8px; border: 1px solid #b0bec5; border-radius: 6px; }
   dialog .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
   dialog button { border: 1px solid #b0bec5; background: #fff; border-radius: 6px; padding: 6px 14px; cursor: pointer; } dialog button.go { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .left { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+  #bank { flex: none; max-height: 34vh; overflow: auto; background: #eef2f5; border-top: 3px solid var(--navy); padding: 6px 8px 8px; }
+  #bank .bt { display: flex; gap: 10px; align-items: baseline; margin-bottom: 6px; } #bank .bt b { font-size: 14px; color: var(--navy); white-space: nowrap; } #bank .bt span { color: #5f6b73; font-size: 11.5px; }
+  .bcards { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+  .bcard { background: #fff; border: 1px solid #b0bec5; border-left-width: 8px; border-radius: 6px; padding: 4px 9px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; max-width: 420px; }
+  .bcard:hover { box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+  .bcard .b1 { white-space: nowrap; } .bcard .b2 { font-size: 11px; color: #5f6b73; white-space: nowrap; }
+  .bparts { display: flex; flex-wrap: wrap; gap: 4px; margin: 5px 0 3px; }
+  .bpart { border: 1px solid rgba(0,0,0,.3); border-radius: 4px; padding: 2px 6px; font-size: 11.5px; cursor: grab; touch-action: none; white-space: nowrap; }
+  .bpart.hull { border: 2px solid var(--navy); font-weight: 700; }
+  #ghost { position: fixed; z-index: 100; pointer-events: none; padding: 4px 9px; border-radius: 6px; border: 2px solid var(--navy); font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.35); display: none; white-space: nowrap; }
+  #dropcol { position: fixed; z-index: 20; pointer-events: none; background: rgba(21,101,192,.2); border-left: 2px solid #1565c0; border-right: 2px solid #1565c0; display: none; }
+  .row.target { box-shadow: inset 0 0 0 2px #1565c0; } .row.target .mold { background: #bbdefb; }
   .ponly { display: none; }
   @media screen and (max-width: 900px) {
     :root { --c1: 98px; --minw: 42px; }
-    #app { height: auto; } main { flex-direction: column; } .boardwrap { max-height: 72vh; } #side { width: auto; border-left: 0; }
+    #app { height: auto; } main { flex-direction: column; } .left { display: block; } .boardwrap { max-height: 72vh; } #bank { max-height: none; } #side { width: auto; border-left: 0; }
     .r { grid-template-columns: var(--c1) minmax(0, 1fr); } .r > .now { display: none; }
     .grid { min-width: calc(var(--c1) + var(--n) * var(--minw)); }
     .ttl span { display: none; }
@@ -108,8 +121,8 @@
     @page { size: 17in 11in; margin: 0.3in 0.35in; }
     html, body { height: auto; background: #fff; }
     body { zoom: 0.9; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .top, #side, .pplrow, .hdl, .scr { display: none !important; }
-    #app { height: auto; display: block; } main { display: block; } .boardwrap { overflow: visible; }
+    .top, #side, #bank, #ghost, #dropcol, .pplrow, .hdl, .scr { display: none !important; }
+    #app { height: auto; display: block; } main { display: block; } .left { display: block; } .boardwrap { overflow: visible; }
     .grid { min-width: 0; } .hr, .r > .lc, .grp span { position: static; }
     .row { height: var(--prh, 31px); } .grp { cursor: default; } .row.np, .grp.np { display: none; } .row.fold { display: grid; } .row.fold.np { display: none; }
     .bar.sel { outline: 0; } .bar.dim { opacity: 1; } .bar { padding-right: 20px; } .ppl { right: 3px; }
@@ -145,11 +158,14 @@
     </div>
   </div>
   <main>
+    <div class="left">
     <section class="boardwrap">
       <div class="ponly"><div class="phead"><h1 id="ptitle"></h1><span id="prange"></span></div><div class="plegend" id="plegend"></div></div>
       <div class="grid" id="grid"></div>
       <div class="ponly"><div class="pfoot"><span>Each row is one mold. Each bar is the part to build in it: boat, colour, people. Shop days are Monday to Thursday.</span><span id="pfoot2"></span></div></div>
     </section>
+    <div id="bank"></div>
+    </div>
     <aside id="side"></aside>
   </main>
 </div>
@@ -162,6 +178,7 @@
   <label>Colour (optional)</label><input id="acol">
   <div class="btns"><button value="cancel" formnovalidate>Cancel</button><button value="ok" class="go">Add</button></div>
 </form></dialog>
+<div id="ghost"></div><div id="dropcol"></div>
 <pre id="selftest" hidden></pre>
 <script>
 const D = /*DATA*/null;
@@ -184,13 +201,23 @@ const TODAY_I = DAYS.indexOf(TODAY_ISO);
 
 // ---- state --------------------------------------------------------------------
 const KEY = 'p27-mold-planner:' + D.stamp;
-const fresh = () => ({ tasks: D.tasks.map((t) => ({ ...t })), closed: { ...D.closed }, crew: D.crew, boats: D.boats.map((b) => ({ ...b })) });
+const fresh = () => ({ v: 2, tasks: D.tasks.map((t) => ({ ...t })), closed: { ...D.closed }, crew: D.crew, boats: D.boats.map((b) => ({ ...b })) });
+// A plan saved before the boat bank existed: bank the far-out parts he never touched, leave everything he moved.
+function migrate(st) {
+  if (st.v >= 2) return st;
+  const d0 = new Map(D.tasks.map((t) => [t.k, t]));
+  for (const t of st.tasks) { const d = d0.get(t.k); if (d && d.bank && t.s === d.s && t.n === d.n) t.bank = true; }
+  st.v = 2; return st;
+}
+const PORDER = ['Boxes', 'Grid', 'Hull', 'Liner', 'Ring', 'Console', 'Console Face', 'Leaning Post', 'Baitwell', 'Hatches', 'T Top'];
+const byPart = (x, y) => PORDER.indexOf(x.part) - PORDER.indexOf(y.part);
+const partName = (p) => (p === 'T Top' ? 'Hard Top' : p);
 const strip = (k, v) => (k[0] === '_' ? undefined : v);
 const snap = () => JSON.stringify(S, strip);
 let S = fresh(), savedAt = null;
-let view = { start: 0, weeks: 4, sel: null, hi: null, whole: false, fold: {} };
+let view = { start: 0, weeks: 4, sel: null, hi: null, whole: false, fold: {}, open: {} };
 if (!TEST) try {
-  const j = JSON.parse(localStorage.getItem(KEY) || 'null'); if (j && j.S && Array.isArray(j.S.tasks)) { S = j.S; savedAt = j.saved; }
+  const j = JSON.parse(localStorage.getItem(KEY) || 'null'); if (j && j.S && Array.isArray(j.S.tasks)) { S = migrate(j.S); savedAt = j.saved; }
   const v = JSON.parse(localStorage.getItem(KEY + ':view') || 'null'); if (v) view = { ...view, start: v.start | 0, weeks: [4, 8, 12].includes(v.weeks) ? v.weeks : 4, fold: v.fold || {} };
 } catch (e) {}
 // names can arrive later than a saved plan (the B.O.S.S tab reads them at load): fill any that are blank
@@ -224,7 +251,8 @@ let C = null;
 function compute() {
   const load = new Array(DAYS.length).fill(0), byMold = {}, lanes = {}, probs = [];
   for (const t of S.tasks) {
-    t._s = place(t.s, 1); t._e = endWith(S.closed, t._s, t.n); t._clash = false;
+    t._clash = false; if (t.bank) { t._s = t._e = -1; t._lane = 0; continue; }
+    t._s = place(t.s, 1); t._e = endWith(S.closed, t._s, t.n);
     (byMold[t.mold] ||= []).push(t);
     for (let i = t._s; i <= t._e; i++) if (open(i)) load[i] += t.crew;
   }
@@ -245,7 +273,7 @@ function compute() {
     probs.push({ at: i, text: `<b>${i === j ? dayName(i) : dayName(i) + ' to ' + dayName(j)}</b>: ${mx} people scheduled, ${S.crew} available` });
     i = j;
   }
-  for (const t of S.tasks) if (BIG[t.part] && t.crew < 2) probs.push({ at: t._s, text: `<b>${esc(t.id)} ${esc(t.part)}</b>: needs at least 2 people` });
+  for (const t of S.tasks) if (!t.bank && BIG[t.part] && t.crew < 2) probs.push({ at: t._s, text: `<b>${esc(t.id)} ${esc(t.part)}</b>: needs at least 2 people` });
   probs.sort((x, y) => x.at - y.at);
   C = { load, lanes, probs };
 }
@@ -290,7 +318,7 @@ function paintCells() {
 function layout() {
   const a = view.start * 4, n = view.weeks * 4, b = a + n - 1, seen = new Set(), inWin = new Set(), rowsWithBars = new Set();
   for (const t of S.tasks) {
-    const r = rowEls[t.mold]; if (!r) continue;
+    const r = rowEls[t.mold]; if (!r || t.bank) continue;
     const vis = t._e >= a && t._s <= b;
     if (!vis && !(drag && drag.k === t.k)) continue;
     seen.add(t.k);
@@ -342,13 +370,14 @@ function layout() {
     '<span style="margin-left:auto">Thick dark outline = hull &nbsp; number in the circle = people on the part &nbsp; ‹ › = started before / runs past this board</span>';
   $('pfoot2').textContent = `Mold status from B.O.S.S, ${D.pulledLabel}. Printed ${lt.getMonth() + 1}/${lt.getDate()}.`;
   if (!(drag && drag.moved)) renderSide();
+  if (!bdrag) renderBank();
 }
 function render() { compute(); paintCells(); layout(); }
 
 // ---- side panel -----------------------------------------------------------------
 function renderSide() {
   let h = '';
-  const t = view.sel && taskBy(view.sel);
+  let t = view.sel && taskBy(view.sel); if (t && t.bank) t = null;
   if (t) {
     const bt = boatBy(t.id) || {};
     h += `<div class="card" id="edit"><h3><span class="sw" style="background:${colourOf(t.id)}"></span>${esc(t.id)} ${esc(bt.cust || '')}</h3><div class="sub">${esc(t.part === 'T Top' ? 'Hard Top' : t.part)} · mold: ${esc(label(t.mold))}</div>` +
@@ -358,18 +387,19 @@ function renderSide() {
       `<div class="fld"><span>Done</span><span class="v">${dayName(t._e)}</span></div>` +
       `<div class="fld"><span>Colour</span><input type="text" id="ecol" value="${esc(t.colour || '')}" placeholder="not set"></div>` +
       `<div class="fld"><label><input type="checkbox" id="ecov" ${t.cover ? 'checked' : ''}> Cover part (built early to protect the mold)</label></div>` +
-      `<button class="danger" data-act="del">Take this part off the plan</button></div>`;
+      `<button data-act="bank">Send this part back to the bank</button> <button data-act="bankboat">Send the whole boat back</button><br><button class="danger" data-act="del">Take this part off the plan</button></div>`;
   } else {
-    h += `<div class="card hint"><b>How it works.</b> Drag a bar to move the part to other days. Drag its right edge to make it longer or shorter. Click a bar to change people, days or colour. Click a day in the header to close the shop that day. Everything saves by itself in this browser.</div>`;
+    h += `<div class="card hint"><b>How it works.</b> Drag a bar to move the part to other days. Drag its right edge to make it longer or shorter. Click a bar to change people, days or colour. Click a day in the header to close the shop that day. Boats further out wait in the bank under the board: drag one up onto a day when you are ready to plan it. Everything saves by itself in this browser.</div>`;
   }
   h += `<div class="card" id="probs"><h3>Problems</h3>${C.probs.length ? C.probs.slice(0, 40).map((p) => `<div class="prob" data-at="${p.at}">${p.text}</div>`).join('') + (C.probs.length > 40 ? `<div class="hint">and ${C.probs.length - 40} more</div>` : '') : '<div class="ok">None. No mold is double-booked and no day needs more than ' + S.crew + ' people.</div>'}</div>`;
   h += `<div class="card"><h3>Boats</h3><table class="boats"><tr><th>Boat</th><th>Hull done</th><th>Full set</th><th>vs first pass</th></tr>`;
   for (const bt of S.boats) {
     const mine = S.tasks.filter((x) => x.id === bt.id); if (!mine.length) continue;
-    const hull = mine.find((x) => x.part === 'Hull'), set = Math.max(...mine.map((x) => x._e)), first = Math.min(...mine.map((x) => x._s));
+    const on = mine.filter((x) => !x.bank), nb = mine.length - on.length;
+    const hull = mine.find((x) => x.part === 'Hull'), set = on.length ? Math.max(...on.map((x) => x._e)) : -1, first = on.length ? Math.min(...on.map((x) => x._s)) : -1;
     const d = BASE[bt.id] == null ? null : set - BASE[bt.id];
-    h += `<tr data-boat="${esc(bt.id)}" data-at="${first}" class="${view.hi === bt.id ? 'hi' : ''}"><td><span class="sw" style="background:${colourOf(bt.id)}"></span><b>${esc(bt.id)}</b><span class="cu">${esc(bt.cust)}</span></td><td>${hull ? md(hull._e) : '<span class="same">pulled</span>'}</td><td><b>${md(set)}</b></td>` +
-      `<td>${d == null ? '<span class="same">new</span>' : d === 0 ? '<span class="same">same</span>' : d > 0 ? `<span class="late">${d} day${d === 1 ? '' : 's'} later</span>` : `<span class="early">${-d} day${d === -1 ? '' : 's'} sooner</span>`}</td></tr>`;
+    h += `<tr data-boat="${esc(bt.id)}" data-at="${first}" class="${view.hi === bt.id ? 'hi' : ''}"><td><span class="sw" style="background:${colourOf(bt.id)}"></span><b>${esc(bt.id)}</b><span class="cu">${esc(bt.cust)}</span></td><td>${!hull ? '<span class="same">pulled</span>' : hull.bank ? '<span class="same">bank</span>' : md(hull._e)}</td><td>${nb ? `<span class="same">${nb} in bank</span>` : `<b>${md(set)}</b>`}</td>` +
+      `<td>${nb ? '' : d == null ? '<span class="same">new</span>' : d === 0 ? '<span class="same">same</span>' : d > 0 ? `<span class="late">${d} day${d === 1 ? '' : 's'} later</span>` : `<span class="early">${-d} day${d === -1 ? '' : 's'} sooner</span>`}</td></tr>`;
   }
   h += `</table><div class="hint" style="margin-top:6px">"Full set" is the day the last part for that boat is finished. Days are shop days, Monday to Thursday. Click a boat to light up its parts.</div></div>`;
   h += `<div class="card hint">${savedAt ? 'Your changes are saved in this browser on this computer, last at ' + new Date(savedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '. ' : 'This is the first-pass plan, nothing changed yet. '}Use More &rsaquo; Save plan to a file to keep a copy or move it to another computer.<br>Part times are still estimates until the floor reviews them.</div>`;
@@ -385,11 +415,12 @@ $('side').addEventListener('click', (e) => {
     if (act === 'n+') edit((t) => { t.n = Math.min(80, t.n + 1); });
     if (act === 'c-') edit((t) => { t.crew = Math.max(BIG[t.part] ? 2 : 1, t.crew - 1); });
     if (act === 'c+') edit((t) => { t.crew = Math.min(12, t.crew + 1); });
+    if (act === 'bank' || act === 'bankboat') { const me = taskBy(view.sel); if (!me) return; pushUndo(); for (const x of S.tasks) if (act === 'bank' ? x === me : x.id === me.id) x.bank = true; view.sel = null; commit(); }
     if (act === 'del') { const k = view.sel; pushUndo(); S.tasks = S.tasks.filter((t) => t.k !== k); view.sel = null; commit(); }
     return;
   }
   const p = e.target.closest('.prob'); if (p) { jump(+p.dataset.at); return; }
-  const tr = e.target.closest('tr[data-boat]'); if (tr) { const id = tr.dataset.boat; view.hi = view.hi === id ? null : id; if (view.hi) jump(+tr.dataset.at, true); else render(); }
+  const tr = e.target.closest('tr[data-boat]'); if (tr) { const id = tr.dataset.boat; view.hi = view.hi === id ? null : id; if (view.hi && +tr.dataset.at >= 0) jump(+tr.dataset.at, true); else render(); }
 });
 $('side').addEventListener('change', (e) => {
   if (e.target.id === 'ecol') edit((t) => { t.colour = e.target.value.trim(); });
@@ -399,6 +430,81 @@ function jump(i, keepIfVisible) {
   const a = view.start * 4, b = a + view.weeks * 4 - 1;
   if (!(keepIfVisible && i >= a && i <= b)) view.start = Math.max(0, Math.min(D.weeks - view.weeks, Math.floor(i / 4)));
   saveView(); render();
+}
+
+// ---- the boat bank: boats not on the board yet -----------------------------------
+function renderBank() {
+  const ids = S.boats.filter((b) => S.tasks.some((t) => t.id === b.id && t.bank));
+  let h = `<div class="bt"><b>Boat bank</b><span>${ids.length ? `${ids.length} boat${ids.length === 1 ? '' : 's'} not on the board yet. Drag a boat up onto a day and its parts line up from that day, hull first. It does not check the other boats yet, so whatever overlaps turns red for you to sort out. Click a boat to open it and drag one part at a time.` : 'Empty. Every part is on the board.'}</span></div><div class="bcards">`;
+  for (const b of ids) {
+    const parts = S.tasks.filter((t) => t.id === b.id && t.bank).sort(byPart), cd = parts.reduce((n, t) => n + t.n * t.crew, 0), hull = parts.find((t) => t.part === 'Hull');
+    h += `<div class="bcard" data-boat="${esc(b.id)}" style="border-left-color:${colourOf(b.id)}"><div class="b1">${view.open[b.id] ? '▾' : '▸'} <b>${esc(b.id)}</b> ${esc(b.cust)}</div>` +
+      `<div class="b2">${parts.length} part${parts.length === 1 ? '' : 's'} · ${cd} crew-days${hull ? ` · hull ${hull.n}d × ${hull.crew} people` : ''}</div>` +
+      (view.open[b.id] ? `<div class="bparts">${parts.map((t) => `<span class="bpart${t.part === 'Hull' ? ' hull' : ''}" data-k="${esc(t.k)}" style="background:${colourOf(b.id)}" title="${esc(t.colour || '')}">${esc(partName(t.part))} · ${t.n}d · ${t.crew}</span>`).join('')}</div>` : '') + '</div>';
+  }
+  $('bank').innerHTML = h + '</div>';
+}
+// Drop a whole boat on day 'at'. Manual for now (autofit comes later): its parts line up from that day in
+// build order (boxes or grid and the hull first, liner after the hull, ring after the liner, then the small
+// parts wherever this boat's own crew use leaves room). Other boats are not checked: overlaps show red.
+function placeBoat(id, at) {
+  const mine = S.tasks.filter((t) => t.id === id), todo = mine.filter((t) => t.bank).sort(byPart);
+  const own = new Array(DAYS.length).fill(0);
+  for (const t of todo) {
+    let from = at;
+    const after = (p) => { const x = mine.find((y) => y.part === p); if (x && !x.bank) from = Math.max(from, x._e + 1); };
+    if (t.part === 'Hull') after('Grid');
+    if (t.part === 'Liner') after('Hull');
+    if (t.part === 'Ring') { after('Hull'); after('Liner'); }
+    let st = place(from, 1), e = endWith(S.closed, st, t.n);
+    for (let g = 0; g < 400 && st < MAXI; g++) {
+      let ok = true; for (let i = st; i <= e; i++) if (open(i) && own[i] + t.crew > S.crew) { ok = false; break; }
+      if (ok) break; st = place(st + 1, 1); e = endWith(S.closed, st, t.n);
+    }
+    t.s = t._s = st; t._e = e; t.bank = false; for (let i = st; i <= e; i++) if (open(i)) own[i] += t.crew;
+  }
+  compute();
+}
+let bdrag = null;
+$('bank').addEventListener('pointerdown', (e) => {
+  if (e.button) return; const part = e.target.closest('.bpart'), card = e.target.closest('.bcard'); if (!card) return;
+  bdrag = { pid: e.pointerId, k: part ? part.dataset.k : null, boat: card.dataset.boat, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, moved: false, at: -1 };
+  try { (part || card).setPointerCapture(e.pointerId); } catch (err) {}
+  e.preventDefault();
+});
+function bankAim() {
+  const r = $('dh').getBoundingClientRect(), w = document.querySelector('.boardwrap').getBoundingClientRect(), n = view.weeks * 4, colW = r.width / n, dc = $('dropcol');
+  for (const m in rowEls) rowEls[m].row.classList.remove('target');
+  if (!(bdrag.x >= r.left && bdrag.x < r.right && bdrag.y >= w.top && bdrag.y <= w.bottom)) { bdrag.at = -1; dc.style.display = 'none'; return; }
+  const c = Math.min(n - 1, Math.floor((bdrag.x - r.left) / colW)); bdrag.at = view.start * 4 + c;
+  dc.style.display = 'block'; dc.style.left = (r.left + c * colW) + 'px'; dc.style.width = colW + 'px'; dc.style.top = w.top + 'px'; dc.style.height = w.height + 'px';
+  const t = bdrag.k && taskBy(bdrag.k); if (t && rowEls[t.mold]) rowEls[t.mold].row.classList.add('target');
+}
+function bankMove(e) {
+  if (!bdrag.moved && Math.hypot(e.clientX - bdrag.x0, e.clientY - bdrag.y0) < 6) return;
+  bdrag.moved = true; bdrag.x = e.clientX; bdrag.y = e.clientY;
+  const g = $('ghost'), t = bdrag.k && taskBy(bdrag.k), bt = boatBy(bdrag.boat) || {};
+  g.style.display = 'block'; g.style.left = (e.clientX + 12) + 'px'; g.style.top = (e.clientY + 10) + 'px'; g.style.background = colourOf(bdrag.boat);
+  g.textContent = t ? `${t.id} · ${partName(t.part)}` : `${bdrag.boat} ${bt.cust || ''} · whole boat`;
+  bankAim();
+  const r = $('dh').getBoundingClientRect(), edge = bdrag.at < 0 ? 0 : e.clientX > r.right - 18 ? 1 : e.clientX < r.left + 18 ? -1 : 0;
+  if (!edge && pager) { clearInterval(pager); pager = null; }
+  if (edge && !pager) pager = setInterval(() => {
+    if (!bdrag) { clearInterval(pager); pager = null; return; }
+    const ns = Math.max(0, Math.min(D.weeks - view.weeks, view.start + edge)); if (ns === view.start) return;
+    view.start = ns; paintCells(); layout(); bankAim();
+  }, 550);
+}
+function bankEnd(e, cancel) {
+  if (!bdrag || (e && e.pointerId !== bdrag.pid)) return false;
+  const b = bdrag; bdrag = null; if (pager) { clearInterval(pager); pager = null; }
+  $('ghost').style.display = 'none'; $('dropcol').style.display = 'none'; for (const m in rowEls) rowEls[m].row.classList.remove('target');
+  if (!b.moved) { if (!b.k) view.open[b.boat] = !view.open[b.boat]; render(); return true; }
+  if (cancel || b.at < 0) { render(); return true; }
+  pushUndo();
+  if (b.k) { const t = taskBy(b.k); t.s = place(b.at, 1); t.bank = false; view.sel = t.k; }
+  else { placeBoat(b.boat, b.at); view.hi = b.boat; view.sel = null; }
+  saveView(); commit(); return true;
 }
 
 // ---- dragging -------------------------------------------------------------------
@@ -413,6 +519,7 @@ $('grid').addEventListener('pointerdown', (e) => {
   e.preventDefault();
 });
 document.addEventListener('pointermove', (e) => {
+  if (bdrag && e.pointerId === bdrag.pid) { bankMove(e); return; }
   if (!drag || e.pointerId !== drag.pid) return;
   if (!drag.moved && Math.abs(e.clientX - drag.x0) < 5) return;
   drag.moved = true; drag.x = e.clientX; drag.shift = drag.shift || e.shiftKey; applyDrag(true);
@@ -432,7 +539,7 @@ function applyDrag(force) {
     for (let i = s; i <= Math.min(target, MAXI); i++) if (open(i)) n++;
     me.n = Math.max(1, n);
   } else {
-    const group = view.whole || drag.shift ? S.tasks.filter((t) => t.id === me.id) : [me];
+    const group = view.whole || drag.shift ? S.tasks.filter((t) => t.id === me.id && !t.bank) : [me];
     d = Math.max(d, -Math.min(...group.map((t) => o.get(t.k).s)));
     for (const t of group) t.s = place(o.get(t.k).s + d, d < 0 ? -1 : 1);
   }
@@ -446,8 +553,8 @@ function endDrag(e, cancel) {
   if (!d.moved) { view.sel = view.sel === d.k ? null : d.k; render(); return; }
   if (snap() !== d.before) { pushUndo(d.before); view.sel = d.k; saveView(); commit(); } else render();
 }
-document.addEventListener('pointerup', (e) => endDrag(e, false));
-document.addEventListener('pointercancel', (e) => endDrag(e, true));
+document.addEventListener('pointerup', (e) => { if (!bankEnd(e, false)) endDrag(e, false); });
+document.addEventListener('pointercancel', (e) => { if (!bankEnd(e, true)) endDrag(e, true); });
 
 // ---- header, toolbar, keys --------------------------------------------------------
 $('grid').addEventListener('click', (e) => {
@@ -471,12 +578,12 @@ $('savef').onclick = () => { closeMenu(); download(`Project_27_Plan_${TODAY_ISO}
 $('loadf').onclick = () => { closeMenu(); $('file').click(); };
 $('file').onchange = async (e) => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
-  try { const j = JSON.parse(await f.text()); if (!j.S || !Array.isArray(j.S.tasks) || !Array.isArray(j.S.boats)) throw 0; pushUndo(); S = j.S; view.sel = null; commit(); } catch (err) { alert('That file is not a saved Project 27 plan.'); }
+  try { const j = JSON.parse(await f.text()); if (!j.S || !Array.isArray(j.S.tasks) || !Array.isArray(j.S.boats)) throw 0; pushUndo(); S = migrate(j.S); view.sel = null; commit(); } catch (err) { alert('That file is not a saved Project 27 plan.'); }
 };
 $('csv').onclick = () => {
   closeMenu(); const q = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
-  const rows = [['Boat', 'Customer', 'Part', 'Mold', 'Start', 'Shop days', 'People', 'Done', 'Colour', 'Cover part']];
-  for (const t of [...S.tasks].sort((x, y) => x._s - y._s)) rows.push([t.id, (boatBy(t.id) || {}).cust || '', t.part, label(t.mold), DAYS[t._s], t.n, t.crew, DAYS[t._e], t.colour || '', t.cover ? 'yes' : '']);
+  const rows = [['Boat', 'Customer', 'Part', 'Mold', 'Start', 'Shop days', 'People', 'Done', 'Colour', 'Cover part', 'In the bank']];
+  for (const t of [...S.tasks].sort((x, y) => (x.bank ? 1e6 : x._s) - (y.bank ? 1e6 : y._s))) rows.push([t.id, (boatBy(t.id) || {}).cust || '', t.part, label(t.mold), t.bank ? '' : DAYS[t._s], t.n, t.crew, t.bank ? '' : DAYS[t._e], t.colour || '', t.cover ? 'yes' : '', t.bank ? 'yes' : '']);
   download(`Project_27_Plan_${TODAY_ISO}.csv`, '﻿' + rows.map((r) => r.map(q).join(',')).join('\r\n'), 'text/csv');
 };
 $('reset').onclick = () => { closeMenu(); if (!confirm('Put every part back where the first-pass plan had it? You can still Undo this.')) return; pushUndo(); S = fresh(); view.sel = null; commit(); };
@@ -538,7 +645,27 @@ if (TEST) setTimeout(() => {
     const el4 = barEls.get(lead.k), r4 = el4.getBoundingClientRect(); pe(el4, 'pointerdown', r4.left + 10, r4.top + 5); pe(document, 'pointermove', r4.left + 10 + colW * 4, r4.top + 5); pe(document, 'pointerup', r4.left + 10 + colW * 4, r4.top + 5);
     out.wholeBoat = { boat: big, parts: mates.length, allMoved: mates.every(([k, s]) => taskBy(k)._s > s) }; undo(); view.whole = false;
     out.backToStart = snap() === JSON.stringify(fresh(), strip);
-    out.ok = out.move.to === out.move.expect && out.undoRestores && out.resize.to > n0 && out.closeDay.endAfter > e0 && out.clickSelects && out.wholeBoat.allMoved && out.backToStart;
+    const bankIds = S.boats.filter((b) => S.tasks.some((t) => t.id === b.id && t.bank)).map((b) => b.id);
+    out.bank = { boats: bankIds.length, parts: S.tasks.filter((t) => t.bank).length, cards: document.querySelectorAll('.bcard').length, onBoard: S.tasks.filter((t) => !t.bank).length };
+    const bid = bankIds[0], card = document.querySelector('.bcard'), cr = card.getBoundingClientRect(), dr = $('dh').getBoundingClientRect(), p0 = C.probs.length;
+    const dropX = dr.left + dr.width * 0.6, dropY = dr.bottom + 80;
+    pe(card, 'pointerdown', cr.left + 8, cr.top + 8); pe(document, 'pointermove', dropX, dropY);
+    const aimed = bdrag && bdrag.at, shown = $('dropcol').style.display === 'block';
+    pe(document, 'pointerup', dropX, dropY);
+    const mine = S.tasks.filter((t) => t.id === bid), gp = (p) => mine.find((t) => t.part === p);
+    out.dropBoat = { boat: bid, aimedDay: DAYS[aimed], dropColumnShown: shown, allPlaced: mine.every((t) => !t.bank), noneBeforeDrop: mine.filter((t) => D.tasks.find((d) => d.k === t.k).bank).every((t) => t._s >= aimed), hullOnDropDay: !gp('Hull') || !!gp('Grid') || gp('Hull')._s === place(aimed, 1), ownPeak: Math.max(...DAYS.map((_, i) => mine.filter((t) => D.tasks.find((d) => d.k === t.k).bank && t._s <= i && t._e >= i && open(i)).reduce((n, t) => n + t.crew, 0))), newProblems: C.probs.length - p0,
+      hull: gp('Hull') && DAYS[gp('Hull')._s] + ' to ' + DAYS[gp('Hull')._e], linerAfterHull: !gp('Liner') || !gp('Hull') || gp('Liner')._s > gp('Hull')._e, ringAfterLiner: !gp('Ring') || !gp('Liner') || gp('Ring')._s > gp('Liner')._e, lastPart: DAYS[Math.max(...mine.map((t) => t._e))], lit: view.hi === bid };
+    undo(); view.hi = null; out.undoPutsItBack = S.tasks.filter((t) => t.id === bid && t.bank).length;
+    const card2 = document.querySelector('.bcard'), c2 = card2.getBoundingClientRect(); pe(card2, 'pointerdown', c2.left + 8, c2.top + 8); pe(document, 'pointerup', c2.left + 8, c2.top + 8);
+    const chip = document.querySelector('.bpart.hull'), ch = chip.getBoundingClientRect();
+    pe(chip, 'pointerdown', ch.left + 4, ch.top + 4); pe(document, 'pointermove', dropX, dropY); pe(document, 'pointerup', dropX, dropY);
+    const hk = taskBy(chip.dataset.k);
+    out.dropPart = { opened: !!chip, part: hk.k, onBoard: !hk.bank, at: DAYS[hk._s], exactlyWhereDropped: hk._s === place(aimed, 1), restStillBanked: S.tasks.filter((t) => t.id === hk.id && t.bank).length };
+    view.sel = hk.k; render(); document.querySelector('#edit [data-act="bank"]').click(); out.sendBack = taskBy(hk.k).bank === true;
+    undo(); undo(); view.open = {}; view.sel = null;
+    out.backToStart2 = snap() === JSON.stringify(fresh(), strip);
+    out.bankOk = out.bank.cards === out.bank.boats && out.bank.boats > 0 && shown && out.dropBoat.allPlaced && out.dropBoat.noneBeforeDrop && out.dropBoat.hullOnDropDay && out.dropBoat.ownPeak <= S.crew && out.dropBoat.linerAfterHull && out.dropBoat.ringAfterLiner && out.undoPutsItBack > 0 && out.dropPart.onBoard && out.dropPart.exactlyWhereDropped && out.sendBack && out.backToStart2;
+    out.ok = out.bankOk && out.move.to === out.move.expect && out.undoRestores && out.resize.to > n0 && out.closeDay.endAfter > e0 && out.clickSelects && out.wholeBoat.allMoved && out.backToStart;
   } catch (err) { out.error = String(err && err.stack || err); }
   render(); $('selftest').hidden = false; $('selftest').textContent = 'SELFTEST ' + JSON.stringify(out, null, 1);
 }, 50);

@@ -479,17 +479,17 @@ function renderSide() {
     const bt = boatBy(t.id) || {};
     h += `<div class="card" id="edit"><h3><span class="sw" style="background:${colourOf(t.id)}"></span>${esc(t.id)} ${esc(bt.cust || '')}</h3><div class="sub">${esc(t.part === 'T Top' ? 'Hard Top' : t.part)} · mold: ${esc(label(t.mold))}</div>` +
       `<div class="fld"><span>Start</span><span class="v"><button data-act="s-">&#9664;</button>${dayName(t._s)}<button data-act="s+">&#9654;</button></span></div>` +
-      `<div class="fld"><span>Shop days</span><span class="v"><button data-act="n-">−</button>${t.n}<button data-act="n+">+</button></span></div>` +
+      (t.done ? `<div class="fld"><span>Finished</span><span class="v"><button data-act="f-" title="A day earlier">&#9664;</button>${dayName(t._e)}<button data-act="f+" title="A day later">&#9654;</button></span></div>` : `<div class="fld"><span>Shop days</span><span class="v"><button data-act="n-">−</button>${t.n}<button data-act="n+">+</button></span></div>`) +
       `<div class="fld"><span>People</span><span class="v"><button data-act="c-">−</button>${t.crew}<button data-act="c+">+</button></span></div>` +
-      `<div class="fld"><span>${t.done ? 'Finished' : 'Ends'}</span><span class="v">${dayName(t._e)}</span></div>` +
-      `<div class="fld"><span>${t.done ? (t.pn != null ? `Planned ${t.pn} days, took ${t.n}` : 'Finished') : t._late ? '<b style="color:#c62828">Should be finished</b>' : ''}</span><span><button data-act="fin">${t.done ? 'Not finished after all' : 'Mark finished today'}</button></span></div>` +
+      (t.done ? '' : `<div class="fld"><span>Ends</span><span class="v">${dayName(t._e)}</span></div>`) +
+      `<div class="fld"><span>${t.done ? (t.pn != null ? `Planned ${t.pn} days, took ${t.n}` : 'Finished') : t._late ? '<b style="color:#c62828">Should be finished</b>' : ''}</span><span><button data-act="fin">${t.done ? 'Not finished after all' : 'Mark finished'}</button></span></div>` +
       `<div class="fld"><span>Kits ready</span><span><span class="kit${t.kg ? ' ok' : ''}" data-pk="kg">${t.kg ? '✓' : '○'} Glass</span><span class="kit${t.kc ? ' ok' : ''}" data-pk="kc">${t.kc ? '✓' : '○'} Core</span></span></div>` +
       `<div class="fld"><span>Whole boat</span><span><button data-act="kgall">Glass, all parts</button> <button data-act="kcall">Core, all parts</button></span></div>` +
       `<div class="fld"><span>Colour</span><input type="text" id="ecol" value="${esc(t.colour || '')}" placeholder="not set"></div>` +
       `<div class="fld"><label><input type="checkbox" id="ecov" ${t.cover ? 'checked' : ''}> Cover part (built early to protect the mold)</label></div>` +
       `<button data-act="bank">Send this part back to the bank</button> <button data-act="bankboat">Send the whole boat back</button><br><button class="danger" data-act="del">Take this part off the plan</button></div>`;
   } else {
-    h += `<div class="card hint"><b>How it works.</b> Drag a bar to move the part to other days. Drag its right edge to make it longer or shorter. Click a bar to change people, days or colour. People go in halves, for someone split between two parts. The two small boxes on a bar are its kits: G for glass, C for core (coosa included). Click a box when that kit is cut; Shift-click does every part of the boat. Once a part's start day has come, a third box with a check shows up: click it when the part is finished. Click a day in the header to close the shop that day. Boats further out wait in the bank under the board: drag one up onto a day when you are ready to plan it. Everything saves by itself in this browser.</div>`;
+    h += `<div class="card hint"><b>How it works.</b> Drag a bar to move the part to other days. Drag its right edge to make it longer or shorter. Click a bar to change people, days or colour. People go in halves, for someone split between two parts. The two small boxes on a bar are its kits: G for glass, C for core (coosa included). Click a box when that kit is cut; Shift-click does every part of the boat. Once a part's start day has come, a third box with a check shows up: click it when the part is finished. If you are ticking it a day late, the card that opens has arrows to set the day it really finished. Click a day in the header to close the shop that day. Boats further out wait in the bank under the board: drag one up onto a day when you are ready to plan it. Everything saves by itself in this browser.</div>`;
   }
   h += `<div class="card" id="probs"><h3>Problems</h3>${C.probs.length ? C.probs.slice(0, 40).map((p) => `<div class="prob${p.kit ? ' kitp' : ''}" data-at="${p.at}">${p.text}</div>`).join('') + (C.probs.length > 40 ? `<div class="hint">and ${C.probs.length - 40} more</div>` : '') : '<div class="ok">None. No mold is double-booked, no day needs more than ' + S.crew + ' people, and nothing starting in the next two weeks is waiting on a kit.</div>'}</div>`;
   h += `<div class="card"><h3>Boats</h3><table class="boats"><tr><th>Boat</th><th>Hull done</th><th>Full set</th><th>vs first pass</th></tr>`;
@@ -525,6 +525,8 @@ $('side').addEventListener('click', (e) => {
     if (act === 'c-') edit((t) => { t.crew = Math.max(BIG[t.part] ? 2 : 0.5, half(t.crew - 0.5)); });
     if (act === 'c+') edit((t) => { t.crew = Math.min(12, half(t.crew + 0.5)); });
     if (act === 'bank' || act === 'bankboat') { const me = taskBy(view.sel); if (!me) return; pushUndo(); for (const x of S.tasks) if (act === 'bank' ? x === me : x.id === me.id) x.bank = true; view.sel = null; commit(); }
+    if (act === 'f-') edit((t) => { if (t.done && t.n > 1) t.n -= 1; });
+    if (act === 'f+') edit((t) => { if (t.done && t._e < LAST_I) t.n += 1; });
     if (act === 'fin') { const me = taskBy(view.sel); if (!me) return; pushUndo(); setDone(me, !me.done); commit(); }
     if (act === 'kgall' || act === 'kcall') { const me = taskBy(view.sel); if (!me) return; const key = act === 'kgall' ? 'kg' : 'kc', mine = S.tasks.filter((x) => x.id === me.id), v = !mine.every((x) => x[key]); pushUndo(); for (const x of mine) x[key] = v; commit(); }
     if (act === 'mine' || act === 'notmine') {
@@ -553,15 +555,17 @@ function jump(i, keepIfVisible) {
 }
 
 // ---- finished parts ---------------------------------------------------------------
-// Ticking a part finished ends its bar on today (the last shop day): shorter if it beat the plan, longer if
-// it ran over, so the people row shows who is really free. The planned days are kept (pn) for comparing
+// Ticking a part finished: if its planned last day has not come yet the bar is pulled in to end today; if that
+// day is today or already past, the bar is left alone (finished on plan) and the card's arrows move the finish
+// day if it really ran over or got ticked late. The people row then shows who is really free. The planned days are kept (pn) for comparing
 // plan against actual later. A finished bar is locked; un-ticking puts the plan back.
 function setDone(t, on) {
   if (on) {
     const fe = Math.max(0, LAST_I);
     if (t.pn == null) t.pn = t.n; if (t.ps == null) t.ps = t._s;
-    if (t._s > fe) { t.s = place(fe, -1); t.n = 1; }
-    else { let n = 0; for (let i = t._s; i <= fe; i++) if (open(i)) n++; t.s = t._s; t.n = Math.max(1, n); }
+    if (t._s > fe) { t.s = place(fe, -1); t.n = 1; }                       // built before its planned start
+    else if (t._e > fe) { let n = 0; for (let i = t._s; i <= fe; i++) if (open(i)) n++; t.s = t._s; t.n = Math.max(1, n); }   // beat the plan: ends today
+    else t.s = t._s;                                                      // planned last day is today or already past: finished on plan until told otherwise
     t.done = true;
   } else {
     t.done = false; if (t.pn != null) t.n = t.pn; if (t.ps != null) t.s = t.ps; delete t.pn; delete t.ps;
@@ -653,7 +657,7 @@ $('grid').addEventListener('pointerdown', (e) => {
   const kb = e.target.closest('.kb');
   if (kb) {   // a kit box: tick it, never start a drag
     const kt = taskBy(el.dataset.k);
-    if (kt && kb.dataset.done) { pushUndo(); setDone(kt, !kt.done); commit(); }
+    if (kt && kb.dataset.done) { pushUndo(); setDone(kt, !kt.done); view.sel = kt.done ? kt.k : view.sel; commit(); }
     else if (kt) { const key = kb.dataset.kit, v = !kt[key]; pushUndo(); for (const x of S.tasks) if (x === kt || (e.shiftKey && x.id === kt.id)) x[key] = v; commit(); }
     e.preventDefault(); return;
   }
@@ -865,8 +869,17 @@ if (TEST && !SHARED_TEST) setTimeout(() => {
       pe(barEls.get(k).querySelector('.kb.db'), 'pointerdown', 5, 5); pe(document, 'pointerup', 5, 5);
       fin.untickRestores = !taskBy(k).done && taskBy(k).n === n0 && taskBy(k).pn === undefined && taskBy(k)._e === e0;
       if (LAST_I > 0) { pushUndo(); const lt = taskBy(k); lt.s = 0; lt.n = 1; commit(); fin.lateFlag = barEls.get(k).classList.contains('late') && C.probs.some((p) => /should be finished/.test(p.text)); } else fin.lateFlag = true;
+      if (LAST_I > 0) {   // the part now ends Monday and today is later: ticking must NOT drag it to today
+        view.sel = k; render(); document.querySelector('#edit [data-act="fin"]').click();
+        fin.lateTickKeepsPlannedDay = taskBy(k).done && taskBy(k)._e === 0 && !!document.querySelector('#edit [data-act="f+"]');
+        document.querySelector('#edit [data-act="f+"]').click(); const e1 = taskBy(k)._e;
+        for (let i = 0; i < 12; i++) document.querySelector('#edit [data-act="f+"]').click(); const eMax = taskBy(k)._e;
+        document.querySelector('#edit [data-act="f-"]').click(); const eBack = taskBy(k)._e;
+        fin.arrows = { oneLater: e1, cappedAtToday: eMax === LAST_I, backOne: eBack < eMax };
+        fin.lateTickOk = fin.lateTickKeepsPlannedDay && e1 > 0 && fin.arrows.cappedAtToday && fin.arrows.backOne;
+      } else fin.lateTickOk = true;
       while (undoStack.length) undo(); view.sel = null;
-      out.finish = fin; out.finishOk = fin.done && fin.endsToday && fin.shorter && fin.plannedKept && fin.peopleFreed && fin.grey && fin.locked && fin.untickRestores && fin.lateFlag && snap() === JSON.stringify(fresh(), strip);
+      out.finish = fin; out.finishOk = fin.done && fin.endsToday && fin.shorter && fin.plannedKept && fin.peopleFreed && fin.grey && fin.locked && fin.untickRestores && fin.lateFlag && fin.lateTickOk && snap() === JSON.stringify(fresh(), strip);
     } else { out.finish = 'no part is under way today to test with'; out.finishOk = true; }
     out.ok = out.finishOk && out.halvesOk && out.kitsOk && out.migrate.kitsGone && out.migrate.glassCarried && out.migrate.othersSeeded && out.backToStart3 && out.bankOk && out.move.to === out.move.expect && out.undoRestores && out.resize.to > n0 && out.closeDay.endAfter > e0 && out.clickSelects && out.wholeBoat.allMoved && out.backToStart;
   } catch (err) { out.error = String(err && err.stack || err); }

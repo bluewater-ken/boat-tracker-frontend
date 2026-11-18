@@ -304,6 +304,7 @@ async function pollShared() {
   const r = await BRIDGE.get(shared.version);
   if (r.status !== 'ok' || r.version === shared.version || busy()) return;
   adopt(r); shared.bad = false; shared.note = `${r.updated_by || 'Someone'} changed the plan at ${clock(r.updated_at)}. You are looking at the latest.`; render();
+  if (captureForecasts()) save();
 }
 function save() {
   if (shared.on) { shared.dirty = true; clearTimeout(shared.timer); shared.timer = setTimeout(pushShared, 500); return; }
@@ -312,7 +313,47 @@ function save() {
 }
 function saveView() { if (TEST) return; try { localStorage.setItem(KEY + ':view', JSON.stringify({ start: view.start, weeks: view.weeks, fold: view.fold, bankShut: !!view.bankShut })); } catch (e) {} }
 function pushUndo(s) { undoStack.push(s || snap()); if (undoStack.length > 200) undoStack.shift(); redoStack.length = 0; }
-function commit() { save(); render(); }
+// ---- forecast accuracy by view ---------------------------------------------------
+// Bands are shop days until the planned finish: 0-16 = the 4-week view, 17-32 = weeks 5 to 8, 33-48 = weeks
+// 9 to 12. A forecast is written once per band, the first time the part is seen in it, and never changed, so
+// it is what the board was telling people at that distance. Dates are stored as dates, not day numbers.
+const BANDS = [[4, 0, 16], [8, 17, 32], [12, 33, 48]];
+const WHO = () => (BRIDGE && BRIDGE.user) || '';
+const shopIdx = (iso) => { const d = Math.round((toDate(iso) - toDate(D.week0)) / 864e5); return Math.floor(d / 7) * 4 + Math.min(3, ((d % 7) + 7) % 7); };
+function captureForecasts() {
+  if (TEST && !window.__fcTest) return 0;
+  let added = 0; const bandOf = (d) => BANDS.find((b) => d >= b[1] && d <= b[2]);
+  for (const t of S.tasks) {
+    if (t.bank || t.done) continue;
+    const band = bandOf(t._e - NOW_I); if (!band) continue;
+    if (!t.fc) t.fc = {}; if (t.fc[band[0]]) continue;
+    t.fc[band[0]] = { e: DAYS[t._e], n: t.n, on: TODAY_ISO }; added++;
+  }
+  if (!S.fcb) S.fcb = {};
+  for (const b of S.boats) {   // the whole boat: the day its last part is planned to finish
+    const mine = S.tasks.filter((t) => t.id === b.id); if (!mine.length || mine.some((t) => t.bank) || mine.every((t) => t.done)) continue;
+    const e = Math.max(...mine.map((t) => t._e)), band = bandOf(e - NOW_I); if (!band) continue;
+    if (!S.fcb[b.id]) S.fcb[b.id] = {}; if (S.fcb[b.id][band[0]]) continue;
+    S.fcb[b.id][band[0]] = { e: DAYS[e], on: TODAY_ISO }; added++;
+  }
+  return added;
+}
+function score(misses) { const n = misses.length; return { n, bias: n ? misses.reduce((x, y) => x + y, 0) / n : 0, abs: n ? misses.reduce((x, y) => x + Math.abs(y), 0) / n : 0, within: n ? misses.filter((x) => Math.abs(x) <= 2).length / n : 0 }; }
+function accuracy() {
+  const out = {};
+  for (const h of [4, 8, 12]) {
+    const parts = [], boats = []; let waitP = 0, waitB = 0;
+    for (const t of S.tasks) { const fc = t.fc && t.fc[h]; if (!fc) continue; if (t.done && !t.bank) parts.push(t._e - shopIdx(fc.e)); else waitP++; }
+    for (const id in (S.fcb || {})) {
+      const fc = S.fcb[id][h]; if (!fc) continue; const mine = S.tasks.filter((t) => t.id === id);
+      if (mine.length && mine.every((t) => t.done && !t.bank)) boats.push(Math.max(...mine.map((t) => t._e)) - shopIdx(fc.e)); else waitB++;
+    }
+    out[h] = { parts: { ...score(parts), waiting: waitP }, boats: { ...score(boats), waiting: waitB } };
+  }
+  return out;
+}
+function setKit(t, key, v) { t[key] = v; if (v) { t[key + 'On'] = TODAY_ISO; t[key + 'By'] = WHO(); } else { delete t[key + 'On']; delete t[key + 'By']; } }
+function commit() { compute(); captureForecasts(); save(); render(); }
 function undo() { if (!undoStack.length) return; redoStack.push(snap()); S = JSON.parse(undoStack.pop()); commit(); }
 function redo() { if (!redoStack.length) return; undoStack.push(snap()); S = JSON.parse(redoStack.pop()); commit(); }
 
@@ -505,6 +546,10 @@ function renderSide() {
       `<td>${nb ? '' : d == null ? '<span class="same">new</span>' : d === 0 ? '<span class="same">same</span>' : d > 0 ? `<span class="late">${d} day${d === 1 ? '' : 's'} later</span>` : `<span class="early">${-d} day${d === -1 ? '' : 's'} sooner</span>`}</td></tr>`;
   }
   h += `</table><div class="hint" style="margin-top:6px">"Full set" is the day the last part for that boat is finished. Days are shop days, Monday to Thursday. Click a boat to light up its parts.</div></div>`;
+  const acc = accuracy(), cell = (r) => (r.n ? `<td>${r.n}</td><td>${r.abs.toFixed(1)} day${r.abs.toFixed(1) === '1.0' ? '' : 's'}${Math.abs(r.bias) >= 0.25 ? ` <span class="${r.bias > 0 ? 'late' : 'early'}">${r.bias > 0 ? 'late' : 'early'}</span>` : ''}</td><td>${Math.round(r.within * 100)}%</td>` : `<td class="same">0</td><td class="same">${r.waiting ? r.waiting + ' waiting' : 'none yet'}</td><td></td>`);
+  h += '<div class="card"><h3>Forecast accuracy</h3><table class="boats"><tr><th>Seen this far out</th><th>Finished</th><th>Off by</th><th>Within 2 days</th></tr>' +
+    [4, 8, 12].map((w) => `<tr style="cursor:default"><td><b>${w === 4 ? '4 weeks or less' : w === 8 ? '5 to 8 weeks' : '9 to 12 weeks'}</b><span class="cu">parts</span></td>${cell(acc[w].parts)}</tr><tr style="cursor:default"><td><span class="cu">whole boats</span></td>${cell(acc[w].boats)}</tr>`).join('') +
+    '</table><div class="hint" style="margin-top:6px">The planned finish of every part is written down the first time it shows up 9 to 12 weeks out, again at 5 to 8, and again inside 4. When the part is ticked finished, the miss is counted in shop days. "Whole boats" is the day the last part of the set was due. Nothing scores until parts start getting ticked.</div></div>';
   if (shared.on) {
     const mine = hadLocal && !localStorage.getItem(KEY + ':merged');
     h += `<div class="card hint"><b>One shared plan.</b> Everyone with this tab sees and changes the same one, and it saves to B.O.S.S by itself. ${shared.saving || shared.dirty ? 'Saving…' : shared.at ? `Last saved by ${esc(shared.by || 'someone')} at ${clock(shared.at)}.` : ''}` +
@@ -518,7 +563,7 @@ function renderSide() {
 }
 function edit(fn) { const t = taskBy(view.sel); if (!t) return; pushUndo(); fn(t); commit(); }
 $('side').addEventListener('click', (e) => {
-  const pill = e.target.closest('.kit'); if (pill) { edit((t) => { t[pill.dataset.pk] = !t[pill.dataset.pk]; }); return; }
+  const pill = e.target.closest('.kit'); if (pill) { edit((t) => { setKit(t, pill.dataset.pk, !t[pill.dataset.pk]); }); return; }
   const act = e.target.dataset && e.target.dataset.act;
   if (act) {
     if (act === 's-') edit((t) => { t.s = place(t._s - 1, -1); });
@@ -531,7 +576,7 @@ $('side').addEventListener('click', (e) => {
     if (act === 'f-') edit((t) => { if (t.done && t.n > 1) t.n -= 1; });
     if (act === 'f+') edit((t) => { if (t.done && t._e < LAST_I) t.n += 1; });
     if (act === 'fin') { const me = taskBy(view.sel); if (!me) return; pushUndo(); setDone(me, !me.done); commit(); }
-    if (act === 'kgall' || act === 'kcall') { const me = taskBy(view.sel); if (!me) return; const key = act === 'kgall' ? 'kg' : 'kc', mine = S.tasks.filter((x) => x.id === me.id), v = !mine.every((x) => x[key]); pushUndo(); for (const x of mine) x[key] = v; commit(); }
+    if (act === 'kgall' || act === 'kcall') { const me = taskBy(view.sel); if (!me) return; const key = act === 'kgall' ? 'kg' : 'kc', mine = S.tasks.filter((x) => x.id === me.id), v = !mine.every((x) => x[key]); pushUndo(); for (const x of mine) setKit(x, key, v); commit(); }
     if (act === 'mine' || act === 'notmine') {
       let j = null; try { j = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (err) {}
       if (act === 'mine' && j && j.S && Array.isArray(j.S.tasks)) {
@@ -569,9 +614,9 @@ function setDone(t, on) {
     if (t._s > fe) { t.s = place(fe, -1); t.n = 1; }                       // built before its planned start
     else if (t._e > fe) { let n = 0; for (let i = t._s; i <= fe; i++) if (open(i)) n++; t.s = t._s; t.n = Math.max(1, n); }   // beat the plan: ends today
     else t.s = t._s;                                                      // planned last day is today or already past: finished on plan until told otherwise
-    t.done = true;
+    t.done = true; t.da = TODAY_ISO; t.db = WHO();   // when it was ticked, and by whom
   } else {
-    t.done = false; if (t.pn != null) t.n = t.pn; if (t.ps != null) t.s = t.ps; delete t.pn; delete t.ps;
+    t.done = false; delete t.da; delete t.db; if (t.pn != null) t.n = t.pn; if (t.ps != null) t.s = t.ps; delete t.pn; delete t.ps;
   }
 }
 
@@ -661,7 +706,7 @@ $('grid').addEventListener('pointerdown', (e) => {
   if (kb) {   // a kit box: tick it, never start a drag
     const kt = taskBy(el.dataset.k);
     if (kt && kb.dataset.done) { pushUndo(); setDone(kt, !kt.done); view.sel = kt.done ? kt.k : view.sel; commit(); }
-    else if (kt) { const key = kb.dataset.kit, v = !kt[key]; pushUndo(); for (const x of S.tasks) if (x === kt || (e.shiftKey && x.id === kt.id)) x[key] = v; commit(); }
+    else if (kt) { const key = kb.dataset.kit, v = !kt[key]; pushUndo(); for (const x of S.tasks) if (x === kt || (e.shiftKey && x.id === kt.id)) setKit(x, key, v); commit(); }
     e.preventDefault(); return;
   }
   const t = taskBy(el.dataset.k); if (!t) return;
@@ -736,8 +781,8 @@ $('file').onchange = async (e) => {
 };
 $('csv').onclick = () => {
   closeMenu(); const q = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
-  const rows = [['Boat', 'Customer', 'Part', 'Mold', 'Start', 'Shop days', 'People', 'Done', 'Colour', 'Cover part', 'In the bank', 'Glass kit', 'Core kit', 'Finished', 'Planned days']];
-  for (const t of [...S.tasks].sort((x, y) => (x.bank ? 1e6 : x._s) - (y.bank ? 1e6 : y._s))) rows.push([t.id, (boatBy(t.id) || {}).cust || '', t.part, label(t.mold), t.bank ? '' : DAYS[t._s], t.n, t.crew, t.bank ? '' : DAYS[t._e], t.colour || '', t.cover ? 'yes' : '', t.bank ? 'yes' : '', t.kg ? 'ready' : '', t.kc ? 'ready' : '', t.done ? DAYS[t._e] : '', t.pn != null ? t.pn : '']);
+  const rows = [['Boat', 'Customer', 'Part', 'Mold', 'Start', 'Shop days', 'People', 'Done', 'Colour', 'Cover part', 'In the bank', 'Glass kit', 'Core kit', 'Finished', 'Planned days', 'Finish forecast at 9-12 wk', 'at 5-8 wk', 'at 4 wk or less', 'Ticked finished on', 'Ticked by', 'Glass kit ticked on', 'Core kit ticked on']];
+  for (const t of [...S.tasks].sort((x, y) => (x.bank ? 1e6 : x._s) - (y.bank ? 1e6 : y._s))) rows.push([t.id, (boatBy(t.id) || {}).cust || '', t.part, label(t.mold), t.bank ? '' : DAYS[t._s], t.n, t.crew, t.bank ? '' : DAYS[t._e], t.colour || '', t.cover ? 'yes' : '', t.bank ? 'yes' : '', t.kg ? 'ready' : '', t.kc ? 'ready' : '', t.done ? DAYS[t._e] : '', t.pn != null ? t.pn : '', ((t.fc || {})[12] || {}).e || '', ((t.fc || {})[8] || {}).e || '', ((t.fc || {})[4] || {}).e || '', t.da || '', t.db || '', t.kgOn || '', t.kcOn || '']);
   download(`Project_27_Plan_${TODAY_ISO}.csv`, '﻿' + rows.map((r) => r.map(q).join(',')).join('\r\n'), 'text/csv');
 };
 $('reset').onclick = () => { closeMenu(); if (!confirm(shared.on ? 'Put every part back where the first-pass plan had it? This is the shared plan, so it resets for everyone. You can still Undo it.' : 'Put every part back where the first-pass plan had it? You can still Undo this.')) return; pushUndo(); S = fresh(); view.sel = null; commit(); };
@@ -785,6 +830,7 @@ async function start() {
     }
   }
   buildSkeleton(); render();
+  if (captureForecasts()) { save(); renderSide(); }
   if (shared.on) {
     if (shared.dirty) pushShared();
     setInterval(pollShared, 20000);
@@ -884,7 +930,17 @@ if (TEST && !SHARED_TEST) setTimeout(() => {
       while (undoStack.length) undo(); view.sel = null;
       out.finish = fin; out.finishOk = fin.done && fin.endsToday && fin.shorter && fin.plannedKept && fin.peopleFreed && fin.grey && fin.locked && fin.untickRestores && fin.lateFlag && fin.lateTickOk && snap() === JSON.stringify(fresh(), strip);
     } else { out.finish = 'no part is under way today to test with'; out.finishOk = true; }
-    out.ok = out.finishOk && out.halvesOk && out.kitsOk && out.migrate.kitsGone && out.migrate.glassCarried && out.migrate.othersSeeded && out.backToStart3 && out.bankOk && out.move.to === out.move.expect && out.undoRestores && out.resize.to > n0 && out.closeDay.endAfter > e0 && out.clickSelects && out.wholeBoat.allMoved && out.backToStart;
+    window.__fcTest = true; compute(); const added = captureForecasts(), again = captureForecasts(), bands = { 4: 0, 8: 0, 12: 0 };
+    for (const t of S.tasks) for (const hh in (t.fc || {})) bands[hh]++;
+    const far = S.tasks.find((t) => !t.bank && t._e - NOW_I > 48), banked = S.tasks.filter((t) => t.bank && t.fc).length;
+    const ft = S.tasks.find((t) => !t.bank && t.fc && t.fc[4] && t._s <= LAST_I && t._e > LAST_I);
+    if (ft) {
+      const e0 = ft._e, f0 = ft.fc[4].e; pushUndo(); setDone(ft, true); ft.n += 0; commit();
+      const a4 = accuracy()[4].parts; setKit(ft, 'kg', true);
+      out.forecast = { added, addedAgain: again, bands, bankedHaveNone: banked === 0, beyond12HasNone: !far || !far.fc, boatsTracked: Object.keys(S.fcb || {}).length, part: ft.k, forecastWas: f0, finished: DAYS[ft._e], scoredParts: a4.n, miss: a4.bias, expectMiss: LAST_I - e0, forecastUnchanged: ft.fc[4].e === f0, stamped: ft.da === TODAY_ISO, kitStamped: ft.kgOn === TODAY_ISO, card: /Forecast accuracy/.test($('side').textContent) && /early/.test($('side').textContent) };
+      out.forecastOk = added > 0 && again === 0 && bands[4] > 0 && out.forecast.bankedHaveNone && out.forecast.beyond12HasNone && out.forecast.boatsTracked > 0 && a4.n === 1 && a4.bias === LAST_I - e0 && out.forecast.forecastUnchanged && out.forecast.stamped && out.forecast.kitStamped && out.forecast.card && shopIdx(DAYS[37]) === 37 && shopIdx(addDays(D.week0, -7)) === -4;
+    } else { out.forecast = { added, bands, note: 'no part under way today to finish' }; out.forecastOk = added > 0 && again === 0; }
+    out.ok = out.forecastOk && out.finishOk && out.halvesOk && out.kitsOk && out.migrate.kitsGone && out.migrate.glassCarried && out.migrate.othersSeeded && out.backToStart3 && out.bankOk && out.move.to === out.move.expect && out.undoRestores && out.resize.to > n0 && out.closeDay.endAfter > e0 && out.clickSelects && out.wholeBoat.allMoved && out.backToStart;
   } catch (err) { out.error = String(err && err.stack || err); }
   render(); $('selftest').hidden = false; $('selftest').textContent = 'SELFTEST ' + JSON.stringify(out, null, 1);
 }, 50);

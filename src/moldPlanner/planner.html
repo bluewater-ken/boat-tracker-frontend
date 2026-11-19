@@ -243,6 +243,9 @@ function migrate(st) {
   // Monday, slide a saved plan so every part stays on the same calendar day
   if (!st.week0) st.week0 = D.week0;
   else if (st.week0 !== D.week0) { const dw = Math.round((toDate(D.week0) - toDate(st.week0)) / 6048e5) * 4; for (const t of st.tasks) t.s = Math.max(0, t.s - dw); st.week0 = D.week0; }
+  // Ken 2026-11-18: the 36 hard top is bought, not built. It has no row on the board any more, so a plan saved
+  // while it did (in a browser, in a file, or the shared one) drops that part here.
+  st.tasks = st.tasks.filter((t) => t.mold !== '36 T Top');
   st.v = 3; return st;
 }
 const PORDER = ['Boxes', 'Grid', 'Hull', 'Liner', 'Ring', 'Console', 'Console Face', 'Leaning Post', 'Baitwell', 'Hatches', 'T Top'];
@@ -962,6 +965,9 @@ if (SHARED_TEST) setTimeout(async () => {
     out.outage = { failedNote, savedAfter: m.version === v0 + 1 && m.data.tasks.find((x) => x.k === t.k).n === taskBy(t.k).n, noteCleared: !/Could not save/.test($('side').textContent) };
     const moved = migrate({ v: 3, week0: addDays(D.week0, -7), tasks: [{ k: 'x', s: 10, n: 1 }], boats: [] });
     out.weekShift = { from: 10, to: moved.tasks[0].s, week0: moved.week0 };
+    const no36 = migrate({ v: 3, week0: D.week0, tasks: [{ k: 'a', mold: '36 T Top', s: 1, n: 1 }, { k: 'b', mold: '36 Hull', s: 1, n: 1 }, { k: 'c', mold: 'Hard Top (shared)', s: 1, n: 1 }], boats: [] });
+    out.no36HardTop = { kept: no36.tasks.map((x) => x.k).join(','), seedHasNone: !D.tasks.some((x) => x.mold === '36 T Top'), rowGone: !D.groups.some((g) => g.rows.some((r) => r.mold === '36 T Top')) };
+    if (!(out.no36HardTop.kept === 'b,c' && out.no36HardTop.seedHasNone && out.no36HardTop.rowGone)) throw new Error('36 hard top still in the plan');
     out.ok = out.seeded.on && out.seeded.serverVersion >= 1 && out.seeded.noUnderscores && out.mySave.serverHasMove && out.mySave.footer && out.theirChange.crewNow === 7 && out.theirChange.kitNow === true && out.theirChange.undoCleared && out.theirChange.told && out.conflict.theirCrewWon && out.conflict.myMoveDropped && out.conflict.told && out.conflict.inStep && out.outage.failedNote && out.outage.savedAfter && out.outage.noteCleared && out.weekShift.to === 6;
   } catch (err) { out.error = String(err && err.stack || err); }
   $('selftest').hidden = false; $('selftest').textContent = 'SELFTEST ' + JSON.stringify(out, null, 1);

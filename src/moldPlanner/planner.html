@@ -41,9 +41,12 @@
   .cells { display: flex; height: 100%; }
   .cells > div { flex: 1 1 0; min-width: 0; border-left: 1px solid #eceff1; }
   .cells > .wk { border-left: 3px solid #90a4ae; }
-  .wkrow .cells > div { flex: 4 1 0; background: var(--navy); color: #fff; font-weight: 600; padding: 3px 6px; border-left: 3px solid #fff; white-space: nowrap; overflow: hidden; }
+  .wkrow .cells > div { flex: 5 1 0; background: var(--navy); color: #fff; font-weight: 600; padding: 3px 6px; border-left: 3px solid #fff; white-space: nowrap; overflow: hidden; }
   .dayrow .cells > div { background: #e3eaf0; font-size: 11px; font-weight: 600; text-align: center; line-height: 22px; border-bottom: 2px solid #90a4ae; cursor: pointer; white-space: nowrap; overflow: hidden; }
   .dayrow .cells > div:hover { background: #cfd8dc; }
+  .cells > .fri, .dayrow .cells > .fri, .pplrow .cells > .fri { background: repeating-linear-gradient(135deg, #e9edf0 0 5px, #f7f8f9 5px 10px); color: #90a4ae; }
+  .cells > .friot { background: #fff6e8; } .dayrow .cells > .friot, .pplrow .cells > .friot { background: #ffe0b2; color: #bf360c; }
+  .dayrow .cells > .fri, .dayrow .cells > .friot { cursor: default; }
   .dayrow .cells > .today { background: #c62828; color: #fff; }
   .cells > .closed, .dayrow .cells > .closed { background: repeating-linear-gradient(135deg, #e4e8eb 0 6px, #f3f5f6 6px 12px); color: #90a4ae; }
   .pplrow .cells > div { text-align: center; font-weight: 700; font-size: 11px; line-height: 20px; background: #f5f7f9; border-bottom: 2px solid #90a4ae; color: #78909c; }
@@ -214,24 +217,30 @@ const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</
 const toDate = (s) => new Date(s + 'T00:00:00Z');
 const isoOf = (d) => d.toISOString().slice(0, 10);
 const addDays = (s, n) => { const d = toDate(s); d.setUTCDate(d.getUTCDate() + n); return isoOf(d); };
-const DAYS = []; for (let w = 0; w < D.weeks; w++) for (let d = 0; d < 4; d++) DAYS.push(addDays(D.week0, w * 7 + d));
+const DPW = 5;   // columns a week: Monday to Thursday, then Friday (overtime, off unless a part is put on it)
+const DAYS = []; for (let w = 0; w < D.weeks; w++) for (let d = 0; d < DPW; d++) DAYS.push(addDays(D.week0, w * 7 + d));
+const isFri = (i) => ((i % DPW) + DPW) % DPW === DPW - 1;
+const wdn = (i) => Math.floor(i / DPW) * 4 + Math.min(3, ((i % DPW) + DPW) % DPW);   // a day's number counting Monday to Thursday only (a Friday counts as its Thursday)
 const MAXI = DAYS.length - 1;
-const WD = ['Mon', 'Tue', 'Wed', 'Thu'];
+const WD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const md = (i) => { const s = DAYS[i]; return `${+s.slice(5, 7)}/${+s.slice(8, 10)}`; };
 const mon = (i, long) => toDate(DAYS[i]).toLocaleString('en-US', { month: long ? 'long' : 'short', day: 'numeric', timeZone: 'UTC' });
-const dayName = (i) => `${WD[i % 4]} ${mon(i)}`;
+const dayName = (i) => `${WD[i % DPW]} ${mon(i)}`;
 const lt = new Date(); const TODAY_ISO = `${lt.getFullYear()}-${String(lt.getMonth() + 1).padStart(2, '0')}-${String(lt.getDate()).padStart(2, '0')}`;
 const TODAY_I = DAYS.indexOf(TODAY_ISO);
 const NOW_I = (() => { const i = DAYS.findIndex((d) => d >= TODAY_ISO); return i < 0 ? MAXI : i; })();   // today, or the next shop day
 const LAST_I = (() => { let i = -1; for (let j = 0; j < DAYS.length && DAYS[j] <= TODAY_ISO; j++) i = j; return i; })();   // today, or the last shop day before it
-const KIT_SOON = 8;   // a part starting within this many shop days with a kit not ticked gets flagged
+const KIT_SOON = 2 * DPW;   // two weeks: a part starting within this many board days with a kit not ticked gets flagged
 
 // ---- state --------------------------------------------------------------------
 const KEY = 'p27-mold-planner:' + D.stamp;
-const fresh = () => ({ v: 3, week0: D.week0, tasks: D.tasks.map((t) => ({ ...t })), closed: { ...D.closed }, crew: D.crew, boats: D.boats.map((b) => ({ ...b })) });
+const fresh = () => ({ v: 4, dpw: DPW, week0: D.week0, tasks: D.tasks.map((t) => ({ ...t })), closed: { ...D.closed }, crew: D.crew, boats: D.boats.map((b) => ({ ...b })) });
 // A plan saved before the boat bank existed: bank the far-out parts he never touched, leave everything he moved.
 function migrate(st) {
   const d0 = new Map(D.tasks.map((t) => [t.k, t])), v = st.v || 1;
+  // A plan saved when the board had four columns a week: renumber its days for five. The marker is dpw, not v,
+  // because a browser still running the old page puts v back to 3 when it saves.
+  if (st.dpw !== DPW) { const to5 = (x) => Math.floor(x / 4) * DPW + (x % 4); for (const t of st.tasks) { if (typeof t.s === 'number') t.s = to5(Math.max(0, t.s)); if (typeof t.ps === 'number') t.ps = to5(Math.max(0, t.ps)); } st.dpw = DPW; }
   if (v < 2) for (const t of st.tasks) { const d = d0.get(t.k); if (d && d.bank && t.s === d.s && t.n === d.n) t.bank = true; }
   // v3: kit ticks live on each part (kg = glass kit, kc = core kit). A plan saved with the short-lived per-boat
   // ticks carries them over to every part of that boat; an older plan takes the B.O.S.S seed.
@@ -242,11 +251,11 @@ function migrate(st) {
   // day numbers count shop days from the board's first Monday; if the board has been rebuilt from a later
   // Monday, slide a saved plan so every part stays on the same calendar day
   if (!st.week0) st.week0 = D.week0;
-  else if (st.week0 !== D.week0) { const dw = Math.round((toDate(D.week0) - toDate(st.week0)) / 6048e5) * 4; for (const t of st.tasks) t.s = Math.max(0, t.s - dw); st.week0 = D.week0; }
+  else if (st.week0 !== D.week0) { const dw = Math.round((toDate(D.week0) - toDate(st.week0)) / 6048e5) * DPW; for (const t of st.tasks) t.s = Math.max(0, t.s - dw); st.week0 = D.week0; }
   // Ken 2026-11-18: the 36 hard top is bought, not built. It has no row on the board any more, so a plan saved
   // while it did (in a browser, in a file, or the shared one) drops that part here.
   st.tasks = st.tasks.filter((t) => t.mold !== '36 T Top');
-  st.v = 3; return st;
+  st.v = 4; return st;
 }
 const PORDER = ['Boxes', 'Grid', 'Hull', 'Liner', 'Ring', 'Console', 'Console Face', 'Leaning Post', 'Baitwell', 'Hatches', 'T Top'];
 const byPart = (x, y) => PORDER.indexOf(x.part) - PORDER.indexOf(y.part);
@@ -320,9 +329,9 @@ function pushUndo(s) { undoStack.push(s || snap()); if (undoStack.length > 200) 
 // Bands are shop days until the planned finish: 0-16 = the 4-week view, 17-32 = weeks 5 to 8, 33-48 = weeks
 // 9 to 12. A forecast is written once per band, the first time the part is seen in it, and never changed, so
 // it is what the board was telling people at that distance. Dates are stored as dates, not day numbers.
-const BANDS = [[4, 0, 16], [8, 17, 32], [12, 33, 48]];
+const BANDS = [[4, 0, 4 * DPW], [8, 4 * DPW + 1, 8 * DPW], [12, 8 * DPW + 1, 12 * DPW]];
 const WHO = () => (BRIDGE && BRIDGE.user) || '';
-const shopIdx = (iso) => { const d = Math.round((toDate(iso) - toDate(D.week0)) / 864e5); return Math.floor(d / 7) * 4 + Math.min(3, ((d % 7) + 7) % 7); };
+const shopIdx = (iso) => { const d = Math.round((toDate(iso) - toDate(D.week0)) / 864e5); return Math.floor(d / 7) * DPW + Math.min(DPW - 1, ((d % 7) + 7) % 7); };
 function captureForecasts() {
   if (TEST && !window.__fcTest) return 0;
   let added = 0; const bandOf = (d) => BANDS.find((b) => d >= b[1] && d <= b[2]);
@@ -346,10 +355,10 @@ function accuracy() {
   const out = {};
   for (const h of [4, 8, 12]) {
     const parts = [], boats = []; let waitP = 0, waitB = 0;
-    for (const t of S.tasks) { const fc = t.fc && t.fc[h]; if (!fc) continue; if (t.done && !t.bank) parts.push(t._e - shopIdx(fc.e)); else waitP++; }
+    for (const t of S.tasks) { const fc = t.fc && t.fc[h]; if (!fc) continue; if (t.done && !t.bank) parts.push(wdn(t._e) - wdn(shopIdx(fc.e))); else waitP++; }
     for (const id in (S.fcb || {})) {
       const fc = S.fcb[id][h]; if (!fc) continue; const mine = S.tasks.filter((t) => t.id === id);
-      if (mine.length && mine.every((t) => t.done && !t.bank)) boats.push(Math.max(...mine.map((t) => t._e)) - shopIdx(fc.e)); else waitB++;
+      if (mine.length && mine.every((t) => t.done && !t.bank)) boats.push(wdn(Math.max(...mine.map((t) => t._e))) - wdn(shopIdx(fc.e))); else waitB++;
     }
     out[h] = { parts: { ...score(parts), waiting: waitP }, boats: { ...score(boats), waiting: waitB } };
   }
@@ -361,8 +370,20 @@ function undo() { if (!undoStack.length) return; redoStack.push(snap()); S = JSO
 function redo() { if (!redoStack.length) return; undoStack.push(snap()); S = JSON.parse(redoStack.pop()); commit(); }
 
 // ---- the calendar maths ---------------------------------------------------------
-const openIn = (closed, i) => !closed[DAYS[i]];
-const open = (i) => !S.closed[DAYS[i]];
+const openIn = (closed, i) => !closed[DAYS[i]] && !isFri(i);   // an ordinary shop day
+const open = (i) => openIn(S.closed, i);
+// Fridays are per part: t.f holds the Fridays this part is worked on. Every other part skips them.
+const works = (t, i) => !S.closed[DAYS[i]] && (!isFri(i) || !!(t.f && t.f[DAYS[i]]));
+const setF = (t, f) => { if (f && Object.keys(f).length) t.f = f; else delete t.f; };
+const startOf = (t) => { const x = Math.max(0, Math.min(t.s, MAXI)); return works(t, x) ? x : place(x, 1); };
+function endOf(t, st, n) { let i = st, left = n; for (;;) { if (works(t, i)) { left--; if (left <= 0) return i; } if (i >= MAXI) return i; i++; } }
+// Tick or un-tick a Friday on a part. Ticking the Friday just past its last day adds that day; ticking one inside
+// the bar keeps the same number of days, so the part ends a day sooner. Un-ticking is the reverse.
+function setFri(t, iso, on) {
+  const i = DAYS.indexOf(iso), f = { ...(t.f || {}) }; if (i < 0) return;
+  if (on) { if (i > t._e) t.n += 1; f[iso] = 1; } else { if (i === t._e && t.n > 1) t.n -= 1; delete f[iso]; }
+  setF(t, f);
+}
 function place(s, dir) {            // nearest open shop day; dir < 0 looks backwards first
   s = Math.max(0, Math.min(s, MAXI)); if (open(s)) return s;
   if (dir < 0) { let i = s; while (i > 0 && !open(i)) i--; if (open(i)) return i; }
@@ -379,9 +400,9 @@ function compute() {
   const load = new Array(DAYS.length).fill(0), byMold = {}, lanes = {}, probs = [];
   for (const t of S.tasks) {
     t._clash = false; if (t.bank) { t._s = t._e = -1; t._lane = 0; continue; }
-    t._s = place(t.s, 1); t._e = endWith(S.closed, t._s, t.n);
+    t._s = startOf(t); t._e = endOf(t, t._s, t.n);
     (byMold[t.mold] ||= []).push(t);
-    for (let i = t._s; i <= t._e; i++) if (open(i)) load[i] += t.crew;
+    for (let i = t._s; i <= t._e; i++) if (works(t, i)) load[i] += t.crew;
   }
   for (const m in byMold) {
     const a = byMold[m].sort((x, y) => x._s - y._s || (x.k < y.k ? -1 : 1)), ends = [];
@@ -439,14 +460,15 @@ function buildSkeleton() {
   grpEls = [...g.querySelectorAll('.grp')];
 }
 function paintCells() {
-  const a = view.start * 4, n = view.weeks * 4, compact = view.weeks > 4 || NARROW.matches;
+  const a = view.start * DPW, n = view.weeks * DPW, compact = view.weeks > 4 || NARROW.matches;
   const g = $('grid'); g.style.setProperty('--n', n); g.className = 'grid w' + view.weeks;
-  let wk = ''; for (let w = 0; w < view.weeks; w++) wk += `<div>${compact ? '' : 'Week of '}${mon(a + w * 4)}</div>`;
+  let wk = ''; for (let w = 0; w < view.weeks; w++) wk += `<div>${compact ? '' : 'Week of '}${mon(a + w * DPW)}</div>`;
   $('wkh').innerHTML = wk;
   let dh = '', cells = '';
   for (let i = a; i < a + n; i++) {
-    const c = (i % 4 === 0 ? ' wk' : '') + (open(i) ? '' : ' closed');
-    dh += `<div class="${c}${i === TODAY_I ? ' today' : ''}" data-i="${i}" title="${dayName(i)}${open(i) ? '. Click to mark the shop closed' : '. Shop closed. Click to reopen'}">${compact ? WD[i % 4][0] + ' ' + (+DAYS[i].slice(8, 10)) : WD[i % 4] + ' ' + md(i)}</div>`;
+    const fri = isFri(i), shut = !!S.closed[DAYS[i]], ot = fri && !shut && C.load[i] > 0;
+    const c = (i % DPW === 0 ? ' wk' : '') + (shut ? ' closed' : fri ? (ot ? ' friot' : ' fri') : '');
+    dh += `<div class="${c}${i === TODAY_I ? ' today' : ''}" data-i="${i}" title="${dayName(i)}${fri && !shut ? (ot ? '. Overtime Friday: ' + C.load[i] + ' people' : '. Friday, not worked. To work it, drag the right edge of a part onto it, or click the part and tick the Friday') : open(i) ? '. Click to mark the shop closed' : '. Shop closed. Click to reopen'}">${compact ? WD[i % DPW][0] + ' ' + (+DAYS[i].slice(8, 10)) : WD[i % DPW] + ' ' + md(i)}</div>`;
     cells += `<div class="${c}"></div>`;
   }
   $('dh').innerHTML = dh;
@@ -455,7 +477,7 @@ function paintCells() {
   document.querySelectorAll('#zoom button').forEach((b) => b.classList.toggle('on', +b.dataset.w === view.weeks));
 }
 function layout() {
-  const a = view.start * 4, n = view.weeks * 4, b = a + n - 1, seen = new Set(), inWin = new Set(), rowsWithBars = new Set(), trackW = $('dh').clientWidth || 1;
+  const a = view.start * DPW, n = view.weeks * DPW, b = a + n - 1, seen = new Set(), inWin = new Set(), rowsWithBars = new Set(), trackW = $('dh').clientWidth || 1;
   for (const t of S.tasks) {
     const r = rowEls[t.mold]; if (!r || t.bank) continue;
     const vis = t._e >= a && t._s <= b;
@@ -469,7 +491,9 @@ function layout() {
     const L = Math.max(t._s, a), R = Math.min(t._e, b), span = R - L + 1, lanes = C.lanes[t.mold] || 1, bt = boatBy(t.id) || {};
     el.style.left = `calc(${(L - a) / n * 100}% + 1px)`; el.style.width = `calc(${span / n * 100}% - 2px)`;
     el.style.top = `${t._lane / lanes * 100}%`; el.style.height = `calc(${100 / lanes}% - ${lanes > 1 ? 1 : 0}px)`;
-    el.style.background = colourOf(t.id);
+    // days inside the bar that this part is not worked (a closed day, a Friday it skips) get a pale veil
+    let veil = ''; for (let i = L; i <= R; i++) if (!works(t, i)) { const p0 = (i - L) / span * 100, p1 = (i - L + 1) / span * 100; veil += `, transparent ${p0}%, rgba(255,255,255,.66) ${p0}%, rgba(255,255,255,.66) ${p1}%, transparent ${p1}%`; }
+    el.style.background = veil ? `linear-gradient(90deg${veil}), ${colourOf(t.id)}` : colourOf(t.id);
     el.className = 'bar' + (t.part === 'Hull' ? ' hull' : '') + (t.cover ? ' cover' : '') + (t._clash ? ' clash' : '') + (view.sel === t.k ? ' sel' : '') + (drag && drag.k === t.k && drag.moved ? ' drag' : '') +
       (view.hi && view.hi !== t.id ? ' dim' : '') + (span === 1 && view.weeks > 4 ? ' one' : '') + (t.crew % 1 ? ' half' : '') + (t.done ? ' done' : '') + (t._late ? ' late' : '') + (t._s <= LAST_I ? ' started' : '');
     const nbox = t.done ? 1 : t._s <= LAST_I ? 3 : 2, showKb = trackW * span / n >= 58 + nbox * 17 + (t.crew % 1 ? 10 : 0);
@@ -498,8 +522,9 @@ function layout() {
   // people row
   let ph = '';
   for (let i = a; i <= b; i++) {
-    const v = C.load[i], c = (i % 4 === 0 ? 'wk ' : '') + (!open(i) ? 'closed' : v > S.crew ? 'over' : v === S.crew ? 'full' : '');
-    ph += `<div class="${c}" title="${dayName(i)}: ${open(i) ? v + ' of ' + S.crew + ' people' : 'closed'}">${open(i) ? v : ''}</div>`;
+    const v = C.load[i], shut = !!S.closed[DAYS[i]], fri = isFri(i), on = !shut && (!fri || v > 0);
+    const c = (i % DPW === 0 ? 'wk ' : '') + (!on ? (fri && !shut ? 'fri' : 'closed') : v > S.crew ? 'over' : fri ? 'friot' : v === S.crew ? 'full' : '');
+    ph += `<div class="${c}" title="${dayName(i)}: ${on ? v + ' of ' + S.crew + ' people' + (fri ? ', overtime Friday' : '') : fri && !shut ? 'Friday, not worked' : 'closed'}">${on ? v : ''}</div>`;
   }
   $('ph').innerHTML = ph; $('pplof').textContent = `of ${S.crew} laminators`;
   // toolbar
@@ -529,6 +554,8 @@ function renderSide() {
       (t.done ? `<div class="fld"><span>Finished</span><span class="v"><button data-act="f-" title="A day earlier">&#9664;</button>${dayName(t._e)}<button data-act="f+" title="A day later">&#9654;</button></span></div>` : `<div class="fld"><span>Shop days</span><span class="v"><button data-act="n-">−</button>${t.n}<button data-act="n+">+</button></span></div>`) +
       `<div class="fld"><span>People</span><span class="v"><button data-act="c-">−</button>${t.crew}<button data-act="c+">+</button></span></div>` +
       (t.done ? '' : `<div class="fld"><span>Ends</span><span class="v">${dayName(t._e)}</span></div>`) +
+      (() => { const fr = []; for (let i = t._s; i <= Math.min(MAXI, t._e + 1); i++) if (isFri(i) && !S.closed[DAYS[i]]) fr.push(i);
+        return fr.length ? `<div class="fld"><span>Work Friday</span><span>${fr.map((i) => `<span class="kit${works(t, i) ? ' ok' : ''}" data-fri="${DAYS[i]}" title="Overtime: this part is worked on this Friday">${works(t, i) ? '✓' : '○'} Fri ${md(i)}</span>`).join('')}</span></div>` : ''; })() +
       `<div class="fld"><span>${t.done ? (t.pn != null ? `Planned ${t.pn} days, took ${t.n}` : 'Finished') : t._late ? '<b style="color:#c62828">Should be finished</b>' : ''}</span><span><button data-act="fin">${t.done ? 'Not finished after all' : 'Mark finished'}</button></span></div>` +
       `<div class="fld"><span>Kits ready</span><span><span class="kit${t.kg ? ' ok' : ''}" data-pk="kg">${t.kg ? '✓' : '○'} Glass</span><span class="kit${t.kc ? ' ok' : ''}" data-pk="kc">${t.kc ? '✓' : '○'} Core</span></span></div>` +
       `<div class="fld"><span>Whole boat</span><span><button data-act="kgall">Glass, all parts</button> <button data-act="kcall">Core, all parts</button></span></div>` +
@@ -536,7 +563,7 @@ function renderSide() {
       `<div class="fld"><label><input type="checkbox" id="ecov" ${t.cover ? 'checked' : ''}> Cover part (built early to protect the mold)</label></div>` +
       `<button data-act="bank">Send this part back to the bank</button> <button data-act="bankboat">Send the whole boat back</button><br><button class="danger" data-act="del">Take this part off the plan</button></div>`;
   } else {
-    h += `<div class="card hint"><b>How it works.</b> Drag a bar to move the part to other days. Drag its right edge to make it longer or shorter. Click a bar to change people, days or colour. People go in halves, for someone split between two parts. The two small boxes on a bar are its kits: G for glass, C for core (coosa included). Click a box when that kit is cut; Shift-click does every part of the boat. Once a part's start day has come, a third box with a check shows up: click it when the part is finished. If you are ticking it a day late, the card that opens has arrows to set the day it really finished. Click a day in the header to close the shop that day. Boats further out wait in the bank under the board: drag one up onto a day when you are ready to plan it. Everything saves by itself in this browser.</div>`;
+    h += `<div class="card hint"><b>How it works.</b> Drag a bar to move the part to other days. Drag its right edge to make it longer or shorter. Click a bar to change people, days or colour. People go in halves, for someone split between two parts. The two small boxes on a bar are its kits: G for glass, C for core (coosa included). Click a box when that kit is cut; Shift-click does every part of the boat. Once a part's start day has come, a third box with a check shows up: click it when the part is finished. If you are ticking it a day late, the card that opens has arrows to set the day it really finished. Click a day in the header to close the shop that day. Friday is overtime and stays off: to work one, drag the right edge of a part onto it, or click the part and tick that Friday. Only that part moves. Boats further out wait in the bank under the board: drag one up onto a day when you are ready to plan it. Everything saves by itself in this browser.</div>`;
   }
   h += `<div class="card" id="probs"><h3>Problems</h3>${C.probs.length ? C.probs.slice(0, 40).map((p) => `<div class="prob${p.kit ? ' kitp' : ''}" data-at="${p.at}">${p.text}</div>`).join('') + (C.probs.length > 40 ? `<div class="hint">and ${C.probs.length - 40} more</div>` : '') : '<div class="ok">None. No mold is double-booked, no day needs more than ' + S.crew + ' people, and nothing starting in the next two weeks is waiting on a kit.</div>'}</div>`;
   h += `<div class="card"><h3>Boats</h3><table class="boats"><tr><th>Boat</th><th>Hull done</th><th>Full set</th><th>vs first pass</th></tr>`;
@@ -544,7 +571,7 @@ function renderSide() {
     const mine = S.tasks.filter((x) => x.id === bt.id); if (!mine.length) continue;
     const on = mine.filter((x) => !x.bank), nb = mine.length - on.length;
     const hull = mine.find((x) => x.part === 'Hull'), set = on.length ? Math.max(...on.map((x) => x._e)) : -1, first = on.length ? Math.min(...on.map((x) => x._s)) : -1;
-    const d = BASE[bt.id] == null ? null : set - BASE[bt.id];
+    const d = BASE[bt.id] == null ? null : wdn(set) - wdn(BASE[bt.id]);
     h += `<tr data-boat="${esc(bt.id)}" data-at="${first}" class="${view.hi === bt.id ? 'hi' : ''}"><td><span class="sw" style="background:${colourOf(bt.id)}"></span><b>${esc(bt.id)}</b><span class="cu">${esc(bt.cust)}</span></td><td>${!hull ? '<span class="same">pulled</span>' : hull.bank ? '<span class="same">bank</span>' : md(hull._e)}</td><td>${nb ? `<span class="same">${nb} in bank</span>` : on.every((x) => x.done) ? '<span class="early">all done</span>' : `<b>${md(set)}</b>`}</td>` +
       `<td>${nb ? '' : d == null ? '<span class="same">new</span>' : d === 0 ? '<span class="same">same</span>' : d > 0 ? `<span class="late">${d} day${d === 1 ? '' : 's'} later</span>` : `<span class="early">${-d} day${d === -1 ? '' : 's'} sooner</span>`}</td></tr>`;
   }
@@ -566,7 +593,8 @@ function renderSide() {
 }
 function edit(fn) { const t = taskBy(view.sel); if (!t) return; pushUndo(); fn(t); commit(); }
 $('side').addEventListener('click', (e) => {
-  const pill = e.target.closest('.kit'); if (pill) { edit((t) => { setKit(t, pill.dataset.pk, !t[pill.dataset.pk]); }); return; }
+  const pill = e.target.closest('.kit'); if (pill && pill.dataset.fri) { edit((t) => { setFri(t, pill.dataset.fri, !(t.f && t.f[pill.dataset.fri])); }); return; }
+  if (pill) { edit((t) => { setKit(t, pill.dataset.pk, !t[pill.dataset.pk]); }); return; }
   const act = e.target.dataset && e.target.dataset.act;
   if (act) {
     if (act === 's-') edit((t) => { t.s = place(t._s - 1, -1); });
@@ -575,9 +603,9 @@ $('side').addEventListener('click', (e) => {
     if (act === 'n+') edit((t) => { t.n = Math.min(80, t.n + 1); });
     if (act === 'c-') edit((t) => { t.crew = Math.max(BIG[t.part] ? 2 : 0.5, half(t.crew - 0.5)); });
     if (act === 'c+') edit((t) => { t.crew = Math.min(12, half(t.crew + 0.5)); });
-    if (act === 'bank' || act === 'bankboat') { const me = taskBy(view.sel); if (!me) return; pushUndo(); for (const x of S.tasks) if (act === 'bank' ? x === me : x.id === me.id) x.bank = true; view.sel = null; commit(); }
+    if (act === 'bank' || act === 'bankboat') { const me = taskBy(view.sel); if (!me) return; pushUndo(); for (const x of S.tasks) if (act === 'bank' ? x === me : x.id === me.id) { x.bank = true; delete x.f; } view.sel = null; commit(); }
     if (act === 'f-') edit((t) => { if (t.done && t.n > 1) t.n -= 1; });
-    if (act === 'f+') edit((t) => { if (t.done && t._e < LAST_I) t.n += 1; });
+    if (act === 'f+') edit((t) => { if (t.done && endOf(t, t._s, t.n + 1) <= LAST_I) t.n += 1; });
     if (act === 'fin') { const me = taskBy(view.sel); if (!me) return; pushUndo(); setDone(me, !me.done); commit(); }
     if (act === 'kgall' || act === 'kcall') { const me = taskBy(view.sel); if (!me) return; const key = act === 'kgall' ? 'kg' : 'kc', mine = S.tasks.filter((x) => x.id === me.id), v = !mine.every((x) => x[key]); pushUndo(); for (const x of mine) setKit(x, key, v); commit(); }
     if (act === 'mine' || act === 'notmine') {
@@ -600,8 +628,8 @@ $('side').addEventListener('change', (e) => {
   if (e.target.id === 'ecov') edit((t) => { t.cover = e.target.checked; });
 });
 function jump(i, keepIfVisible) {
-  const a = view.start * 4, b = a + view.weeks * 4 - 1;
-  if (!(keepIfVisible && i >= a && i <= b)) view.start = Math.max(0, Math.min(D.weeks - view.weeks, Math.floor(i / 4)));
+  const a = view.start * DPW, b = a + view.weeks * DPW - 1;
+  if (!(keepIfVisible && i >= a && i <= b)) view.start = Math.max(0, Math.min(D.weeks - view.weeks, Math.floor(i / DPW)));
   saveView(); render();
 }
 
@@ -612,10 +640,10 @@ function jump(i, keepIfVisible) {
 // plan against actual later. A finished bar is locked; un-ticking puts the plan back.
 function setDone(t, on) {
   if (on) {
-    const fe = Math.max(0, LAST_I);
+    let fe = Math.max(0, LAST_I); if (isFri(fe) && !works(t, fe)) fe = Math.max(0, fe - 1);   // a Friday this part was not worked on: Thursday was its last day
     if (t.pn == null) t.pn = t.n; if (t.ps == null) t.ps = t._s;
     if (t._s > fe) { t.s = place(fe, -1); t.n = 1; }                       // built before its planned start
-    else if (t._e > fe) { let n = 0; for (let i = t._s; i <= fe; i++) if (open(i)) n++; t.s = t._s; t.n = Math.max(1, n); }   // beat the plan: ends today
+    else if (t._e > fe) { let n = 0; for (let i = t._s; i <= fe; i++) if (works(t, i)) n++; t.s = t._s; t.n = Math.max(1, n); }   // beat the plan: ends today
     else t.s = t._s;                                                      // planned last day is today or already past: finished on plan until told otherwise
     t.done = true; t.da = TODAY_ISO; t.db = WHO();   // when it was ticked, and by whom
   } else {
@@ -653,7 +681,7 @@ function placeBoat(id, at) {
       let ok = true; for (let i = st; i <= e; i++) if (open(i) && own[i] + t.crew > S.crew) { ok = false; break; }
       if (ok) break; st = place(st + 1, 1); e = endWith(S.closed, st, t.n);
     }
-    t.s = t._s = st; t._e = e; t.bank = false; for (let i = st; i <= e; i++) if (open(i)) own[i] += t.crew;
+    t.s = t._s = st; t._e = e; t.bank = false; delete t.f; for (let i = st; i <= e; i++) if (open(i)) own[i] += t.crew;
   }
   compute();
 }
@@ -667,10 +695,10 @@ $('bank').addEventListener('pointerdown', (e) => {
   e.preventDefault();
 });
 function bankAim() {
-  const r = $('dh').getBoundingClientRect(), w = document.querySelector('.boardwrap').getBoundingClientRect(), n = view.weeks * 4, colW = r.width / n, dc = $('dropcol');
+  const r = $('dh').getBoundingClientRect(), w = document.querySelector('.boardwrap').getBoundingClientRect(), n = view.weeks * DPW, colW = r.width / n, dc = $('dropcol');
   for (const m in rowEls) rowEls[m].row.classList.remove('target');
   if (!(bdrag.x >= r.left && bdrag.x < r.right && bdrag.y >= w.top && bdrag.y <= w.bottom)) { bdrag.at = -1; dc.style.display = 'none'; return; }
-  const c = Math.min(n - 1, Math.floor((bdrag.x - r.left) / colW)); bdrag.at = view.start * 4 + c;
+  const c = Math.min(n - 1, Math.floor((bdrag.x - r.left) / colW)); bdrag.at = view.start * DPW + c;
   dc.style.display = 'block'; dc.style.left = (r.left + c * colW) + 'px'; dc.style.width = colW + 'px'; dc.style.top = w.top + 'px'; dc.style.height = w.height + 'px';
   const t = bdrag.k && taskBy(bdrag.k); if (t && rowEls[t.mold]) rowEls[t.mold].row.classList.add('target');
 }
@@ -696,7 +724,7 @@ function bankEnd(e, cancel) {
   if (!b.moved) { if (!b.k) view.open[b.boat] = !view.open[b.boat]; render(); return true; }
   if (cancel || b.at < 0) { render(); return true; }
   pushUndo();
-  if (b.k) { const t = taskBy(b.k); t.s = place(b.at, 1); t.bank = false; view.sel = t.k; }
+  if (b.k) { const t = taskBy(b.k); t.s = place(b.at, 1); t.bank = false; delete t.f; view.sel = t.k; }
   else { placeBoat(b.boat, b.at); view.hi = b.boat; view.sel = null; }
   saveView(); commit(); return true;
 }
@@ -715,8 +743,8 @@ $('grid').addEventListener('pointerdown', (e) => {
   const t = taskBy(el.dataset.k); if (!t) return;
   if (t.done) { view.sel = view.sel === t.k ? null : t.k; render(); e.preventDefault(); return; }   // finished: locked, click only
   const r = el.parentNode.getBoundingClientRect();
-  drag = { k: t.k, el, pid: e.pointerId, mode: e.target.classList.contains('hdl') ? 'size' : 'move', x0: e.clientX, x: e.clientX, win0: view.start, colW: r.width / (view.weeks * 4), L: r.left, R: r.right,
-    before: snap(), orig: new Map(S.tasks.map((x) => [x.k, { s: x._s, n: x.n, e: x._e }])), moved: false, last: 0, shift: e.shiftKey };
+  drag = { k: t.k, el, pid: e.pointerId, mode: e.target.classList.contains('hdl') ? 'size' : 'move', x0: e.clientX, x: e.clientX, win0: view.start, colW: r.width / (view.weeks * DPW), L: r.left, R: r.right,
+    before: snap(), orig: new Map(S.tasks.map((x) => [x.k, { s: x._s, n: x.n, e: x._e, f: x.f ? { ...x.f } : null }])), moved: false, last: 0, shift: e.shiftKey };
   try { el.setPointerCapture(e.pointerId); } catch (err) {}
   e.preventDefault();
 });
@@ -734,16 +762,24 @@ document.addEventListener('pointermove', (e) => {
   }, 550);
 });
 function applyDrag(force) {
-  let d = Math.round((drag.x - drag.x0) / drag.colW) + (view.start - drag.win0) * 4;
+  let d = Math.round((drag.x - drag.x0) / drag.colW) + (view.start - drag.win0) * DPW;
   const me = taskBy(drag.k), o = drag.orig;
   if (drag.mode === 'size') {
-    const s = o.get(me.k).s, target = Math.max(s, o.get(me.k).e + d); let n = 0;
-    for (let i = s; i <= Math.min(target, MAXI); i++) if (open(i)) n++;
+    const s = o.get(me.k).s, target = Math.min(MAXI, Math.max(s, o.get(me.k).e + d)), fr = { ...(o.get(me.k).f || {}) }; let n = 0;
+    if (isFri(target) && !S.closed[DAYS[target]]) fr[DAYS[target]] = 1;   // the edge was dropped on a Friday: this part works it
+    for (const iso in fr) if (iso > DAYS[target]) delete fr[iso];         // Fridays past the new end are let go
+    setF(me, fr);
+    for (let i = s; i <= target; i++) if (works(me, i)) n++;
     me.n = Math.max(1, n);
   } else {
     const group = view.whole || drag.shift ? S.tasks.filter((t) => t.id === me.id && !t.bank && !t.done) : [me];
     d = Math.max(d, -Math.min(...group.map((t) => o.get(t.k).s)));
-    for (const t of group) t.s = place(o.get(t.k).s + d, d < 0 ? -1 : 1);
+    for (const t of group) {
+      const ns = Math.max(0, Math.min(MAXI, o.get(t.k).s + d));
+      if (!d) { t.s = o.get(t.k).s; setF(t, o.get(t.k).f); }                                                     // back where it started
+      else if (group.length === 1 && isFri(ns) && !S.closed[DAYS[ns]]) { t.s = ns; setF(t, { [DAYS[ns]]: 1 }); }   // dropped on a Friday: it starts there
+      else { t.s = place(ns, d < 0 ? -1 : 1); setF(t, null); }                                                   // its Fridays belonged to the old dates
+    }
   }
   if (d === drag.last && !force) return; drag.last = d;
   compute(); layout();
@@ -761,13 +797,14 @@ document.addEventListener('pointercancel', (e) => { if (!bankEnd(e, true)) endDr
 // ---- header, toolbar, keys --------------------------------------------------------
 $('grid').addEventListener('click', (e) => {
   const dh = e.target.closest('#dh > div');
+  if (dh && isFri(+dh.dataset.i)) return;   // Fridays are switched on per part, not for the whole shop
   if (dh) { const iso = DAYS[+dh.dataset.i]; pushUndo(); if (S.closed[iso]) delete S.closed[iso]; else S.closed[iso] = 'closed'; commit(); return; }
   const g = e.target.closest('.grp'); if (g) { const gi = +g.dataset.g; view.fold[gi] = !view.fold[gi]; saveView(); render(); return; }
   if (!e.target.closest('.bar') && (view.sel || view.hi)) { view.sel = null; view.hi = null; render(); }
 });
 $('prev').onclick = () => { view.start = Math.max(0, view.start - 1); saveView(); render(); };
 $('next').onclick = () => { view.start = Math.min(D.weeks - view.weeks, view.start + 1); saveView(); render(); };
-$('today').onclick = () => { view.start = TODAY_I < 0 ? 0 : Math.max(0, Math.min(D.weeks - view.weeks, Math.floor(TODAY_I / 4))); saveView(); render(); };
+$('today').onclick = () => { view.start = TODAY_I < 0 ? 0 : Math.max(0, Math.min(D.weeks - view.weeks, Math.floor(TODAY_I / DPW))); saveView(); render(); };
 $('zoom').onclick = (e) => { const w = +e.target.dataset.w; if (!w) return; view.weeks = w; view.start = Math.min(view.start, D.weeks - w); saveView(); render(); };
 $('crew').onchange = (e) => { const v = Math.max(0.5, Math.min(30, half(e.target.value) || S.crew)); if (v !== S.crew) { pushUndo(); S.crew = v; commit(); } };
 $('whole').onclick = () => { view.whole = !view.whole; render(); };
@@ -801,7 +838,7 @@ $('dlg').addEventListener('close', () => {
   pushUndo();
   if (!boatBy(id)) S.boats.push({ id, cust: $('aboat').value.trim().slice(id.length).trim(), model: row.model, seq: 900 + S.boats.length });
   const n = Math.max(1, Math.min(60, +$('adays').value || 1)), crew = Math.max(BIG[row.part] ? 2 : 0.5, Math.min(12, half($('acrew').value) || 1));
-  let s = place(view.start * 4, 1);
+  let s = place(view.start * DPW, 1);
   for (let guard = 0; guard < 200; guard++) { const e = endWith(S.closed, s, n); const hit = S.tasks.find((t) => t.mold === mold && t._s <= e && t._e >= s); if (!hit) break; s = place(hit._e + 1, 1); }
   let k = `${id}|${row.part}`; while (taskBy(k)) k += '+';
   S.tasks.push({ k, id, part: row.part, mold, s, n, crew, colour: $('acol').value.trim(), cover: false, kg: false, kc: false });
@@ -849,22 +886,22 @@ if (TEST && !SHARED_TEST) setTimeout(() => {
   try {
     out.tasks = S.tasks.length; out.rows = Object.keys(rowEls).length; out.barsOnScreen = barEls.size; out.problemsAtStart = C.probs.length; out.maxPeople = Math.max(...C.load);
     out.firstRows = D.groups.slice(0, 2).map((g) => g.title + ': ' + g.rows.map((r) => label(r.mold)).join(', '));
-    const pick = S.tasks.filter((t) => barEls.has(t.k) && t._s >= 2 && t._e < 12 && t.n >= 2)[0];
-    const el = barEls.get(pick.k), r = el.getBoundingClientRect(), colW = el.parentNode.getBoundingClientRect().width / 16, s0 = pick._s, n0 = pick.n;
+    const pick = S.tasks.filter((t) => barEls.has(t.k) && !t.done && t._s >= 2 && t._e < 3 * DPW && t.n >= 2)[0];
+    const el = barEls.get(pick.k), r = el.getBoundingClientRect(), colW = el.parentNode.getBoundingClientRect().width / (view.weeks * DPW), s0 = pick._s, n0 = pick.n;
     pe(el, 'pointerdown', r.left + 10, r.top + 5); pe(document, 'pointermove', r.left + 10 + colW * 2.2, r.top + 5); pe(document, 'pointerup', r.left + 10 + colW * 2.2, r.top + 5);
-    out.move = { task: pick.k, from: s0, to: taskBy(pick.k)._s, expect: place(s0 + 2, 1), undoDepth: undoStack.length };
+    out.move = { task: pick.k, from: s0, to: taskBy(pick.k)._s, expect: isFri(s0 + 2) ? s0 + 2 : place(s0 + 2, 1), undoDepth: undoStack.length };
     undo(); out.undoRestores = taskBy(pick.k)._s === s0;
     const el2 = barEls.get(pick.k), h = el2.querySelector('.hdl').getBoundingClientRect();
     pe(el2.querySelector('.hdl'), 'pointerdown', h.left + 3, h.top + 5); pe(document, 'pointermove', h.left + 3 + colW * 1.1, h.top + 5); pe(document, 'pointerup', h.left + 3 + colW * 1.1, h.top + 5);
     out.resize = { from: n0, to: taskBy(pick.k).n }; undo();
-    const e0 = taskBy(pick.k)._e; const dayEl = document.querySelector(`#dh > div[data-i="${s0 + 1}"]`); dayEl.click();
-    out.closeDay = { day: DAYS[s0 + 1], endBefore: e0, endAfter: taskBy(pick.k)._e, closedNow: !!S.closed[DAYS[s0 + 1]] }; undo();
+    const e0 = taskBy(pick.k)._e, cd = isFri(s0 + 1) ? s0 + 2 : s0 + 1; const dayEl = document.querySelector(`#dh > div[data-i="${cd}"]`); dayEl.click();
+    out.closeDay = { day: DAYS[cd], endBefore: e0, endAfter: taskBy(pick.k)._e, closedNow: !!S.closed[DAYS[cd]] }; undo();
     view.sel = null; render(); const el3 = barEls.get(pick.k), r3 = el3.getBoundingClientRect(); pe(el3, 'pointerdown', r3.left + 10, r3.top + 5); pe(document, 'pointerup', r3.left + 10, r3.top + 5);
     out.clickSelects = view.sel === pick.k && !!$('edit');
     view.whole = true; const cnt = {}; for (const t of S.tasks) if (barEls.has(t.k)) cnt[t.id] = (cnt[t.id] || 0) + 1;
     const big = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0], lead = S.tasks.find((t) => t.id === big && barEls.has(t.k) && t._s >= 1 && t._s < 10);
     const mates = S.tasks.filter((t) => t.id === big).map((t) => [t.k, t._s]);
-    const el4 = barEls.get(lead.k), r4 = el4.getBoundingClientRect(); pe(el4, 'pointerdown', r4.left + 10, r4.top + 5); pe(document, 'pointermove', r4.left + 10 + colW * 4, r4.top + 5); pe(document, 'pointerup', r4.left + 10 + colW * 4, r4.top + 5);
+    const el4 = barEls.get(lead.k), r4 = el4.getBoundingClientRect(); pe(el4, 'pointerdown', r4.left + 10, r4.top + 5); pe(document, 'pointermove', r4.left + 10 + colW * DPW, r4.top + 5); pe(document, 'pointerup', r4.left + 10 + colW * DPW, r4.top + 5);
     out.wholeBoat = { boat: big, parts: mates.length, allMoved: mates.every(([k, s]) => taskBy(k)._s > s) }; undo(); view.whole = false;
     out.backToStart = snap() === JSON.stringify(fresh(), strip);
     view.bankShut = false; render();
@@ -904,7 +941,7 @@ if (TEST && !SHARED_TEST) setTimeout(() => {
     out.backToStart3 = snap() === JSON.stringify(fresh(), strip);
     const hp = S.tasks.find((t) => barEls.has(t.k) && t.crew === 1 && !BIG[t.part]), load0 = C.load[hp._s];
     view.sel = hp.k; render(); document.querySelector('#edit [data-act="c+"]').click();
-    const up = taskBy(hp.k).crew, load1 = C.load[taskBy(hp.k)._s], badge = barEls.get(hp.k).querySelector('.ppl').textContent, cell = document.querySelector(`#ph > div:nth-child(${taskBy(hp.k)._s - view.start * 4 + 1})`).textContent;
+    const up = taskBy(hp.k).crew, load1 = C.load[taskBy(hp.k)._s], badge = barEls.get(hp.k).querySelector('.ppl').textContent, cell = document.querySelector(`#ph > div:nth-child(${taskBy(hp.k)._s - view.start * DPW + 1})`).textContent;
     document.querySelector('#edit [data-act="c-"]').click(); document.querySelector('#edit [data-act="c-"]').click(); const down = taskBy(hp.k).crew;
     document.querySelector('#edit [data-act="c-"]').click(); const floor = taskBy(hp.k).crew;
     const hullT = S.tasks.find((t) => barEls.has(t.k) && t.part === 'Hull'); view.sel = hullT.k; render(); for (let i = 0; i < 12; i++) document.querySelector('#edit [data-act="c-"]').click(); const hullFloor = taskBy(hullT.k).crew;
@@ -927,23 +964,57 @@ if (TEST && !SHARED_TEST) setTimeout(() => {
         document.querySelector('#edit [data-act="f+"]').click(); const e1 = taskBy(k)._e;
         for (let i = 0; i < 12; i++) document.querySelector('#edit [data-act="f+"]').click(); const eMax = taskBy(k)._e;
         document.querySelector('#edit [data-act="f-"]').click(); const eBack = taskBy(k)._e;
-        fin.arrows = { oneLater: e1, cappedAtToday: eMax === LAST_I, backOne: eBack < eMax };
+        let cap = LAST_I; while (cap > 0 && !works(taskBy(k), cap)) cap--;
+        fin.arrows = { oneLater: e1, cappedAtToday: eMax === cap, backOne: eBack < eMax };
         fin.lateTickOk = fin.lateTickKeepsPlannedDay && e1 > 0 && fin.arrows.cappedAtToday && fin.arrows.backOne;
       } else fin.lateTickOk = true;
       while (undoStack.length) undo(); view.sel = null;
       out.finish = fin; out.finishOk = fin.done && fin.endsToday && fin.shorter && fin.plannedKept && fin.peopleFreed && fin.grey && fin.locked && fin.untickRestores && fin.lateFlag && fin.lateTickOk && snap() === JSON.stringify(fresh(), strip);
     } else { out.finish = 'no part is under way today to test with'; out.finishOk = true; }
+    // Fridays: off for everyone until one part is put on one
+    {
+      const fr = {}, lastI = view.start * DPW + view.weeks * DPW - 1;
+      fr.noneWorkedAtStart = !S.tasks.some((t) => t.f) && C.load.every((v, i) => !isFri(i) || v === 0) && document.querySelectorAll('#dh > .fri').length === view.weeks;
+      const a = S.tasks.find((t) => barEls.has(t.k) && !t.done && !t.bank && t._e % DPW === 3 && t._e + 1 <= lastI && !S.closed[DAYS[t._e + 1]] && barEls.get(t.k).querySelector('.hdl').offsetParent);
+      if (a) {
+        const k = a.k, n0 = a.n, e0 = a._e, others = S.tasks.filter((t) => t.k !== k).map((t) => [t.k, t._s, t._e]);
+        const cw = $('dh').getBoundingClientRect().width / (view.weeks * DPW), hd = barEls.get(k).querySelector('.hdl').getBoundingClientRect();
+        pe(barEls.get(k).querySelector('.hdl'), 'pointerdown', hd.left + 3, hd.top + 5); pe(document, 'pointermove', hd.left + 3 + cw * 1.1, hd.top + 5); pe(document, 'pointerup', hd.left + 3 + cw * 1.1, hd.top + 5);
+        const t1 = taskBy(k);
+        fr.dragOnto = { part: k, endsFriday: t1._e === e0 + 1 && isFri(t1._e), ticked: !!(t1.f && t1.f[DAYS[e0 + 1]]), oneMoreDay: t1.n === n0 + 1, peopleOnFriday: C.load[e0 + 1] === t1.crew, headerLit: document.querySelector(`#dh > div[data-i="${e0 + 1}"]`).classList.contains('friot'), nobodyElseMoved: others.every(([kk, s1, e1]) => taskBy(kk)._s === s1 && taskBy(kk)._e === e1) };
+        view.sel = k; render(); const pill = document.querySelector(`#edit .kit[data-fri="${DAYS[e0 + 1]}"]`);
+        fr.cardShowsIt = !!pill && pill.classList.contains('ok'); pill.click();
+        fr.untick = { backToThursday: taskBy(k)._e === e0 && taskBy(k).n === n0, flagGone: taskBy(k).f === undefined };
+        document.querySelector(`#edit .kit[data-fri="${DAYS[e0 + 1]}"]`).click(); fr.tickAgain = taskBy(k)._e === e0 + 1 && taskBy(k).n === n0 + 1;
+        while (undoStack.length) undo(); view.sel = null; render();
+        fr.aOk = fr.dragOnto.endsFriday && fr.dragOnto.ticked && fr.dragOnto.oneMoreDay && fr.dragOnto.peopleOnFriday && fr.dragOnto.headerLit && fr.dragOnto.nobodyElseMoved && fr.cardShowsIt && fr.untick.backToThursday && fr.untick.flagGone && fr.tickAgain;
+      } else fr.aOk = 'no part ends on a Thursday in view';
+      const b = S.tasks.find((t) => barEls.has(t.k) && !t.done && !t.bank && t.n >= 2 && t._e <= lastI && (() => { for (let i = t._s + 1; i < t._e; i++) if (isFri(i) && !S.closed[DAYS[i]]) return true; return false; })());
+      if (b) {
+        const k = b.k, e0 = b._e, n0 = b.n; let fi = -1; for (let i = b._s + 1; i < b._e; i++) if (isFri(i)) { fi = i; break; }
+        view.sel = k; render(); document.querySelector(`#edit .kit[data-fri="${DAYS[fi]}"]`).click();
+        fr.tickInside = { part: k, sameDays: taskBy(k).n === n0, endsSooner: taskBy(k)._e < e0, veilGone: !/gradient/.test(barEls.get(k).style.background) || taskBy(k)._e > fi };
+        while (undoStack.length) undo(); view.sel = null; render();
+        fr.veilBack = /gradient/.test(barEls.get(k).style.background);
+        fr.bOk = fr.tickInside.sameDays && fr.tickInside.endsSooner && fr.veilBack;
+      } else fr.bOk = 'no part runs across a Friday in view';
+      const hdr = document.querySelector('#dh > .fri'); if (hdr) hdr.click(); fr.headerClickDoesNothing = !Object.keys(S.closed).some((iso) => isFri(DAYS.indexOf(iso))) && !undoStack.length;
+      const m5 = migrate({ v: 3, week0: D.week0, tasks: [{ k: 'a', s: 4, n: 1, ps: 7 }, { k: 'b', s: 3, n: 1 }], boats: [] }), m5b = migrate(JSON.parse(JSON.stringify(m5)));
+      fr.oldPlan = { monWeek2: m5.tasks[0].s, thuWeek2: m5.tasks[0].ps, thuWeek1: m5.tasks[1].s, onlyOnce: m5b.tasks[0].s === m5.tasks[0].s, marked: m5.dpw === DPW };
+      out.fridays = fr;
+      out.fridaysOk = fr.noneWorkedAtStart && fr.aOk === true && fr.bOk !== false && fr.headerClickDoesNothing && fr.oldPlan.monWeek2 === 5 && fr.oldPlan.thuWeek2 === 8 && fr.oldPlan.thuWeek1 === 3 && fr.oldPlan.onlyOnce && fr.oldPlan.marked && snap() === JSON.stringify(fresh(), strip);
+    }
     window.__fcTest = true; compute(); const added = captureForecasts(), again = captureForecasts(), bands = { 4: 0, 8: 0, 12: 0 };
     for (const t of S.tasks) for (const hh in (t.fc || {})) bands[hh]++;
-    const far = S.tasks.find((t) => !t.bank && t._e - NOW_I > 48), banked = S.tasks.filter((t) => t.bank && t.fc).length;
+    const far = S.tasks.find((t) => !t.bank && t._e - NOW_I > 12 * DPW), banked = S.tasks.filter((t) => t.bank && t.fc).length;
     const ft = S.tasks.find((t) => !t.bank && t.fc && t.fc[4] && t._s <= LAST_I && t._e > LAST_I);
     if (ft) {
       const e0 = ft._e, f0 = ft.fc[4].e; pushUndo(); setDone(ft, true); ft.n += 0; commit();
       const a4 = accuracy()[4].parts; setKit(ft, 'kg', true);
-      out.forecast = { added, addedAgain: again, bands, bankedHaveNone: banked === 0, beyond12HasNone: !far || !far.fc, boatsTracked: Object.keys(S.fcb || {}).length, part: ft.k, forecastWas: f0, finished: DAYS[ft._e], scoredParts: a4.n, miss: a4.bias, expectMiss: LAST_I - e0, forecastUnchanged: ft.fc[4].e === f0, stamped: ft.da === TODAY_ISO, kitStamped: ft.kgOn === TODAY_ISO, card: /Forecast accuracy/.test($('side').textContent) && /early/.test($('side').textContent) };
-      out.forecastOk = added > 0 && again === 0 && bands[4] > 0 && out.forecast.bankedHaveNone && out.forecast.beyond12HasNone && out.forecast.boatsTracked > 0 && a4.n === 1 && a4.bias === LAST_I - e0 && out.forecast.forecastUnchanged && out.forecast.stamped && out.forecast.kitStamped && out.forecast.card && shopIdx(DAYS[37]) === 37 && shopIdx(addDays(D.week0, -7)) === -4;
+      out.forecast = { added, addedAgain: again, bands, bankedHaveNone: banked === 0, beyond12HasNone: !far || !far.fc, boatsTracked: Object.keys(S.fcb || {}).length, part: ft.k, forecastWas: f0, finished: DAYS[ft._e], scoredParts: a4.n, miss: a4.bias, expectMiss: wdn(ft._e) - wdn(e0), forecastUnchanged: ft.fc[4].e === f0, stamped: ft.da === TODAY_ISO, kitStamped: ft.kgOn === TODAY_ISO, card: /Forecast accuracy/.test($('side').textContent) && /early/.test($('side').textContent) };
+      out.forecastOk = added > 0 && again === 0 && bands[4] > 0 && out.forecast.bankedHaveNone && out.forecast.beyond12HasNone && out.forecast.boatsTracked > 0 && a4.n === 1 && a4.bias === wdn(ft._e) - wdn(e0) && out.forecast.forecastUnchanged && out.forecast.stamped && out.forecast.kitStamped && out.forecast.card && shopIdx(DAYS[37]) === 37 && shopIdx(addDays(D.week0, -7)) === -DPW && shopIdx(addDays(D.week0, 4)) === 4 && wdn(4) === 3 && wdn(5) === 4;
     } else { out.forecast = { added, bands, note: 'no part under way today to finish' }; out.forecastOk = added > 0 && again === 0; }
-    out.ok = out.forecastOk && out.finishOk && out.halvesOk && out.kitsOk && out.migrate.kitsGone && out.migrate.glassCarried && out.migrate.othersSeeded && out.backToStart3 && out.bankOk && out.move.to === out.move.expect && out.undoRestores && out.resize.to > n0 && out.closeDay.endAfter > e0 && out.clickSelects && out.wholeBoat.allMoved && out.backToStart;
+    out.ok = out.fridaysOk && out.forecastOk && out.finishOk && out.halvesOk && out.kitsOk && out.migrate.kitsGone && out.migrate.glassCarried && out.migrate.othersSeeded && out.backToStart3 && out.bankOk && out.move.to === out.move.expect && out.undoRestores && out.resize.to > n0 && out.closeDay.endAfter > e0 && out.clickSelects && out.wholeBoat.allMoved && out.backToStart;
   } catch (err) { out.error = String(err && err.stack || err); }
   render(); $('selftest').hidden = false; $('selftest').textContent = 'SELFTEST ' + JSON.stringify(out, null, 1);
 }, 50);
@@ -963,12 +1034,12 @@ if (SHARED_TEST) setTimeout(async () => {
     m.fail = true; pushUndo(); taskBy(t.k).n += 1; commit(); await wait(900);
     const failedNote = /Could not save/.test($('side').textContent), v0 = m.version; m.fail = false; await pushShared();
     out.outage = { failedNote, savedAfter: m.version === v0 + 1 && m.data.tasks.find((x) => x.k === t.k).n === taskBy(t.k).n, noteCleared: !/Could not save/.test($('side').textContent) };
-    const moved = migrate({ v: 3, week0: addDays(D.week0, -7), tasks: [{ k: 'x', s: 10, n: 1 }], boats: [] });
+    const moved = migrate({ v: 4, dpw: DPW, week0: addDays(D.week0, -7), tasks: [{ k: 'x', s: 10, n: 1 }], boats: [] });
     out.weekShift = { from: 10, to: moved.tasks[0].s, week0: moved.week0 };
     const no36 = migrate({ v: 3, week0: D.week0, tasks: [{ k: 'a', mold: '36 T Top', s: 1, n: 1 }, { k: 'b', mold: '36 Hull', s: 1, n: 1 }, { k: 'c', mold: 'Hard Top (shared)', s: 1, n: 1 }], boats: [] });
     out.no36HardTop = { kept: no36.tasks.map((x) => x.k).join(','), seedHasNone: !D.tasks.some((x) => x.mold === '36 T Top'), rowGone: !D.groups.some((g) => g.rows.some((r) => r.mold === '36 T Top')) };
     if (!(out.no36HardTop.kept === 'b,c' && out.no36HardTop.seedHasNone && out.no36HardTop.rowGone)) throw new Error('36 hard top still in the plan');
-    out.ok = out.seeded.on && out.seeded.serverVersion >= 1 && out.seeded.noUnderscores && out.mySave.serverHasMove && out.mySave.footer && out.theirChange.crewNow === 7 && out.theirChange.kitNow === true && out.theirChange.undoCleared && out.theirChange.told && out.conflict.theirCrewWon && out.conflict.myMoveDropped && out.conflict.told && out.conflict.inStep && out.outage.failedNote && out.outage.savedAfter && out.outage.noteCleared && out.weekShift.to === 6;
+    out.ok = out.seeded.on && out.seeded.serverVersion >= 1 && out.seeded.noUnderscores && out.mySave.serverHasMove && out.mySave.footer && out.theirChange.crewNow === 7 && out.theirChange.kitNow === true && out.theirChange.undoCleared && out.theirChange.told && out.conflict.theirCrewWon && out.conflict.myMoveDropped && out.conflict.told && out.conflict.inStep && out.outage.failedNote && out.outage.savedAfter && out.outage.noteCleared && out.weekShift.to === 10 - DPW;
   } catch (err) { out.error = String(err && err.stack || err); }
   $('selftest').hidden = false; $('selftest').textContent = 'SELFTEST ' + JSON.stringify(out, null, 1);
 }, 50);

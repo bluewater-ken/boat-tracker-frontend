@@ -127,7 +127,13 @@
   .sharenote.bad { background: #ffebee; border-left-color: #c62828; }
   .kb.db { display: none; }
   .bar.started .kb.db, .bar.done .kb.db { display: block; }
-  .bar.done .kb:not(.db) { display: none; }
+  .bar.done .kb:not(.db):not(.pb) { display: none; }
+  .kb.pb { display: none; } .bar.done .kb.pb { display: block; }
+  .bar.wait::after, .bar.soonwait::after { content: 'MOLD NOT CLEAR'; position: absolute; left: 0; top: 0; background: #c62828; color: #fff; font-size: 8px; font-weight: 700; line-height: 10px; padding: 0 4px; border-radius: 0 0 4px 0; letter-spacing: .02em; }
+  .bar.soonwait::after { background: #e65100; }
+  .bar.wait { box-shadow: inset 0 0 0 2px #c62828; } .bar.wait .l2 { color: #b71c1c; font-weight: 700; }
+  .row .now .pull { font: inherit; font-size: 10px; line-height: 13px; margin-left: 3px; padding: 0 6px; border: 1px solid #90a4ae; border-radius: 8px; background: #fff; color: #37474f; cursor: pointer; }
+  .row .now .pull:hover { background: #2e7d32; border-color: #2e7d32; color: #fff; }
   /* finished: keeps its boat colour (Ken 2026-11-18), marked by a light stripe and the check */
   .bar.done { cursor: default; }
   .bar.done::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(135deg, rgba(255,255,255,.5) 0 5px, rgba(255,255,255,0) 5px 11px); }
@@ -364,6 +370,11 @@ function accuracy() {
   }
   return out;
 }
+// B.O.S.S said these were in the mold when the board was built, and nobody has ticked them pulled since. One
+// that has its own bar on that mold is left to the bar.
+const seedOf = (m) => (D.onNow[m] || []).filter((x) => !(S.clear && S.clear[m + '|' + x.id]) && !S.tasks.some((t) => t.mold === m && t.id === x.id && !t.bank));
+function setPulled(t, on) { if (on) { if (!t.done) setDone(t, true); t.pu = true; t.puOn = TODAY_ISO; t.puBy = WHO(); } else { delete t.pu; delete t.puOn; delete t.puBy; } }
+function clearSeed(key) { if (!S.clear) S.clear = {}; S.clear[key] = { on: TODAY_ISO, by: WHO() }; }
 function setKit(t, key, v) { t[key] = v; if (v) { t[key + 'On'] = TODAY_ISO; t[key + 'By'] = WHO(); } else { delete t[key + 'On']; delete t[key + 'By']; } }
 function commit() { compute(); captureForecasts(); save(); render(); }
 function undo() { if (!undoStack.length) return; redoStack.push(snap()); S = JSON.parse(undoStack.pop()); commit(); }
@@ -427,6 +438,22 @@ function compute() {
     const a = lateBy[id].sort((x, y) => x._e - y._e), t = a[0];
     probs.push({ at: t._e, text: `<b>${esc(id)}</b>: ${a.length === 1 ? esc(partName(t.part)) + ' should be finished, it was due ' + dayName(t._e) : a.length + ' parts should be finished, oldest is ' + esc(partName(t.part)) + ', due ' + dayName(t._e)}. Tick it done or stretch the bar.` });
   }
+  // The mold has to be empty before the next part can go in. A part is held by the part before it on the same
+  // mold until that one is ticked pulled, or by whatever B.O.S.S had in the mold. Red once its start day has
+  // come; orange a day or two ahead, and only when the thing in the way is finished, overdue or from B.O.S.S.
+  for (const t of S.tasks) { t._wait = null; t._soon = null; }
+  for (const m in byMold) {
+    const a = byMold[m], seed = seedOf(m);
+    for (const t of a) {
+      if (t.done) continue;
+      const p = a.find((x) => x !== t && !x.pu && x._s < t._s);
+      const hold = p ? { k: p.k, id: p.id, sure: !!(p.done || p._late), txt: `${p.id} is still in the mold (${p.done ? 'finished ' + md(p._e) + ', not pulled' : p._late ? 'was due ' + md(p._e) + ', not ticked finished' : 'not ticked finished'})` }
+        : seed[0] ? { seed: m + '|' + seed[0].id, id: seed[0].id, sure: true, txt: `${seed[0].id} is still in the mold (${seed[0].txt} on B.O.S.S ${D.pulledLabel}, not ticked pulled)` } : null;
+      if (!hold) continue;
+      if (DAYS[t._s] <= TODAY_ISO) { t._wait = hold; probs.push({ at: t._s, text: `<b>${esc(t.id)}</b>: ${esc(partName(t.part))} cannot start. ${esc(hold.txt)}.` }); }
+      else if (hold.sure && t._s <= NOW_I + 2) { t._soon = hold; probs.push({ at: t._s, soft: true, text: `<b>${esc(t.id)}</b>: ${esc(partName(t.part))} starts ${dayName(t._s)}. ${esc(hold.txt)}. Pull it first.` }); }
+    }
+  }
   const due = {};
   for (const t of S.tasks) { t._due = !t.bank && !t.done && !(t.kg && t.kc) && t._s >= NOW_I && t._s <= NOW_I + KIT_SOON; if (t._due) (due[t.id] ||= []).push(t); }
   for (const id in due) {
@@ -445,7 +472,7 @@ const NARROW = matchMedia('screen and (max-width: 900px)'); NARROW.addEventListe
 let grpEls = [];
 function buildSkeleton() {
   const g = $('grid'); let h = '';
-  h += `<div class="r hr wkrow"><div class="lc corner">Mold</div><div class="lc now corner">On it (B.O.S.S ${esc(D.pulledLabel)})</div><div class="trk"><div class="cells" id="wkh"></div></div></div>`;
+  h += `<div class="r hr wkrow"><div class="lc corner">Mold</div><div class="lc now corner">In the mold now</div><div class="trk"><div class="cells" id="wkh"></div></div></div>`;
   h += `<div class="r hr dayrow"><div class="lc"><span class="scr">click a day to close it</span></div><div class="lc now"></div><div class="trk"><div class="cells" id="dh"></div></div></div>`;
   h += `<div class="r hr pplrow"><div class="lc">People needed</div><div class="lc now" id="pplof"></div><div class="trk"><div class="cells" id="ph"></div></div></div>`;
   D.groups.forEach((grp, gi) => {
@@ -456,7 +483,7 @@ function buildSkeleton() {
     }
   });
   g.innerHTML = h;
-  g.querySelectorAll('.row').forEach((el) => { rowEls[el.dataset.mold] = { row: el, cells: el.querySelector('.cells'), bars: el.querySelector('.bars'), g: +el.dataset.g }; });
+  g.querySelectorAll('.row').forEach((el) => { rowEls[el.dataset.mold] = { row: el, cells: el.querySelector('.cells'), bars: el.querySelector('.bars'), now: el.querySelector('.lc.now'), g: +el.dataset.g }; });
   grpEls = [...g.querySelectorAll('.grp')];
 }
 function paintCells() {
@@ -484,7 +511,7 @@ function layout() {
     if (!vis && !(drag && drag.k === t.k)) continue;
     seen.add(t.k);
     let el = barEls.get(t.k);
-    if (!el) { el = document.createElement('div'); el.dataset.k = t.k; el.innerHTML = '<div class="l1"></div><div class="l2"></div><span class="ppl"></span><span class="hdl"></span><span class="kbs"><span class="kb" data-kit="kg">G</span><span class="kb" data-kit="kc">C</span><span class="kb db" data-done="1">✓</span></span>'; barEls.set(t.k, el); }
+    if (!el) { el = document.createElement('div'); el.dataset.k = t.k; el.innerHTML = '<div class="l1"></div><div class="l2"></div><span class="ppl"></span><span class="hdl"></span><span class="kbs"><span class="kb" data-kit="kg">G</span><span class="kb" data-kit="kc">C</span><span class="kb db" data-done="1">✓</span><span class="kb pb" data-pull="1">P</span></span>'; barEls.set(t.k, el); }
     if (el.parentNode !== r.bars) r.bars.appendChild(el);
     el.style.display = vis ? '' : 'none'; if (!vis) continue;
     inWin.add(t.id); rowsWithBars.add(t.mold);
@@ -495,17 +522,18 @@ function layout() {
     let veil = ''; for (let i = L; i <= R; i++) if (!works(t, i)) { const p0 = (i - L) / span * 100, p1 = (i - L + 1) / span * 100; veil += `, transparent ${p0}%, rgba(255,255,255,.66) ${p0}%, rgba(255,255,255,.66) ${p1}%, transparent ${p1}%`; }
     el.style.background = veil ? `linear-gradient(90deg${veil}), ${colourOf(t.id)}` : colourOf(t.id);
     el.className = 'bar' + (t.part === 'Hull' ? ' hull' : '') + (t.cover ? ' cover' : '') + (t._clash ? ' clash' : '') + (view.sel === t.k ? ' sel' : '') + (drag && drag.k === t.k && drag.moved ? ' drag' : '') +
-      (view.hi && view.hi !== t.id ? ' dim' : '') + (span === 1 && view.weeks > 4 ? ' one' : '') + (t.crew % 1 ? ' half' : '') + (t.done ? ' done' : '') + (t._late ? ' late' : '') + (t._s <= LAST_I ? ' started' : '');
-    const nbox = t.done ? 1 : t._s <= LAST_I ? 3 : 2, showKb = trackW * span / n >= 58 + nbox * 17 + (t.crew % 1 ? 10 : 0);
+      (view.hi && view.hi !== t.id ? ' dim' : '') + (span === 1 && view.weeks > 4 ? ' one' : '') + (t.crew % 1 ? ' half' : '') + (t.done ? ' done' : '') + (t._late ? ' late' : '') + (t._s <= LAST_I ? ' started' : '') + (t._wait ? ' wait' : t._soon ? ' soonwait' : '');
+    const nbox = t.done ? 2 : t._s <= LAST_I ? 3 : 2, showKb = trackW * span / n >= 58 + nbox * 17 + (t.crew % 1 ? 10 : 0);
     if (showKb) el.className += ' kbshow'; el.style.paddingRight = showKb ? (28 + nbox * 17 + (t.crew % 1 ? 9 : 0)) + 'px' : '';
+    el.children[4].children[3].className = 'kb pb' + (t.pu ? ' ok' : ''); el.children[4].children[3].title = t.pu ? 'Pulled, the mold is free. Click to un-tick.' : 'P for pulled. Click when the part is out of the mold.';
     el.children[4].children[2].className = 'kb db' + (t.done ? ' ok' : ''); el.children[4].children[2].title = t.done ? 'Finished. Click to un-tick.' : 'Click when this part is finished.';
     el.children[4].children[0].className = 'kb' + (t.kg ? ' ok' : t._due ? ' due' : ''); el.children[4].children[0].title = `Glass kit ${t.kg ? 'ready' : 'NOT ready'}. Click to change; Shift-click does every part of ${t.id}.`;
     el.children[4].children[1].className = 'kb' + (t.kc ? ' ok' : t._due ? ' due' : ''); el.children[4].children[1].title = `Core kit (coosa included) ${t.kc ? 'ready' : 'NOT ready'}. Click to change; Shift-click does every part of ${t.id}.`;
     el.children[0].innerHTML = `${t._s < a ? '‹ ' : ''}<b>${esc(t.id)}</b>${t._e > b ? ' ›' : ''} ${esc(bt.cust || '')}`;
-    el.children[1].innerHTML = t.done ? `finished ${md(t._e)}<span class="scr"> · ${t.n}d${t.pn != null && t.pn !== t.n ? ', planned ' + t.pn : ''}</span>` : `${esc(t.colour || (t.cover ? 'cover part' : 'colour not set'))}<span class="scr"> · ${t.n}d</span>`;
+    el.children[1].innerHTML = t._wait ? `cannot start: ${esc(t._wait.id)} in the mold` : t.done ? `finished ${md(t._e)}${t.pu ? ', pulled' : ''}<span class="scr"> · ${t.n}d${t.pn != null && t.pn !== t.n ? ', planned ' + t.pn : ''}</span>` : `${esc(t.colour || (t.cover ? 'cover part' : 'colour not set'))}<span class="scr"> · ${t.n}d</span>`;
     el.children[2].textContent = t.crew;
     el.children[3].style.display = t._e > b ? 'none' : '';
-    el.title = `${t.id} ${bt.cust || ''} · ${t.part}${t.cover ? ' (cover part)' : ''}\n${dayName(t._s)} to ${dayName(t._e)} · ${t.n} shop day${t.n === 1 ? '' : 's'} · ${t.crew} ${t.crew === 1 ? 'person' : 'people'}\n${t.done ? 'FINISHED ' + dayName(t._e) + (t.pn != null ? ' (planned ' + t.pn + ' shop days, took ' + t.n + ')' : '') : t._late ? 'Should be finished by now' : 'Kits: glass ' + (t.kg ? 'ready' : 'not ready') + ', core ' + (t.kc ? 'ready' : 'not ready')}`;
+    el.title = `${t.id} ${bt.cust || ''} · ${t.part}${t.cover ? ' (cover part)' : ''}\n${dayName(t._s)} to ${dayName(t._e)} · ${t.n} shop day${t.n === 1 ? '' : 's'} · ${t.crew} ${t.crew === 1 ? 'person' : 'people'}\n${t.done ? 'FINISHED ' + dayName(t._e) + (t.pn != null ? ' (planned ' + t.pn + ' shop days, took ' + t.n + ')' : '') : t._wait ? 'CANNOT START: ' + t._wait.txt : t._soon ? 'Mold not clear: ' + t._soon.txt : t._late ? 'Should be finished by now' : 'Kits: glass ' + (t.kg ? 'ready' : 'not ready') + ', core ' + (t.kc ? 'ready' : 'not ready')}`;
   }
   for (const [k, el] of barEls) if (!seen.has(k)) { el.remove(); barEls.delete(k); }
   // rows: lanes, clashes, folding, what prints
@@ -514,7 +542,13 @@ function layout() {
     const r = rowEls[m], lanes = C.lanes[m] || 1;
     r.row.style.setProperty('--lanes', lanes); r.row.classList.toggle('bad', lanes > 1);
     r.row.classList.toggle('fold', !!view.fold[r.g]);
-    const prints = rowsWithBars.has(m) || (!/^2850 /.test(m) && !!D.onNow[m]);
+    const occ = seedOf(m).map((x) => `<span><b>${esc(x.id)}</b> ${esc(x.txt)}<button class="pull scr" data-seed="${esc(m + '|' + x.id)}" title="It is out and the mold is free">pulled</button></span>`);
+    // B.O.S.S had it in the mold already, and its own bar on the board has not reached its start day: still say so
+    for (const o of (D.onNow[m] || [])) { const own = S.tasks.find((t) => t.mold === m && t.id === o.id && !t.bank); if (own && !own.done && DAYS[own._s] > TODAY_ISO) occ.push('<span><b>' + esc(o.id) + '</b> ' + esc(o.txt) + '</span>'); }
+    for (const t of S.tasks) if (t.mold === m && !t.bank && !t.pu && (t.done || DAYS[t._s] <= TODAY_ISO))
+      occ.push(t.done ? `<span><b>${esc(t.id)}</b> finished ${md(t._e)}<button class="pull scr" data-k="${esc(t.k)}" title="It is out and the mold is free">pulled</button></span>` : `<span><b>${esc(t.id)}</b> ${t._wait ? 'waiting on the mold' : 'in progress'}</span>`);
+    const nh = occ.join('') || '<span class="empty">empty</span>'; if (r.nowH !== nh) { r.now.innerHTML = nh; r.nowH = nh; }
+    const prints = rowsWithBars.has(m) || (!/^2850 /.test(m) && occ.length > 0);
     r.row.classList.toggle('np', !prints); if (prints) { printRows++; grpHasPrint[r.g] = true; }
   }
   grpEls.forEach((el, gi) => { el.classList.toggle('np', !grpHasPrint[gi]); if (grpHasPrint[gi]) printRows++; el.firstChild.innerHTML = `<i class="scr" style="font-style:normal">${view.fold[gi] ? '▸' : '▾'} </i>${esc(D.groups[gi].title)}`; });
@@ -537,7 +571,7 @@ function layout() {
   $('prange').textContent = `${mon(a, true)} to ${mon(b, true)}, ${DAYS[b].slice(0, 4)}`;
   $('plegend').innerHTML = '<b>Boats, in build order:</b> ' + S.boats.filter((x) => inWin.has(x.id)).map((x) => `<span class="chipb" style="background:${colourOf(x.id)}"><b>${esc(x.id)}</b> ${esc(x.cust)}</span>`).join('') +
     '<span style="margin-left:auto">Thick dark outline = hull &nbsp; number in the circle = people on the part &nbsp; ‹ › = started before / runs past this board</span>';
-  $('pfoot2').textContent = `Mold status from B.O.S.S, ${D.pulledLabel}. Printed ${lt.getMonth() + 1}/${lt.getDate()}.`;
+  $('pfoot2').textContent = `In the mold: B.O.S.S ${D.pulledLabel} plus what has been ticked since. Printed ${lt.getMonth() + 1}/${lt.getDate()}.`;
   if (!(drag && drag.moved)) renderSide();
   if (!bdrag) renderBank();
 }
@@ -557,15 +591,17 @@ function renderSide() {
       (() => { const fr = []; for (let i = t._s; i <= Math.min(MAXI, t._e + 1); i++) if (isFri(i) && !S.closed[DAYS[i]]) fr.push(i);
         return fr.length ? `<div class="fld"><span>Work Friday</span><span>${fr.map((i) => `<span class="kit${works(t, i) ? ' ok' : ''}" data-fri="${DAYS[i]}" title="Overtime: this part is worked on this Friday">${works(t, i) ? '✓' : '○'} Fri ${md(i)}</span>`).join('')}</span></div>` : ''; })() +
       `<div class="fld"><span>${t.done ? (t.pn != null ? `Planned ${t.pn} days, took ${t.n}` : 'Finished') : t._late ? '<b style="color:#c62828">Should be finished</b>' : ''}</span><span><button data-act="fin">${t.done ? 'Not finished after all' : 'Mark finished'}</button></span></div>` +
+      (t.done ? `<div class="fld"><span>${t.pu ? 'Pulled' + (t.puOn ? ' ' + (+t.puOn.slice(5, 7)) + '/' + (+t.puOn.slice(8, 10)) : '') : '<b style="color:#b71c1c">Still in the mold</b>'}</span><span><button data-act="pull">${t.pu ? 'Not pulled after all' : 'Mark pulled'}</button></span></div>` : '') +
+      (t._wait || t._soon ? `<div class="fld"><span><b style="color:${t._wait ? '#c62828' : '#e65100'}">${t._wait ? 'Cannot start' : 'Mold not clear'}</b><br>${esc((t._wait || t._soon).txt)}</span><span><button data-act="clearmold">It is pulled</button></span></div>` : '') +
       `<div class="fld"><span>Kits ready</span><span><span class="kit${t.kg ? ' ok' : ''}" data-pk="kg">${t.kg ? '✓' : '○'} Glass</span><span class="kit${t.kc ? ' ok' : ''}" data-pk="kc">${t.kc ? '✓' : '○'} Core</span></span></div>` +
       `<div class="fld"><span>Whole boat</span><span><button data-act="kgall">Glass, all parts</button> <button data-act="kcall">Core, all parts</button></span></div>` +
       `<div class="fld"><span>Colour</span><input type="text" id="ecol" value="${esc(t.colour || '')}" placeholder="not set"></div>` +
       `<div class="fld"><label><input type="checkbox" id="ecov" ${t.cover ? 'checked' : ''}> Cover part (built early to protect the mold)</label></div>` +
       `<button data-act="bank">Send this part back to the bank</button> <button data-act="bankboat">Send the whole boat back</button><br><button class="danger" data-act="del">Take this part off the plan</button></div>`;
   } else {
-    h += `<div class="card hint"><b>How it works.</b> Drag a bar to move the part to other days. Drag its right edge to make it longer or shorter. Click a bar to change people, days or colour. People go in halves, for someone split between two parts. The two small boxes on a bar are its kits: G for glass, C for core (coosa included). Click a box when that kit is cut; Shift-click does every part of the boat. Once a part's start day has come, a third box with a check shows up: click it when the part is finished. If you are ticking it a day late, the card that opens has arrows to set the day it really finished. Click a day in the header to close the shop that day. Friday is overtime and stays off: to work one, drag the right edge of a part onto it, or click the part and tick that Friday. Only that part moves. Boats further out wait in the bank under the board: drag one up onto a day when you are ready to plan it. Everything saves by itself in this browser.</div>`;
+    h += `<div class="card hint"><b>How it works.</b> Drag a bar to move the part to other days. Drag its right edge to make it longer or shorter. Click a bar to change people, days or colour. People go in halves, for someone split between two parts. The two small boxes on a bar are its kits: G for glass, C for core (coosa included). Click a box when that kit is cut; Shift-click does every part of the boat. Once a part's start day has come, a third box with a check shows up: click it when the part is finished. If you are ticking it a day late, the card that opens has arrows to set the day it really finished. Click a day in the header to close the shop that day. Friday is overtime and stays off: to work one, drag the right edge of a part onto it, or click the part and tick that Friday. Only that part moves. A finished part is still in its mold until it is pulled: tick the P box on its bar, or 'pulled' in the mold column, once it is out. A part whose mold is not clear on its start day is marked in red. Boats further out wait in the bank under the board: drag one up onto a day when you are ready to plan it. Everything saves by itself in this browser.</div>`;
   }
-  h += `<div class="card" id="probs"><h3>Problems</h3>${C.probs.length ? C.probs.slice(0, 40).map((p) => `<div class="prob${p.kit ? ' kitp' : ''}" data-at="${p.at}">${p.text}</div>`).join('') + (C.probs.length > 40 ? `<div class="hint">and ${C.probs.length - 40} more</div>` : '') : '<div class="ok">None. No mold is double-booked, no day needs more than ' + S.crew + ' people, and nothing starting in the next two weeks is waiting on a kit.</div>'}</div>`;
+  h += `<div class="card" id="probs"><h3>Problems</h3>${C.probs.length ? C.probs.slice(0, 40).map((p) => `<div class="prob${p.kit || p.soft ? ' kitp' : ''}" data-at="${p.at}">${p.text}</div>`).join('') + (C.probs.length > 40 ? `<div class="hint">and ${C.probs.length - 40} more</div>` : '') : '<div class="ok">None. No mold is double-booked, no day needs more than ' + S.crew + ' people, and nothing starting in the next two weeks is waiting on a kit.</div>'}</div>`;
   h += `<div class="card"><h3>Boats</h3><table class="boats"><tr><th>Boat</th><th>Hull done</th><th>Full set</th><th>vs first pass</th></tr>`;
   for (const bt of S.boats) {
     const mine = S.tasks.filter((x) => x.id === bt.id); if (!mine.length) continue;
@@ -607,6 +643,8 @@ $('side').addEventListener('click', (e) => {
     if (act === 'f-') edit((t) => { if (t.done && t.n > 1) t.n -= 1; });
     if (act === 'f+') edit((t) => { if (t.done && endOf(t, t._s, t.n + 1) <= LAST_I) t.n += 1; });
     if (act === 'fin') { const me = taskBy(view.sel); if (!me) return; pushUndo(); setDone(me, !me.done); commit(); }
+    if (act === 'pull') edit((t) => { setPulled(t, !t.pu); });
+    if (act === 'clearmold') edit((t) => { const hd = t._wait || t._soon; if (!hd) return; if (hd.seed) clearSeed(hd.seed); else { const pt = taskBy(hd.k); if (pt) setPulled(pt, true); } });
     if (act === 'kgall' || act === 'kcall') { const me = taskBy(view.sel); if (!me) return; const key = act === 'kgall' ? 'kg' : 'kc', mine = S.tasks.filter((x) => x.id === me.id), v = !mine.every((x) => x[key]); pushUndo(); for (const x of mine) setKit(x, key, v); commit(); }
     if (act === 'mine' || act === 'notmine') {
       let j = null; try { j = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (err) {}
@@ -647,7 +685,7 @@ function setDone(t, on) {
     else t.s = t._s;                                                      // planned last day is today or already past: finished on plan until told otherwise
     t.done = true; t.da = TODAY_ISO; t.db = WHO();   // when it was ticked, and by whom
   } else {
-    t.done = false; delete t.da; delete t.db; if (t.pn != null) t.n = t.pn; if (t.ps != null) t.s = t.ps; delete t.pn; delete t.ps;
+    t.done = false; delete t.da; delete t.db; delete t.pu; delete t.puOn; delete t.puBy; if (t.pn != null) t.n = t.pn; if (t.ps != null) t.s = t.ps; delete t.pn; delete t.ps;
   }
 }
 
@@ -736,7 +774,8 @@ $('grid').addEventListener('pointerdown', (e) => {
   const kb = e.target.closest('.kb');
   if (kb) {   // a kit box: tick it, never start a drag
     const kt = taskBy(el.dataset.k);
-    if (kt && kb.dataset.done) { pushUndo(); setDone(kt, !kt.done); view.sel = kt.done ? kt.k : view.sel; commit(); }
+    if (kt && kb.dataset.pull) { pushUndo(); setPulled(kt, !kt.pu); commit(); }
+    else if (kt && kb.dataset.done) { pushUndo(); setDone(kt, !kt.done); view.sel = kt.done ? kt.k : view.sel; commit(); }
     else if (kt) { const key = kb.dataset.kit, v = !kt[key]; pushUndo(); for (const x of S.tasks) if (x === kt || (e.shiftKey && x.id === kt.id)) setKit(x, key, v); commit(); }
     e.preventDefault(); return;
   }
@@ -796,6 +835,8 @@ document.addEventListener('pointercancel', (e) => { if (!bankEnd(e, true)) endDr
 
 // ---- header, toolbar, keys --------------------------------------------------------
 $('grid').addEventListener('click', (e) => {
+  const pl = e.target.closest('.pull');
+  if (pl) { pushUndo(); if (pl.dataset.seed) clearSeed(pl.dataset.seed); else { const pt = taskBy(pl.dataset.k); if (pt) setPulled(pt, true); } commit(); return; }
   const dh = e.target.closest('#dh > div');
   if (dh && isFri(+dh.dataset.i)) return;   // Fridays are switched on per part, not for the whole shop
   if (dh) { const iso = DAYS[+dh.dataset.i]; pushUndo(); if (S.closed[iso]) delete S.closed[iso]; else S.closed[iso] = 'closed'; commit(); return; }
@@ -821,8 +862,8 @@ $('file').onchange = async (e) => {
 };
 $('csv').onclick = () => {
   closeMenu(); const q = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
-  const rows = [['Boat', 'Customer', 'Part', 'Mold', 'Start', 'Shop days', 'People', 'Done', 'Colour', 'Cover part', 'In the bank', 'Glass kit', 'Core kit', 'Finished', 'Planned days', 'Finish forecast at 9-12 wk', 'at 5-8 wk', 'at 4 wk or less', 'Ticked finished on', 'Ticked by', 'Glass kit ticked on', 'Core kit ticked on']];
-  for (const t of [...S.tasks].sort((x, y) => (x.bank ? 1e6 : x._s) - (y.bank ? 1e6 : y._s))) rows.push([t.id, (boatBy(t.id) || {}).cust || '', t.part, label(t.mold), t.bank ? '' : DAYS[t._s], t.n, t.crew, t.bank ? '' : DAYS[t._e], t.colour || '', t.cover ? 'yes' : '', t.bank ? 'yes' : '', t.kg ? 'ready' : '', t.kc ? 'ready' : '', t.done ? DAYS[t._e] : '', t.pn != null ? t.pn : '', ((t.fc || {})[12] || {}).e || '', ((t.fc || {})[8] || {}).e || '', ((t.fc || {})[4] || {}).e || '', t.da || '', t.db || '', t.kgOn || '', t.kcOn || '']);
+  const rows = [['Boat', 'Customer', 'Part', 'Mold', 'Start', 'Shop days', 'People', 'Done', 'Colour', 'Cover part', 'In the bank', 'Glass kit', 'Core kit', 'Finished', 'Planned days', 'Finish forecast at 9-12 wk', 'at 5-8 wk', 'at 4 wk or less', 'Ticked finished on', 'Ticked by', 'Glass kit ticked on', 'Core kit ticked on', 'Ticked pulled on']];
+  for (const t of [...S.tasks].sort((x, y) => (x.bank ? 1e6 : x._s) - (y.bank ? 1e6 : y._s))) rows.push([t.id, (boatBy(t.id) || {}).cust || '', t.part, label(t.mold), t.bank ? '' : DAYS[t._s], t.n, t.crew, t.bank ? '' : DAYS[t._e], t.colour || '', t.cover ? 'yes' : '', t.bank ? 'yes' : '', t.kg ? 'ready' : '', t.kc ? 'ready' : '', t.done ? DAYS[t._e] : '', t.pn != null ? t.pn : '', ((t.fc || {})[12] || {}).e || '', ((t.fc || {})[8] || {}).e || '', ((t.fc || {})[4] || {}).e || '', t.da || '', t.db || '', t.kgOn || '', t.kcOn || '', t.puOn || '']);
   download(`Project_27_Plan_${TODAY_ISO}.csv`, '﻿' + rows.map((r) => r.map(q).join(',')).join('\r\n'), 'text/csv');
 };
 $('reset').onclick = () => { closeMenu(); if (!confirm(shared.on ? 'Put every part back where the first-pass plan had it? This is the shared plan, so it resets for everyone. You can still Undo it.' : 'Put every part back where the first-pass plan had it? You can still Undo this.')) return; pushUndo(); S = fresh(); view.sel = null; commit(); };
@@ -971,6 +1012,45 @@ if (TEST && !SHARED_TEST) setTimeout(() => {
       while (undoStack.length) undo(); view.sel = null;
       out.finish = fin; out.finishOk = fin.done && fin.endsToday && fin.shorter && fin.plannedKept && fin.peopleFreed && fin.grey && fin.locked && fin.untickRestores && fin.lateFlag && fin.lateTickOk && snap() === JSON.stringify(fresh(), strip);
     } else { out.finish = 'no part is under way today to test with'; out.finishOk = true; }
+    // The mold has to be clear: a part is held until the one before it is pulled
+    {
+      const mc = {}; let cap = LAST_I; while (cap > 0 && !open(cap)) cap--;
+      view.start = 0; view.sel = null; render();
+      const p = cap > 0 && S.tasks.find((t) => barEls.has(t.k) && !t.bank && !t.done && t._s < cap && !seedOf(t.mold).length && !S.tasks.some((x) => x !== t && x.mold === t.mold && !x.bank && x._s <= cap));
+      const q = p && S.tasks.find((t) => t !== p && !t.bank && !t.done && t.mold !== p.mold && t._s > cap);
+      if (p && q) {
+        const pk = p.k, qk = q.k, pm = p.mold; mc.part = pk; mc.held = qk;
+        mc.cleanAtStart = !S.tasks.some((t) => t.pu) && !S.clear && !taskBy(qk)._wait;
+        pushUndo(); q.mold = pm; q.s = cap; setF(q, null); commit();
+        mc.blocked = !!taskBy(qk)._wait && taskBy(qk)._wait.k === pk && barEls.get(qk).classList.contains('wait') && C.probs.some((x) => /cannot start/.test(x.text)) && /waiting on the mold/.test(rowEls[pm].now.textContent);
+        pushUndo(); setDone(taskBy(pk), true); commit();
+        mc.finishedStillHolds = !!taskBy(qk)._wait && /not pulled/.test(taskBy(qk)._wait.txt) && !!rowEls[pm].now.querySelector('.pull[data-k]');
+        pe(barEls.get(pk).querySelector('.kb.pb'), 'pointerdown', 5, 5); pe(document, 'pointerup', 5, 5);
+        mc.pBoxFrees = taskBy(pk).pu === true && !taskBy(qk)._wait && !barEls.get(qk).classList.contains('wait') && taskBy(pk).puOn === TODAY_ISO;
+        pe(barEls.get(pk).querySelector('.kb.pb'), 'pointerdown', 5, 5); pe(document, 'pointerup', 5, 5);
+        mc.unpullHoldsAgain = !taskBy(pk).pu && !!taskBy(qk)._wait;
+        rowEls[pm].now.querySelector('.pull[data-k]').click();
+        mc.columnButtonFrees = taskBy(pk).pu === true && !taskBy(qk)._wait;
+        view.sel = pk; render(); document.querySelector('#edit [data-act="fin"]').click(); mc.unfinishDropsPulled = !taskBy(pk).done && !taskBy(pk).pu;
+        view.sel = qk; render(); const cb = document.querySelector('#edit [data-act="clearmold"]'); mc.cardOffersIt = !!cb; if (cb) cb.click();
+        mc.cardButtonFrees = taskBy(pk).pu === true && taskBy(pk).done === true && !taskBy(qk)._wait;
+        while (undoStack.length) undo(); view.sel = null; render();
+        mc.aOk = mc.cleanAtStart && mc.blocked && mc.finishedStillHolds && mc.pBoxFrees && mc.unpullHoldsAgain && mc.columnButtonFrees && mc.unfinishDropsPulled && mc.cardOffersIt && mc.cardButtonFrees;
+      } else mc.aOk = 'no part under way to test with';
+      const sm = cap > 0 && Object.keys(rowEls).find((m) => seedOf(m).length && !S.tasks.some((t) => t.mold === m && !t.bank && t._s <= cap));
+      const q2 = sm && S.tasks.find((t) => !t.bank && !t.done && t.mold !== sm && t._s > cap && !(D.onNow[sm] || []).some((o) => o.id === t.id));
+      if (sm && q2) {
+        const k2 = q2.k, n0 = seedOf(sm).length; mc.bossMold = sm;
+        pushUndo(); q2.mold = sm; q2.s = cap; setF(q2, null); commit();
+        mc.bossHolds = !!taskBy(k2)._wait && !!taskBy(k2)._wait.seed && barEls.get(k2).classList.contains('wait');
+        for (let i = 0; i < n0; i++) rowEls[sm].now.querySelector('.pull[data-seed]').click();
+        mc.bossPulled = seedOf(sm).length === 0 && !taskBy(k2)._wait && Object.keys(S.clear || {}).length === n0;
+        while (undoStack.length) undo(); view.sel = null; render();
+        mc.bOk = mc.bossHolds && mc.bossPulled;
+      } else mc.bOk = 'no mold that B.O.S.S shows occupied to test with';
+      mc.backToStart = snap() === JSON.stringify(fresh(), strip) && !S.clear;
+      out.moldClear = mc; out.moldOk = mc.aOk !== false && mc.bOk !== false && mc.backToStart;
+    }
     // Fridays: off for everyone until one part is put on one
     {
       const fr = {}, lastI = view.start * DPW + view.weeks * DPW - 1;
@@ -1014,7 +1094,7 @@ if (TEST && !SHARED_TEST) setTimeout(() => {
       out.forecast = { added, addedAgain: again, bands, bankedHaveNone: banked === 0, beyond12HasNone: !far || !far.fc, boatsTracked: Object.keys(S.fcb || {}).length, part: ft.k, forecastWas: f0, finished: DAYS[ft._e], scoredParts: a4.n, miss: a4.bias, expectMiss: wdn(ft._e) - wdn(e0), forecastUnchanged: ft.fc[4].e === f0, stamped: ft.da === TODAY_ISO, kitStamped: ft.kgOn === TODAY_ISO, card: /Forecast accuracy/.test($('side').textContent) && /early/.test($('side').textContent) };
       out.forecastOk = added > 0 && again === 0 && bands[4] > 0 && out.forecast.bankedHaveNone && out.forecast.beyond12HasNone && out.forecast.boatsTracked > 0 && a4.n === 1 && a4.bias === wdn(ft._e) - wdn(e0) && out.forecast.forecastUnchanged && out.forecast.stamped && out.forecast.kitStamped && out.forecast.card && shopIdx(DAYS[37]) === 37 && shopIdx(addDays(D.week0, -7)) === -DPW && shopIdx(addDays(D.week0, 4)) === 4 && wdn(4) === 3 && wdn(5) === 4;
     } else { out.forecast = { added, bands, note: 'no part under way today to finish' }; out.forecastOk = added > 0 && again === 0; }
-    out.ok = out.fridaysOk && out.forecastOk && out.finishOk && out.halvesOk && out.kitsOk && out.migrate.kitsGone && out.migrate.glassCarried && out.migrate.othersSeeded && out.backToStart3 && out.bankOk && out.move.to === out.move.expect && out.undoRestores && out.resize.to > n0 && out.closeDay.endAfter > e0 && out.clickSelects && out.wholeBoat.allMoved && out.backToStart;
+    out.ok = out.moldOk && out.fridaysOk && out.forecastOk && out.finishOk && out.halvesOk && out.kitsOk && out.migrate.kitsGone && out.migrate.glassCarried && out.migrate.othersSeeded && out.backToStart3 && out.bankOk && out.move.to === out.move.expect && out.undoRestores && out.resize.to > n0 && out.closeDay.endAfter > e0 && out.clickSelects && out.wholeBoat.allMoved && out.backToStart;
   } catch (err) { out.error = String(err && err.stack || err); }
   render(); $('selftest').hidden = false; $('selftest').textContent = 'SELFTEST ' + JSON.stringify(out, null, 1);
 }, 50);

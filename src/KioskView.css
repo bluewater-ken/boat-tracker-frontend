@@ -366,7 +366,8 @@
 .kio-thru-big .cc-quiet { color: #8FA6BC; }
 .kio-thru-big .cc-svg line { stroke: rgba(255,255,255,0.1) !important; }
 .kio-thru-big .cc-svg text { fill: #C7D6E4 !important; }
-.kio-thru-big .cc-svg polyline { stroke: #EAF2FA !important; }
+.kio-thru-big .cc-svg .cc-halo { stroke: #05070D; }
+.kio-thru-big .cc-svg .cc-trend { stroke-width: 2.6; }
 .kio-dot.thru.on { background: rgba(34,211,238,0.22); border-color: rgba(34,211,238,0.55); box-shadow: 0 0 10px rgba(34,211,238,0.45); }
 
 .kio-dot.glass { color: #A3E635; }

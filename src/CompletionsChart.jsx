@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from './api';
 import './CompletionsChart.css';
 
-// Daily jobs-completed, stacked by department. Prefers a proper backend metrics
+// Daily jobs-completed: one bar per department, side by side. Prefers a proper backend metrics
 // endpoint (deep history); falls back to classifying recent activity-feed events
 // so the chart shows something before that endpoint ships.
 
@@ -10,9 +10,9 @@ import './CompletionsChart.css';
 // same color everywhere in the app.
 // QC is split out from Assembly: QC items get checked off in bursts and badly
 // exaggerate how much assembly work actually happened.
+// Finishing is not charted (Ken, 2026-11-20): a handful of jobs a month, it only added noise.
 const ALL_DEPTS = [
   { key: 'glass', label: 'Glass Shop', color: '#2E7D8A' },
-  { key: 'finishing', label: 'Finishing', color: '#A32D2D' },
   { key: 'assembly', label: 'Assembly', color: '#5C9A2E' },
   { key: 'qc', label: 'QC', color: '#534AB7' },
 ];
@@ -22,11 +22,10 @@ const RANGES = [14, 30, 60, 90];
 // Whole weeks only: the shop works a 5-day week, so a window off a 7-day boundary makes
 // the line wobble with weekends instead of showing the trend.
 const avgWinFor = (days) => (days <= 30 ? 7 : days <= 60 ? 14 : 21);
-const ZERO = () => ({ glass: 0, finishing: 0, assembly: 0, qc: 0 });
+const ZERO = () => ({ glass: 0, assembly: 0, qc: 0 });
 
 // Feed-event → department (only shop-build completion events count; parts excluded).
 const doneLam = (t) => /→\s*(Complete\/On Mold|Pulled|Complete)\s*$/.test(t || '');
-const doneFin = (t) => /→\s*Complete\s*$/.test(t || '');
 const normName = (s) => String(s).replace(/\*\*|__/g, '').trim().toLowerCase();
 // Feed events don't carry a work center, so a QC checkoff is identified by matching
 // its title against that boat's quality-control checklist. Verified against live
@@ -39,7 +38,6 @@ function classify(ev, qcNames) {
   if (ev.type === 'APP_TASK_UPDATED') {
     const wc = (ev.work_center_name || '').toLowerCase();
     if (wc.includes('lamination') && doneLam(ev.title)) return 'glass';
-    if (wc.includes('finishing') && doneFin(ev.title)) return 'finishing';
   }
   return null;
 }
@@ -126,7 +124,7 @@ function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
       <div className="cc-head">
         <div>
           {!embedded && <div className="cc-title">Jobs completed per day</div>}
-          <div className="cc-sub">Each item checked off across the shop, stacked by department{source === 'feed' ? ' · recent activity (connect the metrics endpoint for full history)' : ''}.</div>
+          <div className="cc-sub">Each item checked off across the shop, by department{source === 'feed' ? ' · recent activity (connect the metrics endpoint for full history)' : ''}.</div>
         </div>
         {!embedded && (
           <div className="cc-ranges">
@@ -139,7 +137,7 @@ function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
         {DEPTS.map(d => (
           <span key={d.key} className="cc-legend-item"><i style={{ background: d.color }} />{d.label} <b>{totals[d.key]}</b></span>
         ))}
-        <span className="cc-legend-item"><span className="cc-legend-line" />{avgWinFor(days)}-day avg · excl. QC</span>
+        <span className="cc-legend-item"><span className="cc-legend-line" />lines = {avgWinFor(days)}-day avg per department</span>
         <span className="cc-legend-total">Total <b>{grand}</b></span>
       </div>
 
@@ -177,60 +175,60 @@ function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
 function Chart({ data, depts: DEPTS, win, pick, onPick }) {
   const W = 720, H = 280, L = 34, R = 8, T = 16, B = 30;
   const plotW = W - L - R, plotH = H - T - B;
-  const totalOf = (x) => DEPTS.reduce((s, d) => s + (x[d.key] || 0), 0);
-  const totals = data.map(totalOf);
-  // The trend line EXCLUDES QC — it tracks build/production throughput, not QC sign-offs.
-  const avgBase = data.map(x => DEPTS.reduce((s, d) => (d.key === 'qc' ? s : s + (x[d.key] || 0)), 0));
-  const max = Math.max(1, ...totals);
+  const n = DEPTS.length;
+  const max = Math.max(1, ...data.map(x => Math.max(...DEPTS.map(d => x[d.key] || 0))));
   const niceMax = Math.ceil(max / 5) * 5 || 5;
   const y = (v) => T + plotH - (plotH * v) / niceMax;
   const slot = plotW / data.length;
-  const bw = Math.max(2, Math.min(30, slot * 0.72));
+  // Each day is a group of bars, one per department, sharing ~84% of the day's slot.
+  const bw = Math.max(1.5, Math.min(16, (slot * 0.84) / n));
   const cxOf = (i) => L + slot * (i + 0.5);
+  const bxOf = (i, k) => cxOf(i) - (bw * n) / 2 + bw * k;
   const step = Math.ceil(data.length / 8);       // ~8 date labels
-  const showNums = bw >= 11;                       // per-bar totals only when there's room
+  const showNums = bw >= 6;                        // a count over each bar only when there's room
   const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(niceMax * f));
-  // Trailing average of the daily totals, EXCLUDING QC. The line starts at the first day
-  // the window is FULL: averaging a partial window made the left end ramp in from a
-  // near-raw daily value, so the two ends of the line were not measuring the same thing.
+  // One trailing average PER department, each in its department's colour. A line starts
+  // at the first day its window is FULL: averaging a partial window made the left end
+  // ramp in from a near-raw daily value, so the two ends were not measuring the same thing.
   const AVG_WIN = Math.max(1, win || 7);
-  const avg = avgBase.map((_, i) => (i < AVG_WIN - 1 ? null : avgBase.slice(i - (AVG_WIN - 1), i + 1).reduce((s, v) => s + v, 0) / AVG_WIN));
-  const linePts = avg.map((v, i) => (v === null ? null : `${cxOf(i)},${y(v)}`)).filter(Boolean).join(' ');
+  const trend = (key) => data.map((_, i) => (i < AVG_WIN - 1 ? null
+    : data.slice(i - (AVG_WIN - 1), i + 1).reduce((s, x) => s + (x[key] || 0), 0) / AVG_WIN))
+    .map((v, i) => (v === null ? null : `${cxOf(i)},${y(v)}`)).filter(Boolean).join(' ');
 
   return (
-    <svg className="cc-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Daily completions stacked by department with ${AVG_WIN}-day average excluding QC`}>
+    <svg className="cc-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Daily completions by department with a ${AVG_WIN}-day average for each`}>
       {ticks.map((t, i) => (
         <g key={i}>
           <line x1={L} y1={y(t)} x2={W - R} y2={y(t)} stroke="#EEF1F4" />
           <text x={L - 5} y={y(t) + 3} textAnchor="end" fontSize="9" fill="#8A969E">{t}</text>
         </g>
       ))}
-      {data.map((x, i) => {
-        const cx = cxOf(i);
-        let yTop = y(0);
-        return (
-          <g key={x.date}>
-            {DEPTS.map(d => {
-              const v = x[d.key] || 0; if (!v) return null;
-              const h = (plotH * v) / niceMax; yTop -= h;
-              const segY = yTop;
-              const on = pick && pick.date === x.date && pick.dept === d.key;
-              const fits = h >= 11 && bw >= 12; // room for the count inside the segment
-              return (
-                <g key={d.key}>
-                  <rect className="cc-bar" x={cx - bw / 2} y={segY} width={bw} height={h} fill={d.color}
-                    stroke={on ? '#173A5E' : 'none'} strokeWidth={on ? 1.5 : 0}
-                    onClick={() => onPick && onPick(x.date, d.key)}><title>{`${mmdd(x.date)} — ${d.label}: ${v} (click for jobs)`}</title></rect>
-                  {fits && <text x={cx} y={segY + h / 2 + 3} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#fff" pointerEvents="none">{v}</text>}
-                </g>
-              );
-            })}
-            {showNums && totals[i] > 0 && <text x={cx} y={yTop - 3} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#5F6B73">{totals[i]}</text>}
-            {i % step === 0 && <text x={cx} y={H - 10} textAnchor="middle" fontSize="8.5" fill="#8A969E">{mmdd(x.date)}</text>}
-          </g>
-        );
-      })}
-      {data.length > 1 && <polyline points={linePts} fill="none" stroke="#173A5E" strokeWidth="2" strokeLinejoin="round" />}
+      {data.map((x, i) => (
+        <g key={x.date}>
+          {DEPTS.map((d, k) => {
+            const v = x[d.key] || 0; if (!v) return null;
+            const h = (plotH * v) / niceMax;
+            const bx = bxOf(i, k);
+            const on = pick && pick.date === x.date && pick.dept === d.key;
+            return (
+              <g key={d.key}>
+                <rect className="cc-bar" x={bx + 0.4} y={y(v)} width={Math.max(1, bw - 0.8)} height={h} fill={d.color}
+                  stroke={on ? '#173A5E' : 'none'} strokeWidth={on ? 1.5 : 0}
+                  onClick={() => onPick && onPick(x.date, d.key)}><title>{`${mmdd(x.date)} — ${d.label}: ${v} (click for jobs)`}</title></rect>
+                {showNums && <text x={bx + bw / 2} y={y(v) - 2.5} textAnchor="middle" fontSize={bw >= 11 ? 8.5 : 7} fontWeight="700" fill={d.color} pointerEvents="none">{v}</text>}
+              </g>
+            );
+          })}
+          {i % step === 0 && <text x={cxOf(i)} y={H - 10} textAnchor="middle" fontSize="8.5" fill="#8A969E">{mmdd(x.date)}</text>}
+        </g>
+      ))}
+      {/* A pale halo under each line keeps it readable where it crosses bars of its own colour. */}
+      {data.length > 1 && DEPTS.map(d => (
+        <g key={d.key} pointerEvents="none">
+          <polyline className="cc-halo" points={trend(d.key)} fill="none" strokeWidth="4.5" strokeLinejoin="round" strokeLinecap="round" />
+          <polyline className="cc-trend" points={trend(d.key)} fill="none" stroke={d.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        </g>
+      ))}
       <line x1={L} y1={y(0)} x2={W - R} y2={y(0)} stroke="#D6DBE0" />
     </svg>
   );

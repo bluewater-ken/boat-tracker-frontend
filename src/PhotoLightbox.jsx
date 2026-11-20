@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import './PhotoLightbox.css';
 
 // Shared full-size CompanyCam photo viewer — prev/next, arrow keys, Esc to close.
@@ -17,11 +17,25 @@ function PhotoLightbox({ photos, index, onIndex, onClose, caption }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [index, photos.length, onIndex, onClose]);
 
+  // Swipe left/right to move between photos (pointer events cover touch and mouse). A swipe
+  // that ends on the backdrop must not also count as the "tap backdrop to close" click, so
+  // the click handler checks a flag the swipe sets.
+  const swipe = useRef({ x: 0, y: 0, swiped: false });
+  const onPointerDown = (e) => { swipe.current = { x: e.clientX, y: e.clientY, swiped: false }; };
+  const onPointerUp = (e) => {
+    const dx = e.clientX - swipe.current.x, dy = e.clientY - swipe.current.y;
+    if (photos.length > 1 && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      swipe.current.swiped = true;
+      onIndex(dx < 0 ? (index + 1) % photos.length : (index - 1 + photos.length) % photos.length);
+    }
+  };
+  const closeUnlessSwiped = () => { if (swipe.current.swiped) { swipe.current.swiped = false; return; } onClose(); };
+
   if (!p) return null;
   const when = (() => { try { return new Date(p.captured_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch { return ''; } })();
 
   return (
-    <div className="plb" onClick={onClose}>
+    <div className="plb" onClick={closeUnlessSwiped} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
       <button className="plb-x" onClick={onClose} aria-label="Close">✕</button>
       {photos.length > 1 && (
         <button className="plb-nav prev" onClick={e => { e.stopPropagation(); onIndex((index - 1 + photos.length) % photos.length); }} aria-label="Previous">‹</button>

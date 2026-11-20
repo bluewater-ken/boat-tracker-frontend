@@ -234,3 +234,16 @@
    italics so it never reads as a real bar. Still dashed, still a click-to-pin target. */
 .gantt-nodata.logged { font-style: italic; font-weight: 500; color: #8A969E; border-color: #C7D2DB; }
 .gantt-nodata.logged:hover { color: #2E92D6; border-color: #2E92D6; }
+
+/* ---------- Touch: pin / target / slot editor ----------
+   The modal already fits a phone (min(380px, 94vw)); its controls did not. 16px inputs also stop
+   iOS zooming the page on focus. */
+@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+  .gantt-editor { padding: 18px; }
+  .gantt-ed-title { font-size: 17px; }
+  .gantt-ed-note, .gantt-editor label { font-size: 13px; }
+  .gantt-editor input, .gantt-editor select { min-height: 44px; font-size: 16px; }
+  .gantt-ed-save, .gantt-ed-cancel, .gantt-ed-del { min-height: 44px; padding: 0 18px; font-size: 15px; }
+}
+/* HTML5 drag events never fire on touch, so the reorder grip is a dead control on an iPad. */
+@media (pointer: coarse) { .gantt-grip { display: none; } }

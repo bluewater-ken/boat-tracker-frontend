@@ -63,3 +63,9 @@
 @media (prefers-color-scheme: dark) {
   /* The app is light-themed; Docs inherits it. No dark overrides needed. */
 }
+
+/* ---------- Touch: viewer controls ---------- */
+@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+  .docs-viewer-x { min-width: 44px; min-height: 44px; font-size: 20px; }
+  .docs-viewer-dl { min-height: 44px; display: inline-flex; align-items: center; font-size: 14px; }
+}

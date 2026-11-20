@@ -82,8 +82,11 @@
 .am-spec-input:focus { border-color: #2E92D6; box-shadow: 0 0 0 3px rgba(46, 146, 214, 0.18); }
 .am-spec-hint { font-size: 10px; color: #A9B4BC; margin-top: 4px; line-height: 1.4; }
 
-/* ---------- Mobile: render as a bottom sheet (thumb reach + big targets) ---------- */
-@media (max-width: 640px) {
+/* ---------- Touch: render as a bottom sheet (thumb reach + big targets) ----------
+   Fires on phone widths AND on any touch device up to tablet width. A sheet is about
+   thumbs, not pixels: an iPad or a phone in landscape is wider than 640px but still needs
+   it, and that gap is where the popup used to land as a small card in the corner. */
+@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
   .am-overlay { background: rgba(15, 32, 51, 0.4); }
   .am-pop {
     left: 0 !important;
@@ -99,7 +102,10 @@
     visibility: visible !important;
     box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25);
     animation: am-sheet-up 0.2s ease-out;
+    overscroll-behavior: contain;
   }
+  /* grab handle — the visual cue that this dismisses downward / on the backdrop */
+  .am-pop::before { content: ''; display: block; width: 40px; height: 4px; border-radius: 2px; background: #D6DBE0; margin: -6px auto 12px; }
   @keyframes am-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
   .am-pop-title { font-size: 16px; }
   .am-pop-close { font-size: 26px; padding: 0 6px; }

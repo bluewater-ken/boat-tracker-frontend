@@ -268,3 +268,13 @@
   .kpt-part-spec { font-size: 13px; }
   .kpt-badge { font-size: 13px; padding: 6px 12px; }
 }
+
+/* ---------- Touch: custom-parts drill-down inside the ActionMenu sheet ----------
+   Same trigger as ActionMenu's sheet. These rows had desktop sizing (13px names, 11px badges,
+   8px ASAP tags) — fine under a mouse, not under a thumb. */
+@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+  .kpt-cprow { min-height: 48px; padding: 10px 12px; gap: 10px; }
+  .kpt-cpname { font-size: 15px; gap: 8px; }
+  .kpt-cpname .kpt-badge, .kpt-cprow .kpt-badge { font-size: 13px; padding: 6px 12px; }
+  .kpt-cprow .kpt-asap { font-size: 10px; padding: 1px 6px; }
+}

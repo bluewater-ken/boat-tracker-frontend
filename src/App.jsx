@@ -22,6 +22,7 @@ const ShopReport = lazy(() => import('./ShopReport'));
 const DocsLibrary = lazy(() => import('./DocsLibrary'));
 const KioskView = lazy(() => import('./KioskView'));
 const MoldPlanner = lazy(() => import('./MoldPlanner'));
+const OfficeCalendar = lazy(() => import('./OfficeCalendar'));
 
 // Shop-floor wall display: ?kiosk=1 renders a full-screen board (needs login,
 // real data), ?kiosk=demo renders the same board with sample data and no login
@@ -40,6 +41,7 @@ const BASE_TABS = [
   { key: 'gantt', label: 'Timeline' },
   // Project 27 glass shop planner: named accounts only (access.js), stand-alone (saves in the browser, writes nothing).
   { key: 'molds', label: 'Mold Planner', moldPlanner: true },
+  { key: 'calendar', label: 'Calendar' },
 ];
 
 function App() {
@@ -125,6 +127,7 @@ function App() {
             {shownTab === 'molds' && canSeeMoldPlanner(user) && <MoldPlanner />}
             {shownTab === 'feed' && <ShopFeed initialView="issues" initialPostingOpen={reportIssueOpen} />}
             {shownTab === 'docs' && <DocsLibrary />}
+            {shownTab === 'calendar' && <OfficeCalendar />}
             {shownTab === 'admin' && isOps && <AdminPanel />}
           </Suspense>
         </main>

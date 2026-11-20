@@ -1,0 +1,88 @@
+.cal {
+  display: flex; flex-direction: column; gap: 12px; padding: 4px 2px;
+  /* FullCalendar's classic theme, moved onto BOSS colours */
+  --fc-classic-button: #173A5E; --fc-classic-button-border: #173A5E;
+  --fc-classic-button-strong: #2E92D6; --fc-classic-button-strong-border: #2E92D6;
+  --fc-classic-primary: #2E92D6; --fc-classic-today: #FFF6D6; --fc-classic-highlight: rgba(46,146,214,0.18);
+  --fc-classic-border: #DDE3E9; --fc-classic-foreground: #1c2b3a;
+}
+.cal-preview { background: #FBF3D6; color: #7A6310; border: 1px solid #E8D48A; border-radius: 8px; padding: 9px 14px; font-size: 13px; font-weight: 700; }
+.cal-error { padding: 28px; text-align: center; color: #A32D2D; font-size: 14px; background: #FBEDED; border: 1px solid #E6C3BE; border-radius: 10px; }
+
+.cal-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.cal-today { flex: 1 1 260px; min-width: 0; padding: 8px 12px; border: 1px solid #E1E7ED; border-radius: 8px; background: #F4F7FA; font-size: 14px; color: #5A6B7A; }
+.cal-today.some { background: #FFF6D6; border-color: #E8D48A; color: #1c2b3a; }
+.cal-dept { padding: 8px 10px; border: 1px solid #CBD5E0; border-radius: 8px; font-size: 14px; background: #fff; }
+.cal-btn { padding: 9px 14px; border: 1px solid #CBD5E0; border-radius: 8px; background: #fff; font-size: 14px; font-weight: 700; color: #173A5E; cursor: pointer; }
+.cal-btn:hover { background: #EEF3F8; }
+.cal-btn.primary { background: #173A5E; border-color: #173A5E; color: #fff; }
+.cal-btn.primary:hover { background: #1E4E7E; }
+.cal-btn.danger { color: #C0392B; border-color: #E6C3BE; margin-right: auto; }
+.cal-btn:disabled { opacity: 0.6; cursor: default; }
+
+.cal-split { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 14px; align-items: start; }
+.cal-main { min-width: 0; }
+.cal-main .fc { font-size: 13px; }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 12px; color: #5A6B7A; }
+.cal-legend i, .cal-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.cal-legend i { margin-right: 5px; }
+
+.cal-side { display: flex; flex-direction: column; gap: 12px; }
+.cal-side-block { border: 1px solid #E1E7ED; border-radius: 10px; padding: 10px 12px; background: #fff; }
+.cal-side-block h4 { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #7E8CA0; }
+.cal-side-none { font-size: 13px; color: #9AA7B4; padding: 4px 0; }
+.cal-side-row { display: grid; grid-template-columns: 10px 1fr; column-gap: 8px; align-items: center; width: 100%; padding: 6px 0; border: none; border-top: 1px solid #EEF2F6; background: none; text-align: left; font: inherit; font-size: 13px; color: #1c2b3a; cursor: pointer; }
+.cal-side-row:disabled { cursor: default; color: #1c2b3a; }
+.cal-side-row span:last-child { grid-column: 2; font-size: 12px; color: #7E8CA0; }
+
+/* Add / edit absence, and the people list */
+.cal-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; background: rgba(15,25,40,0.6); }
+.cal-card { width: 380px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 18px; background: #fff; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.3); }
+.cal-card.wide { width: 520px; }
+.cal-card h3 { margin: 0; font-size: 18px; color: #173A5E; }
+.cal-fld { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cal-fld > span { font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #7E8CA0; }
+.cal-fld select, .cal-fld input, .cal-people-form input { padding: 8px 10px; border: 1px solid #CBD5E0; border-radius: 8px; font-size: 14px; background: #fff; min-width: 0; width: 100%; box-sizing: border-box; }
+.cal-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cal-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cal-chips button { padding: 6px 12px; border: 1px solid #CBD5E0; border-radius: 16px; background: #fff; font-size: 13px; font-weight: 700; color: #5A6B7A; cursor: pointer; }
+.cal-chips button.on { background: #173A5E; border-color: #173A5E; color: #fff; }
+.cal-hint { font-size: 12.5px; color: #97701a; }
+.cal-formerror { padding: 8px 10px; border-radius: 8px; background: #FBEDED; color: #A32D2D; font-size: 13px; font-weight: 700; }
+.cal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+.cal-people-form { display: flex; flex-wrap: wrap; gap: 8px; }
+.cal-people-form input { flex: 1 1 140px; width: auto; }
+.cal-people { display: flex; flex-direction: column; max-height: 46vh; overflow-y: auto; border-top: 1px solid #EEF2F6; }
+.cal-person { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 10px; align-items: center; padding: 8px 2px; border-bottom: 1px solid #EEF2F6; font-size: 14px; }
+.cal-person span { color: #7E8CA0; font-size: 13px; }
+.cal-person.off b, .cal-person.off span { color: #B4BEC8; text-decoration: line-through; }
+.cal-link { border: none; background: none; padding: 4px 2px; font-size: 13px; font-weight: 700; color: #2E92D6; cursor: pointer; }
+.cal-link:disabled { opacity: 0.5; cursor: default; }
+
+/* Tablet and narrower: the week lists move above the grid */
+@media (max-width: 900px) {
+  .cal-split { grid-template-columns: minmax(0, 1fr); }
+  .cal-side { order: -1; flex-direction: row; flex-wrap: wrap; }
+  .cal-side-block { flex: 1 1 220px; }
+}
+
+/* Touch: same trigger as ActionMenu's bottom sheet. Forms slide up from the bottom, with
+   finger-sized controls and 16px inputs (smaller makes iOS zoom the page on focus). */
+@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+  .cal-modal { align-items: flex-end; }
+  .cal-card, .cal-card.wide { width: 100%; max-width: 100%; max-height: 88vh; border-radius: 16px 16px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box; }
+  .cal-fld select, .cal-fld input, .cal-people-form input, .cal-dept { font-size: 16px; min-height: 44px; }
+  .cal-btn, .cal-chips button { min-height: 44px; }
+  .cal-chips button { padding: 6px 16px; font-size: 14px; }
+  .cal-actions .cal-btn { flex: 1; }
+  .cal-btn.danger { flex: 0 0 auto; }
+  .cal-side-row { padding: 11px 0; font-size: 15px; }
+  .cal-link { min-height: 44px; padding: 4px 8px; }
+  .cal-bar .cal-btn { flex: 1 1 auto; }
+}
+
+@media print {
+  .cal-bar, .cal-side, .cal-preview, .cal-modal { display: none !important; }
+  .cal-split { grid-template-columns: 1fr; }
+}

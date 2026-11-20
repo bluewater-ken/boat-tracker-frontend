@@ -46,3 +46,16 @@
 .tla-blk-add { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .tla-blk-add input { padding: 8px 10px; font-size: 13px; border: 1px solid #C7D2DB; border-radius: 7px; }
 .tla-blk-labelinput { flex: 1; min-width: 160px; }
+
+/* the boats behind a learned number — opened from the "N boats" count */
+.tla-samplesbtn { border: none; background: none; padding: 0; cursor: pointer; text-decoration: underline; text-decoration-style: dotted; }
+.tla-samplelist { margin-top: 4px; padding: 6px 6px 4px; border: 1px solid #E2E6EA; border-radius: 6px; background: #FAFBFC; min-width: 190px; }
+.tla-sample { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 3px 0; font-size: 11px; color: #8A969E; border-bottom: 1px solid #EEF1F4; }
+.tla-sample.used { color: #173A5E; font-weight: 700; }
+.tla-sample.excl .tla-sample-boat, .tla-sample.excl .tla-sample-days { text-decoration: line-through; }
+.tla-sample-days { white-space: nowrap; }
+.tla-sample-x { border: none; background: none; padding: 2px 0; font-size: 10px; font-weight: 700; color: #2E92D6; cursor: pointer; white-space: nowrap; }
+.tla-sample-note { margin-top: 4px; font-size: 10px; font-weight: 400; color: #9AA5AD; }
+@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+  .tla-samplesbtn, .tla-sample-x { min-height: 36px; font-size: 12px; }
+}

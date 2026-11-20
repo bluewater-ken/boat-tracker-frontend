@@ -35,7 +35,8 @@ const BASE_TABS = [
   { key: 'assembly', label: 'Assembly' },
   { key: 'parts', label: 'Parts' },
   { key: 'feed', label: 'Shop Feed' },
-  { key: 'docs', label: 'Docs' },
+  // Docs is parked (2026-10-06) to keep the tab bar short; the component and route still work.
+  // { key: 'docs', label: 'Docs' },
   { key: 'gantt', label: 'Timeline' },
   // Project 27 glass shop planner: named accounts only (access.js), stand-alone (saves in the browser, writes nothing).
   { key: 'molds', label: 'Mold Planner', moldPlanner: true },

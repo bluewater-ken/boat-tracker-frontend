@@ -175,25 +175,35 @@ function CompletionsChart({ embedded = false, days: fixedDays = 30 }) {
 function Chart({ data, depts: DEPTS, win, pick, onPick }) {
   const W = 720, H = 280, L = 34, R = 8, T = 16, B = 30;
   const plotW = W - L - R, plotH = H - T - B;
-  const n = DEPTS.length;
+  // Bars get as much width as the data allows: a department with nothing in the range
+  // takes no room (it stays in the legend at 0), and a Saturday or Sunday with no work
+  // at all is not drawn. A weekend day somebody did work on still shows.
+  const ACTIVE = DEPTS.filter(d => data.some(x => x[d.key] > 0));
+  const BARS = ACTIVE.length ? ACTIVE : DEPTS;
+  const n = BARS.length;
+  const isWeekend = (iso) => { const g = new Date(`${iso}T12:00:00`).getDay(); return g === 0 || g === 6; };
+  const shown = data.map((x, i) => ({ x, i })).filter(({ x }) => !isWeekend(x.date) || DEPTS.some(d => x[d.key] > 0));
+  const pos = new Map(shown.map(({ i }, p) => [i, p])); // data index -> drawn column
   const max = Math.max(1, ...data.map(x => Math.max(...DEPTS.map(d => x[d.key] || 0))));
   const niceMax = Math.ceil(max / 5) * 5 || 5;
   const y = (v) => T + plotH - (plotH * v) / niceMax;
-  const slot = plotW / data.length;
-  // Each day is a group of bars, one per department, sharing ~84% of the day's slot.
-  const bw = Math.max(1.5, Math.min(16, (slot * 0.84) / n));
-  const cxOf = (i) => L + slot * (i + 0.5);
-  const bxOf = (i, k) => cxOf(i) - (bw * n) / 2 + bw * k;
-  const step = Math.ceil(data.length / 8);       // ~8 date labels
+  const slot = plotW / shown.length;
+  // Each day is a group of bars, one per department, sharing ~90% of the day's slot.
+  const bw = Math.max(1.5, Math.min(26, (slot * 0.9) / n));
+  const cxOf = (p) => L + slot * (p + 0.5);
+  const bxOf = (p, k) => cxOf(p) - (bw * n) / 2 + bw * k;
+  const step = Math.ceil(shown.length / 8);      // ~8 date labels
   const showNums = bw >= 6;                        // a count over each bar only when there's room
   const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(niceMax * f));
   // One trailing average PER department, each in its department's colour. A line starts
   // at the first day its window is FULL: averaging a partial window made the left end
   // ramp in from a near-raw daily value, so the two ends were not measuring the same thing.
   const AVG_WIN = Math.max(1, win || 7);
+  // The average is still over calendar days (hidden weekends count as the zeros they are);
+  // it is only plotted at the days that are drawn.
   const trend = (key) => data.map((_, i) => (i < AVG_WIN - 1 ? null
     : data.slice(i - (AVG_WIN - 1), i + 1).reduce((s, x) => s + (x[key] || 0), 0) / AVG_WIN))
-    .map((v, i) => (v === null ? null : `${cxOf(i)},${y(v)}`)).filter(Boolean).join(' ');
+    .map((v, i) => (v === null || !pos.has(i) ? null : `${cxOf(pos.get(i))},${y(v)}`)).filter(Boolean).join(' ');
 
   return (
     <svg className="cc-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Daily completions by department with a ${AVG_WIN}-day average for each`}>
@@ -203,12 +213,12 @@ function Chart({ data, depts: DEPTS, win, pick, onPick }) {
           <text x={L - 5} y={y(t) + 3} textAnchor="end" fontSize="9" fill="#8A969E">{t}</text>
         </g>
       ))}
-      {data.map((x, i) => (
+      {shown.map(({ x }, p) => (
         <g key={x.date}>
-          {DEPTS.map((d, k) => {
+          {BARS.map((d, k) => {
             const v = x[d.key] || 0; if (!v) return null;
             const h = (plotH * v) / niceMax;
-            const bx = bxOf(i, k);
+            const bx = bxOf(p, k);
             const on = pick && pick.date === x.date && pick.dept === d.key;
             return (
               <g key={d.key}>
@@ -219,11 +229,11 @@ function Chart({ data, depts: DEPTS, win, pick, onPick }) {
               </g>
             );
           })}
-          {i % step === 0 && <text x={cxOf(i)} y={H - 10} textAnchor="middle" fontSize="8.5" fill="#8A969E">{mmdd(x.date)}</text>}
+          {p % step === 0 && <text x={cxOf(p)} y={H - 10} textAnchor="middle" fontSize="8.5" fill="#8A969E">{mmdd(x.date)}</text>}
         </g>
       ))}
       {/* A pale halo under each line keeps it readable where it crosses bars of its own colour. */}
-      {data.length > 1 && DEPTS.map(d => (
+      {shown.length > 1 && BARS.map(d => (
         <g key={d.key} pointerEvents="none">
           <polyline className="cc-halo" points={trend(d.key)} fill="none" strokeWidth="4.5" strokeLinejoin="round" strokeLinecap="round" />
           <polyline className="cc-trend" points={trend(d.key)} fill="none" stroke={d.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />

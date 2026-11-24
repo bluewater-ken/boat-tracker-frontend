@@ -125,7 +125,7 @@ function TimelineAdmin() {
       <div className="tla-section">
         <h3>Stage duration rules (calendar days)</h3>
         <p className="tla-hint">Set <b>your starting number</b> per stage (from your monday plan — editable, just type and click away).
-        As real boats finish a stage, the engine measures the <b>actual</b> median and, once 3+ have completed, switches to it on its own.
+        As real boats finish a stage, the engine measures the <b>actual</b> median from your pinned dates and, once 3+ have completed, switches to it on its own.
         Until then it uses your start. The highlighted number is what the engine is using now. (36 starts seeded at 21 days.)</p>
         <table className="tla-table tla-normtable">
           <thead><tr><th>Model</th>{STAGE_ORDER.map(s => <th key={s}>{s}</th>)}</tr></thead>
@@ -161,11 +161,11 @@ function TimelineAdmin() {
                           {n.sample_list.map(sm => (
                             <div key={sm.boat_id} className={`tla-sample ${sm.excluded ? 'excl' : sm.used ? 'used' : 'old'}`}>
                               <span className="tla-sample-boat">{sm.boat_id}{sm.label ? ` · ${sm.label}` : ''}</span>
-                              <span className="tla-sample-days">{sm.days}d{sm.pin_days != null ? ` · pins ${sm.pin_days}d` : ''}</span>
+                              <span className="tla-sample-days">{sm.days}d</span>
                               <button className="tla-sample-x" onClick={() => toggleSample(s, sm)}>{sm.excluded ? 'Count it' : 'Leave out'}</button>
                             </div>
                           ))}
-                          <div className="tla-sample-note">Bold boats are counted. Days run from the Advance click into this stage to the click out of it.</div>
+                          <div className="tla-sample-note">Bold boats are counted. Days are your pinned start to your pinned end for the stage.</div>
                         </div>
                       )}
                     </td>

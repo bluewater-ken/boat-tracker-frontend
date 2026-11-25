@@ -41,7 +41,7 @@ const BASE_TABS = [
   { key: 'gantt', label: 'Timeline' },
   // Project 27 glass shop planner: named accounts only (access.js), stand-alone (saves in the browser, writes nothing).
   { key: 'molds', label: 'Mold Planner', moldPlanner: true },
-  { key: 'calendar', label: 'Calendar' },
+  // { key: 'calendar', label: 'Calendar' },   // hidden 2026-11-25 at Ken's request; component and route left intact
 ];
 
 function App() {

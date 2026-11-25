@@ -524,7 +524,7 @@ function GanttChart({ onManageBoats }) {
     // (past) bars: end-edge drag only — the recorded start stays put.
     const canDrag = editable && s.kind !== 'hold' && s.kind !== 'actual';
     const endOnly = editable && s.kind === 'actual';
-    const title = `${s.name}: ${String(s.start).slice(0, 10)} → ${String(s.end).slice(0, 10)}${s.duration_note ? ` · ${s.duration_note}` : ''}${s.fill_note ? ` · ${s.fill_note}` : ''}${s.conflict ? ` · ⚠ ${s.conflict}` : ''}${canDrag ? ' · drag bar = shift both · drag either edge = change that date' : endOnly ? ' · drag either edge = adjust that date' : ''}`;
+    const title = `${s.name}: ${String(s.start).slice(0, 10)} → ${String(s.end).slice(0, 10)}${s.duration_note ? ` · ${s.duration_note}` : ''}${s.fill_note ? ` · ${s.fill_note}` : ''}${s.conflict ? ` · ⚠ ${s.conflict}` : ''}${canDrag ? ' · drag bar = shift both · drag either edge = change that date' : endOnly ? ' · click = set the dates · drag either edge = adjust that date' : ''}`;
     const bodyDown = canDrag ? (e) => beginSegDrag(e, g, s, 'move') : undefined;
     const holdClick = (e) => { e.stopPropagation(); if (!editable || guardDraft()) return; openPinEditor(g, s); };
     // Both edges are draggable whenever any editing is allowed — including completed
@@ -562,9 +562,16 @@ function GanttChart({ onManageBoats }) {
         </div>
       );
     }
-    // actual — real history (both edges draggable to correct a wrong stage date)
+    // actual — real history (both edges draggable to correct a wrong stage date). The body does
+    // not slide, so a plain click on it opens the date popup; without that the only way in was
+    // the 8px edge strips. A click that ends an edge drag or a pan is ignored.
+    const actualClick = endOnly ? (e) => {
+      e.stopPropagation();
+      if (e.target.closest('.gantt-rsz') || panRef.current.suppress || guardDraft()) return;
+      openPinEditor(g, s);
+    } : undefined;
     return (
-      <div key={s.name + s.start} className={`gantt-bar gantt-solid ${dragCls} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, background: color }} title={title} onPointerDown={bodyDown}>
+      <div key={s.name + s.start} className={`gantt-bar gantt-solid ${dragCls} ${endOnly ? 'clickable' : ''} ${dm ? 'dragging' : ''}`} style={{ left, width: wd, background: color }} title={title} onPointerDown={bodyDown} onClick={actualClick}>
         {rszL}{rsz}
       </div>
     );
